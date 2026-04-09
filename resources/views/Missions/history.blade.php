@@ -270,8 +270,8 @@
   font-size: 0.74rem;
 }
 .missions th {
-  background: #f8fafc;
-  color: #6b7280;
+  background:rgb(209, 209, 209);
+  color:rgb(13, 13, 14);
   font-weight: 700;
 }
 .missions tbody tr:hover { background: #f9fbfd; }
