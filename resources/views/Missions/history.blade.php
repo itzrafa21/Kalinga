@@ -158,118 +158,190 @@
       color: #fff;
     }
 
-    /* Main content */
-    .main-content {
-      margin-left: 260px;
-      padding: 1.5rem 2rem 2rem;
-      min-height: 100vh;
-    }
-    .page-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #1e3a2f;
-      margin: 0 0 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .page-title i { color: #28a745; }
+   /* Main content */
+.main-content {
+  margin-left: 260px;
+  padding: 1.25rem 1.25rem 1.5rem;
+  min-height: 100vh;
+}
 
-    /* Stats cards */
-    .stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-    .card {
-      flex: 1;
-      min-width: 200px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      padding: 1.25rem 1.5rem;
-      text-align: center;
-      font-weight: bold;
-      border: 1px solid #eee;
-    }
-    .card h2 {
-      font-size: 1.75rem;
-      margin: 0.25rem 0 0;
-      color: #28a745;
-    }
-    .card p {
-      margin: 0.35rem 0 0;
-      font-size: 0.85rem;
-      color: #666;
-      font-weight: 500;
-    }
+.page-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.page-title i { color: #22a447; font-size: 0.95rem; }
 
-    /* History section & table */
-    .history-section {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
-      padding: 1.5rem 1.75rem 1.75rem;
-    }
-    .history-section h3 {
-      margin: 0 0 1rem;
-      font-size: 1.2rem;
-      color: #1e3a2f;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .history-section h3 i { color: #28a745; }
+/* Stats cards */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e8edf2;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: left;
+}
+.card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+.card-icon.green { background: #eaf8ef; color: #22a447; }
+.card-icon.blue { background: #ebf3ff; color: #2f80ed; }
+.card-icon.purple { background: #f3edff; color: #8e61ff; }
 
-    .missions table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.5rem;
-    }
-    .missions th, .missions td {
-      padding: 12px 14px;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-      font-size: 0.9rem;
-    }
-    .missions th {
-      background: #f8f9fa;
-      font-weight: 600;
-      color: #495057;
-    }
-    .missions tbody tr:nth-child(even) { background: #fafafa; }
-    .missions tbody tr:hover { background: #f0f4f0; }
+.card h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #111827;
+}
+.card p {
+  margin: 0.22rem 0 0;
+  font-size: 0.74rem;
+  color: #6b7280;
+  font-weight: 600;
+}
 
-    .status-badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .status-completed {
-      background: #d4edda;
-      color: #155724;
-    }
+/* History container */
+.history-section {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e8edf2;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  padding: 0.9rem;
+}
+.history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+.history-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.history-head h3 i { color: #22a447; font-size: 0.85rem; }
 
-    .empty-state {
-      text-align: center;
-      padding: 2.5rem 2rem;
-      color: #666;
-    }
-    .empty-state h4 {
-      margin-bottom: 0.5rem;
-      color: #333;
-    }
-    .empty-state p {
-      margin: 0;
-      font-size: 0.95rem;
-    }
+.history-search {
+  width: 220px;
+  max-width: 100%;
+  height: 32px;
+  border: 1px solid #e5eaf0;
+  border-radius: 7px;
+  font-size: 0.75rem;
+  padding: 0 10px 0 30px;
+  outline: none;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' fill='%239aa4b2' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.398 1.398l3.85 3.85a1 1 0 1 0 1.414-1.414l-3.85-3.85zM12 6.5a5.5 5.5 0 1 1-11 0a5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 10px center;
+}
+
+/* Table */
+.missions table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.missions th, .missions td {
+  padding: 10px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eef2f6;
+  font-size: 0.74rem;
+}
+.missions th {
+  background: #f8fafc;
+  color: #6b7280;
+  font-weight: 700;
+}
+.missions tbody tr:hover { background: #f9fbfd; }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+}
+.status-completed {
+  background: #def7e8;
+  color: #1f9d55;
+}
+.status-completed::before {
+  content: "✓";
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+.empty-state h4 {
+  margin: 0.4rem 0 0.25rem;
+  color: #334155;
+  font-size: 0.95rem;
+}
+.empty-state p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+/* Footer row under table (for screenshot-like feel) */
+.history-footer {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #6b7280;
+  font-size: 0.73rem;
+}
+.pagination-mini {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.page-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid #e5eaf0;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.73rem;
+}
+.page-chip.active {
+  background: #22a447;
+  color: #fff;
+  border-color: #22a447;
+}
 
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); }
@@ -314,50 +386,69 @@
     </div>
   </header>
 
-  <!-- Main -->
   <main class="main-content">
-    <h1 class="page-title">
-      <i class="bi bi-journal-text"></i>
-      History of Missions
-    </h1>
+  <h1 class="page-title">
+    <i class="bi bi-list-check"></i>
+    History of Missions
+  </h1>
 
-    <!-- Stats cards (IDs kept for JS) -->
-    <div class="stats">
-      <div class="card">
+  <div class="stats">
+    <div class="card">
+      <div class="card-icon green"><i class="bi bi-check-circle-fill"></i></div>
+      <div>
         <h2 id="totalCompletedMissions">0</h2>
         <p>Total Completed</p>
       </div>
-      <div class="card">
+    </div>
+    <div class="card">
+      <div class="card-icon blue"><i class="bi bi-calendar-event"></i></div>
+      <div>
         <h2 id="thisMonthMissions">0</h2>
         <p>This Month</p>
       </div>
-      <div class="card">
+    </div>
+    <div class="card">
+      <div class="card-icon purple"><i class="bi bi-people"></i></div>
+      <div>
         <h2 id="totalVolunteersHelped">0</h2>
         <p>Volunteers Helped</p>
       </div>
     </div>
+  </div>
 
-    <!-- History table -->
-    <section class="history-section">
+  <section class="history-section">
+    <div class="history-head">
       <h3><i class="bi bi-clipboard-check"></i> Completed Missions</h3>
-      <div class="missions">
-        <table id="missionsTable">
-          <thead>
-            <tr>
-              <th>Mission Name</th>
-              <th>Date</th>
-              <th>Location</th>
-              <th>Volunteers</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="historyMissionsBody">
-            <!-- Populated by JavaScript -->
-          </tbody>
-        </table>
+      <input type="text" id="historySearch" class="history-search" placeholder="Search missions...">
+    </div>
+
+    <div class="missions">
+      <table id="missionsTable">
+        <thead>
+          <tr>
+            <th></i> Mission Name</th>
+            <th></i> Date</th>
+            <th></i> Location</th>
+            <th></i> Volunteers</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="historyMissionsBody">
+          <!-- Populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="history-footer">
+      <span id="historyCountText">Showing 0 missions</span>
+      <div class="pagination-mini">
+        <span class="page-chip"><i class="bi bi-chevron-left"></i></span>
+        <span class="page-chip active">1</span>
+        <span class="page-chip"><i class="bi bi-chevron-right"></i></span>
       </div>
-    </section>
-  </main>
+    </div>
+  </section>
+</main>
 
   <script>
     // If you later want a mobile hamburger, you can hook it up here to toggle sidebar.open
