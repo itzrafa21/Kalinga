@@ -217,18 +217,18 @@ async function loadMissionsData() {
             console.log(`Mission: ${mission.missionName || mission.name}, Status: ${mission.status}, Normalized: ${normalizedStatus}, ID: ${mission.id}`);
             
             return `
-                <tr class="${normalizedStatus === 'Pending' ? 'table-warning' : ''}">
+                <tr class="${normalizedStatus === 'pending' ? 'table-warning' : ''}">
                     <td>
                         <strong>${mission.missionName || mission.name}</strong>
-                        ${normalizedStatus === 'Pending' ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ''}
+                        ${normalizedStatus === 'pending' ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ''}
                     </td>
                     <td>${mission.orgName || 'Unknown'}</td>
                     <td><span class="badge bg-info">${mission.type || 'General'}</span></td>
                     <td>${mission.date || 'Not set'}</td>
                     <td>${mission.location || 'Not specified'}</td>
-                    <td><span class="badge ${statusBadge}">${mission.status || 'Pending'}</span></td>
+                    <td><span class="badge ${statusBadge}">${mission.status || 'pending'}</span></td>
                     <td>
-                        ${normalizedStatus === 'Pending' ? `
+                        ${normalizedStatus === 'pending' ? `
                             <button class="btn btn-sm btn-success me-1" onclick="console.log('Approve clicked:', '${mission.id}'); approveMission('${mission.id}')" title="Approve Mission">
                                 <i class="fas fa-check"></i> Approve
                             </button>
@@ -250,8 +250,7 @@ async function loadMissionsData() {
         
         console.log("[SUCCESS] Missions data loaded from Firebase");
         console.log("Total missions loaded:", missions.length);
-        console.log("Pending missions:", missions.filter(m => (m.status || '').toLowerCase() === 'Pending').length);
-        console.log("Generated HTML:", tbody.innerHTML.substring(0, 200) + "...");
+        console.log("Pending missions:", missions.filter(m => (m.status || '').toLowerCase() === 'pending').length);        console.log("Generated HTML:", tbody.innerHTML.substring(0, 200) + "...");
         
         // Test if buttons are clickable
         setTimeout(() => {

@@ -91,7 +91,7 @@ function initializeFormSubmission() {
             console.log("[INFO] Saving mission to mission_submissions...");
             const submissionData = {
                 ...missionData,
-                status: "pending",
+                status: "Pending",
                 workflowStatus: "submitted",
                 submittedAt: serverTimestamp()
             };
@@ -100,12 +100,12 @@ function initializeFormSubmission() {
             console.log("[SUCCESS] Mission submission saved with ID:", submissionRef.id);
 
             // Also save to organization's missions so it appears immediately in org dashboard
-const orgMissionRef = doc(db, "organizations", currentUser.uid, "missions", submissionRef.id);
-await setDoc(orgMissionRef, {
-    ...submissionData,
-    submissionId: submissionRef.id
-});
-console.log("[SUCCESS] Mission saved to organization dashboard as pending");  
+            const orgMissionRef = doc(db, "organizations", currentUser.uid, "missions", submissionRef.id);
+            await setDoc(orgMissionRef, {
+                ...submissionData,
+                submissionId: submissionRef.id
+            });
+            console.log("[SUCCESS] Mission saved to organization dashboard as Pending");  
 
             alert("[SUCCESS] Mission submitted successfully! It is now pending admin approval and will be visible to volunteers once approved.");
             window.location.href = "/organization/dashboard";
