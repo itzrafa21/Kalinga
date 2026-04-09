@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase";
-import { collection, addDoc, doc, setDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 let currentUser = null;
@@ -87,16 +87,25 @@ function initializeFormSubmission() {
 
             console.log("[INFO] Mission data prepared:", missionData);
 
-            // Save to main missions collection
-            console.log("[INFO] Saving mission to main missions collection...");
-            const missionRef = await addDoc(collection(db, "missions"), missionData);
-            console.log("[SUCCESS] Mission saved with ID:", missionRef.id);
+            // Save only to mission submissions (NOT to live missions yet)
+            console.log("[INFO] Saving mission to mission_submissions...");
+            const submissionData = {
+                ...missionData,
+                status: "pending",
+                workflowStatus: "submitted",
+                submittedAt: serverTimestamp()
+            };
 
-            // Also save to organization's missions subcollection
-            console.log("[INFO] Saving mission to organization's missions subcollection...");
-            const orgMissionRef = doc(db, "organizations", currentUser.uid, "missions", missionRef.id);
-            await setDoc(orgMissionRef, missionData);
-            console.log("[SUCCESS] Mission saved to organization subcollection");
+            const submissionRef = await addDoc(collection(db, "mission_submissions"), submissionData);
+            console.log("[SUCCESS] Mission submission saved with ID:", submissionRef.id);
+
+            // Also save to organization's missions so it appears immediately in org dashboard
+const orgMissionRef = doc(db, "organizations", currentUser.uid, "missions", submissionRef.id);
+await setDoc(orgMissionRef, {
+    ...submissionData,
+    submissionId: submissionRef.id
+});
+console.log("[SUCCESS] Mission saved to organization dashboard as pending");  
 
             alert("[SUCCESS] Mission submitted successfully! It is now pending admin approval and will be visible to volunteers once approved.");
             window.location.href = "/organization/dashboard";

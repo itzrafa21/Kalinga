@@ -146,7 +146,7 @@
         </div>
         <div class="col-md-6 text-end">
           <span id="adminEmail" class="badge bg-light text-dark fs-6"></span>
-          <button class="btn btn-outline-light ms-3" onclick="logout()">
+          <button id="adminLogoutBtn" type="button" class="btn btn-outline-light ms-3">
             <i class="fas fa-sign-out-alt"></i> Logout
           </button>
         </div>

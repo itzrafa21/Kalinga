@@ -3,26 +3,33 @@ import {
     signOut, 
     onAuthStateChanged 
 } from "firebase/auth";
-import { 
-    collection, 
-    query, 
-    orderBy, 
-    limit, 
-    getDocs, 
-    doc, 
-    updateDoc, 
+import {
+    collection,
+    query,
+    orderBy,
+    limit,
+    getDocs,
+    doc,
+    updateDoc,
     deleteDoc,
     where,
     getDoc,
     addDoc,
+    setDoc,
     serverTimestamp
 } from "firebase/firestore";
 
-console.log("[INFO] Admin Dashboard JavaScript loaded!");
 document.addEventListener("DOMContentLoaded", () => {
     console.log("[INFO] DOM Content Loaded - Initializing admin dashboard...");
-    // Check admin authentication with Firebase
     checkAdminAuth();
+
+    const logoutBtn = document.getElementById("adminLogoutBtn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            adminLogout();
+        });
+    }
 });
 
 // Check if user is authenticated as admin
@@ -172,7 +179,7 @@ async function loadMissionsData() {
         console.log("[INFO] Loading missions data from Firebase...");
         
         // Get missions from Firebase, prioritizing pending missions
-        const missionsQuery = query(collection(db, "missions"), orderBy("submittedAt", "desc"), limit(50));
+        const missionsQuery = query(collection(db, "mission_submissions"), orderBy("submittedAt", "desc"), limit(50));
         const missionsSnapshot = await getDocs(missionsQuery);
         
         const tbody = document.getElementById('missionsTableBody');
@@ -194,8 +201,8 @@ async function loadMissionsData() {
             const aStatus = (a.status || '').toLowerCase();
             const bStatus = (b.status || '').toLowerCase();
             
-            if (aStatus === 'pending' && bStatus !== 'pending') return -1;
-            if (aStatus !== 'pending' && bStatus === 'pending') return 1;
+            if (aStatus === 'Pending' && bStatus !== 'Pending') return -1;
+            if (aStatus !== 'Pending' && bStatus === 'Pending') return 1;
             return 0;
         });
         
@@ -210,10 +217,10 @@ async function loadMissionsData() {
             console.log(`Mission: ${mission.missionName || mission.name}, Status: ${mission.status}, Normalized: ${normalizedStatus}, ID: ${mission.id}`);
             
             return `
-                <tr class="${normalizedStatus === 'pending' ? 'table-warning' : ''}">
+                <tr class="${normalizedStatus === 'Pending' ? 'table-warning' : ''}">
                     <td>
                         <strong>${mission.missionName || mission.name}</strong>
-                        ${normalizedStatus === 'pending' ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ''}
+                        ${normalizedStatus === 'Pending' ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ''}
                     </td>
                     <td>${mission.orgName || 'Unknown'}</td>
                     <td><span class="badge bg-info">${mission.type || 'General'}</span></td>
@@ -221,7 +228,7 @@ async function loadMissionsData() {
                     <td>${mission.location || 'Not specified'}</td>
                     <td><span class="badge ${statusBadge}">${mission.status || 'Pending'}</span></td>
                     <td>
-                        ${normalizedStatus === 'pending' ? `
+                        ${normalizedStatus === 'Pending' ? `
                             <button class="btn btn-sm btn-success me-1" onclick="console.log('Approve clicked:', '${mission.id}'); approveMission('${mission.id}')" title="Approve Mission">
                                 <i class="fas fa-check"></i> Approve
                             </button>
@@ -243,7 +250,7 @@ async function loadMissionsData() {
         
         console.log("[SUCCESS] Missions data loaded from Firebase");
         console.log("Total missions loaded:", missions.length);
-        console.log("Pending missions:", missions.filter(m => (m.status || '').toLowerCase() === 'pending').length);
+        console.log("Pending missions:", missions.filter(m => (m.status || '').toLowerCase() === 'Pending').length);
         console.log("Generated HTML:", tbody.innerHTML.substring(0, 200) + "...");
         
         // Test if buttons are clickable
@@ -489,62 +496,78 @@ window.deleteUser = async function(userId) {
 
 window.approveMission = async function(missionId) {
     try {
-        const missionRef = doc(db, "missions", missionId);
-        await updateDoc(missionRef, {
-            status: "Open",  // ← Changed from "approved"
+        const submissionRef = doc(db, "mission_submissions", missionId);
+        const submissionDoc = await getDoc(submissionRef);
+
+        if (!submissionDoc.exists()) {
+            alert("Mission submission not found.");
+            return;
+        }
+
+        const submissionData = submissionDoc.data();
+        const approvedMissionData = {
+            ...submissionData,
+            status: "Open",
+            workflowStatus: "approved",
             approvedAt: serverTimestamp(),
             approvedBy: auth.currentUser.email
+        };
+
+        // Publish to live collections
+        await setDoc(doc(db, "missions", missionId), approvedMissionData);
+        await setDoc(
+            doc(db, "organizations", submissionData.orgId, "missions", missionId),
+            approvedMissionData
+        );
+
+        // Mark submission as approved
+        await updateDoc(submissionRef, {
+            workflowStatus: "approved",
+            status: "Open",
+            approvedAt: serverTimestamp(),
+            approvedBy: auth.currentUser.email
+            
         });
-        
-        // Also update in organization's subcollection
-        const missionDoc = await getDoc(missionRef);
-        if (missionDoc.exists()) {
-            const missionData = missionDoc.data();
-            const orgMissionRef = doc(db, "organizations", missionData.orgId, "missions", missionId);
-            await updateDoc(orgMissionRef, {
-                status: "Open",  // ← Changed from "approved"
-                approvedAt: serverTimestamp(),
-                approvedBy: auth.currentUser.email
-            });
-        }
-        
-        alert("[SUCCESS] Mission approved successfully!...");
-        loadMissionsData(); // Refresh data
+
+        alert("[SUCCESS] Mission approved and published.");
+        loadMissionsData();
     } catch (error) {
         console.error("Error approving mission:", error);
         alert("Error approving mission. Please try again.");
     }
 };
 
-window.rejectMission = async function(missionId) {
-    const reason = prompt("Please provide a reason for rejecting this mission:");
-    if (reason === null) return; // User cancelled
-    
-    if (confirm("Are you sure you want to reject this mission?")) {
-        try {
-            const missionRef = doc(db, "missions", missionId);
-            await updateDoc(missionRef, {
+        // Also update organization's dashboard copy
+        const submissionDoc = await getDoc(submissionRef);
+        if (submissionDoc.exists()) {
+            const submissionData = submissionDoc.data();
+            await updateDoc(doc(db, "organizations", submissionData.orgId, "missions", missionId), {
                 status: "rejected",
+                workflowStatus: "rejected",
                 rejectedAt: serverTimestamp(),
                 rejectedBy: auth.currentUser.email,
                 rejectionReason: reason
             });
-            
-            // Also update in organization's subcollection
-            const missionDoc = await getDoc(missionRef);
-            if (missionDoc.exists()) {
-                const missionData = missionDoc.data();
-                const orgMissionRef = doc(db, "organizations", missionData.orgId, "missions", missionId);
-                await updateDoc(orgMissionRef, {
-                    status: "rejected",
-                    rejectedAt: serverTimestamp(),
-                    rejectedBy: auth.currentUser.email,
-                    rejectionReason: reason
-                });
-            }
-            
-            alert("[INFO] Mission rejected. The organization has been notified.");
-            loadMissionsData(); // Refresh data
+        }
+
+
+window.rejectMission = async function(missionId) {
+    const reason = prompt("Please provide a reason for rejecting this mission:");
+    if (reason === null) return;
+
+    if (confirm("Are you sure you want to reject this mission?")) {
+        try {
+            const submissionRef = doc(db, "mission_submissions", missionId);
+            await updateDoc(submissionRef, {
+                status: "rejected",
+                workflowStatus: "rejected",
+                rejectedAt: serverTimestamp(),
+                rejectedBy: auth.currentUser.email,
+                rejectionReason: reason
+            });
+
+            alert("[INFO] Mission rejected.");
+            loadMissionsData();
         } catch (error) {
             console.error("Error rejecting mission:", error);
             alert("Error rejecting mission. Please try again.");
@@ -663,7 +686,7 @@ function getStatusBadgeClass(status) {
 
 
 // Logout function
-window.logout = async function() {
+async function adminLogout() {
     if (confirm('Are you sure you want to logout?')) {
         try {
             await signOut(auth);
