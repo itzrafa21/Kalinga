@@ -24,93 +24,169 @@
     /* Sidebar */
     .sidebar {
       width: 260px;
-      background: #1e3a2f;
+      background: #0f2419;
       height: 100vh;
       position: fixed;
       left: 0;
       top: 0;
-      padding: 1.5rem 0;
+      padding: 1.25rem 0 1rem;
       z-index: 200;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
     }
     .sidebar-logo {
-      padding: 0 1.25rem 1.25rem;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 0 1rem 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       margin-bottom: 1rem;
     }
     .sidebar-logo span {
       font-weight: 700;
-      font-size: 1.25rem;
+      font-size: 1.05rem;
+      letter-spacing: 0.12em;
       color: #fff;
+    }
+    .sidebar-user-card {
+      margin: 0 0.85rem 1.25rem;
+      padding: 1rem;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .sidebar-user-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .sidebar-user-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #2d6a4f;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.15rem;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .sidebar-user-avatar .sidebar-user-avatar-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: none;
+    }
+    .sidebar-user-status-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 10px;
+      height: 10px;
+      background: #2ee59d;
+      border-radius: 50%;
+      border: 2px solid #0f2419;
+    }
+    .sidebar-user-info {
+      min-width: 0;
+      flex: 1;
+    }
+    .sidebar-user-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-user-role {
+      font-size: 0.78rem;
+      color: #8fb3a0;
+      margin-top: 2px;
+    }
+    .sidebar-user-active-label {
+      font-size: 0.72rem;
+      color: #2ee59d;
+      margin-top: 4px;
+      font-weight: 600;
     }
     .sidebar-nav {
       padding: 0 0.75rem;
       display: flex;
       flex-direction: column;
       flex: 1;
+      gap: 2px;
     }
     .sidebar-section {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: rgba(255,255,255,0.5);
-      padding: 1rem 0.75rem 0.5rem;
+      letter-spacing: 0.55px;
+      color: rgba(255, 255, 255, 0.38);
+      padding: 1rem 0.75rem 0.45rem;
     }
     .sidebar a {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      color: rgba(255,255,255,0.85);
+      gap: 0.65rem;
+      color: #a8c5b0;
       text-decoration: none;
       padding: 10px 14px;
-      margin-bottom: 2px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-weight: 500;
-      transition: all 0.2s;
+      font-size: 0.92rem;
+      transition: background 0.2s, color 0.2s;
     }
     .sidebar a:hover {
-      background: rgba(255,255,255,0.1);
-      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+      color: #e8f5e9;
     }
     .sidebar a.active {
       background: #28a745;
       color: #fff;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.35);
     }
-    .sidebar a i { font-size: 1.1rem; width: 24px; text-align: center; }
-    .sidebar-bottom {
-      margin-top: auto;
-      padding: 0 0.75rem 1rem;
-    }
-
-    .sidebar-logout-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: transparent;
-      color: rgba(255,255,255,0.85);
-      border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-weight: 500;
-      cursor: pointer;
-      text-align: left;
-      font-size: 0.95rem;
-      transition: all 0.2s;
-    }
-
-    .sidebar-logout-btn i {
-      font-size: 1.1rem;
-      width: 24px;
+    .sidebar a i {
+      font-size: 1.05rem;
+      width: 22px;
       text-align: center;
     }
-
-    .sidebar-logout-btn:hover {
-      background: rgba(255,255,255,0.1);
+    .sidebar a.active i {
       color: #fff;
+    }
+    #logoutBtn.sidebar-logout-link {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-top: 2px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: #a8c5b0;
+      font-weight: 500;
+      font-size: 0.92rem;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s, color 0.2s;
+    }
+    #logoutBtn.sidebar-logout-link:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e8f5e9;
+    }
+    #logoutBtn.sidebar-logout-link i {
+      font-size: 1.05rem;
+      width: 22px;
+      text-align: center;
     }
 
     /* Topbar */
@@ -356,6 +432,22 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo"><span>KALINGA</span></div>
+
+    <div class="sidebar-user-card">
+      <div class="sidebar-user-avatar-wrap">
+        <div class="sidebar-user-avatar">
+          <img id="sidebarUserAvatarImg" alt="" class="sidebar-user-avatar-img" width="48" height="48">
+          <span id="sidebarUserInitial">?</span>
+        </div>
+        <span class="sidebar-user-status-dot" aria-hidden="true"></span>
+      </div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebarUserName">Organization</div>
+        <div class="sidebar-user-role">Coordinator</div>
+        <div class="sidebar-user-active-label">● Active</div>
+      </div>
+    </div>
+
     <nav class="sidebar-nav">
       <div class="sidebar-section">Main</div>
       <a href="/organization/dashboard"><i class="bi bi-grid-1x2"></i> Dashboard</a>
@@ -368,14 +460,10 @@
 
       <div class="sidebar-section">Account</div>
       <a href="/organization/profile"><i class="bi bi-person"></i> Profile</a>
-    </nav>
-
-    <div class="sidebar-bottom">
-      <button type="button" id="logoutBtn" class="sidebar-logout-btn">
-        <i class="bi bi-box-arrow-right"></i>
-        Logout
+      <button type="button" id="logoutBtn" class="sidebar-logout-link">
+        <i class="bi bi-box-arrow-right"></i> Logout
       </button>
-    </div>
+    </nav>
   </aside>
 
   <!-- Header -->
