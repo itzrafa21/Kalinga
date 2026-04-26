@@ -9,144 +9,170 @@
   'resources/css/app.css',
   'resources/js/organization-login.js'
 ])
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f8f9fa;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+<style>
+  :root {
+    --bg: #b78374;
+    --panel: #f3f4f7;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --input: #eceef2;
+    --btn: #9b6a7b;
+    --btn-hover: #87596a;
+    --white: #fff;
+    --shadow: 0 22px 40px rgba(20, 18, 28, 0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Poppins", "Segoe UI", Tahoma, sans-serif;
+    background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .auth-shell {
+    width: min(1100px, 100%);
+    background: var(--panel);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 620px;
+  }
+
+  .auth-form-side {
+    padding: 56px 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auth-box {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .auth-box h2 {
+    margin: 0 0 10px;
+    font-size: 44px;
+    line-height: 1.05;
+    color: var(--text);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .auth-sub {
+    margin: 0 0 26px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .form-control {
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    background: var(--input);
+    padding: 0 14px;
+    font-size: 14px;
+    margin-bottom: 12px;
+    box-shadow: none;
+  }
+
+  .form-control:focus {
+    background: #e6e9ef;
+    box-shadow: 0 0 0 2px rgba(155, 106, 123, 0.16);
+  }
+
+  .btn-auth {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    background: var(--btn);
+    color: var(--white);
+    font-weight: 600;
+    margin-top: 6px;
+    transition: background 0.2s ease;
+  }
+
+  .btn-auth:hover { background: var(--btn-hover); color: var(--white); }
+
+  .auth-links {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .auth-links a {
+    color: var(--btn);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .auth-links a:hover { text-decoration: underline; }
+
+  .auth-art-side {
+    position: relative;
+    background: #d7d6df;
+    padding: 12px;
+  }
+
+  .auth-art-side img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+  }
+
+  @media (max-width: 900px) {
+    .auth-shell {
+      grid-template-columns: 1fr;
+      min-height: auto;
     }
-    .container-fluid {
-      height: 100vh;
+    .auth-art-side {
+      min-height: 280px;
+      order: -1;
     }
-    .left-side {
-      background: #eef6ff;
-      height: 100%;
-      padding: 0;
-      position: relative;
+    .auth-form-side {
+      padding: 32px 24px;
     }
-    .carousel-item img {
-      object-fit: cover;
-      height: 100vh;
-      width: 100%;
-      filter: brightness(0.7); /* fade look */
+    .auth-box h2 {
+      font-size: 34px;
     }
-    .right-side {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 50px;
-      background: #fff;
-      height: 100%;
-    }
-    .login-box {
-      max-width: 400px;
-      margin: auto;
-      text-align: center;
-    }
-    .login-box img.logo {
-      width: 250px;
-      height: auto;
-      margin-bottom: 5px;
-      margin-top: -200px;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .login-box h2 {
-      font-weight: bold;
-      margin-bottom: 15px;
-    }
-    .form-control {
-      margin-bottom: 15px;
-      padding: 12px;
-      border-radius: 6px;
-    }
-    .btn-login {
-      background: #007bff;
-      color: white;
-      padding: 12px;
-      border-radius: 6px;
-      font-weight: bold;
-      width: 100%;
-      margin-top: 10px;
-    }
-    .extra-links {
-      margin-top: 15px;
-      font-size: 14px;
-    }
-    .extra-links a {
-      color: #007bff;
-      text-decoration: none;
-    }
-    .register-text {
-      margin-top: 10px;
-      font-size: 14px;
-    }
-    .register-text a {
-      color: #28a745;
-      font-weight: bold;
-      text-decoration: none;
-    }
-    .register-text a:hover {
-      text-decoration: underline;
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
-  <div class="container-fluid">
-    <div class="row h-100">
-      
-      <!-- Left side (slideshow) -->
-      <div class="col-md-6 left-side">
-        <div id="welcomeCarousel" class="carousel slide h-100" data-bs-ride="carousel">
-          <div class="carousel-inner h-100">
-            <div class="carousel-item active" data-bs-interval="3000">
-              <img src="{{ asset('images/welcome1.png') }}" class="d-block w-100" alt="Slide 1">
-            </div>
-            <div class="carousel-item" data-bs-interval="3000">
-              <img src="{{ asset('images/welcome2.png') }}" class="d-block w-100" alt="Slide 2">
-            </div>
-            <div class="carousel-item" data-bs-interval="3000">
-              <img src="{{ asset('images/welcome3.png') }}" class="d-block w-100" alt="Slide 3">
-            </div>
-          </div>
+<div class="auth-shell">
+  <div class="auth-form-side">
+    <div class="auth-box">
+      <h2>Welcome back</h2>
+      <p class="auth-sub">Please enter your credentials</p>
+
+      <form id="orgLoginForm">
+        <input type="email" id="email" class="form-control" placeholder="Email" required>
+        <input type="password" id="password" class="form-control" placeholder="Password" required>
+
+        <button type="submit" class="btn-auth">Login</button>
+
+        <div class="auth-links">
+          Don’t have an account? <a href="/organization/register">Register</a>
         </div>
-      </div>
-
-      <!-- Right side (login) -->
-      <div class="col-md-6 right-side">
-        <div class="login-box">
-          <!-- Logo -->
-          <img src="{{ asset('images/logo.png') }}" alt="Kalinga Logo" class="logo">
-
-          <h2>Welcome To Kalinga!</h2>
-          <p class="text-muted">Please Enter Your Credentials</p>
-
-          <!-- Login form -->
-          <form id="orgLoginForm">
-            <input type="email" id="email" class="form-control" placeholder="Enter Email" required>
-            <input type="password" id="password" class="form-control" placeholder="Enter Password" required>
-
-            <button type="submit" class="btn btn-login">Login</button>
-
-            <div class="extra-links">
-        
-            </div>
-
-            <div class="register-text">
-              Don’t have an account? <a href="/organization/register">Click here to register</a>
-            </div>
-          </form>
-        </div>
-      </div>
+      </form>
     </div>
   </div>
 
-  <!-- Bootstrap JS -->
+  <div class="auth-art-side">
+    <img src="{{ asset('images/welcome2.png') }}" alt="Scenic artwork">
+  </div>
+</div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="{{ asset('js/organization-login.js') }}"></script>
 </body>
-</html>
