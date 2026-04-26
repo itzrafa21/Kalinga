@@ -248,8 +248,7 @@
 
                             <div class="form-group">
                                 <label for="locationInput">Location</label>
-                                <input type="text" id="locationInput" class="form-control" placeholder="Search for a location..." value="University of San Jose - Recoletos">
-                                <ul id="suggestions" class="list-group mt-1"></ul>
+                                <input type="text" id="locationInput" class="form-control" placeholder="Search for a location..." value="">                                <ul id="suggestions" class="list-group mt-1"></ul>
 
                                 <input type="hidden" id="location" name="location">
                                 <input type="hidden" id="latitude" name="latitude">
