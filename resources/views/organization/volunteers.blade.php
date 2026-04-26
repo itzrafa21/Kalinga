@@ -22,97 +22,172 @@
       color: #333;
     }
 
-    /* Sidebar (same as dashboard/history) */
+    /* Sidebar (dashboard style) */
     .sidebar {
       width: 260px;
-      background: #1e3a2f;
+      background: #0f2419;
       height: 100vh;
       position: fixed;
       left: 0;
       top: 0;
-      padding: 1.5rem 0;
+      padding: 1.25rem 0 1rem;
       z-index: 200;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
     }
     .sidebar-logo {
-      padding: 0 1.25rem 1.25rem;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 0 1rem 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       margin-bottom: 1rem;
     }
     .sidebar-logo span {
       font-weight: 700;
-      font-size: 1.25rem;
+      font-size: 1.05rem;
+      letter-spacing: 0.12em;
       color: #fff;
+    }
+    .sidebar-user-card {
+      margin: 0 0.85rem 1.25rem;
+      padding: 1rem;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .sidebar-user-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .sidebar-user-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #2d6a4f;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.15rem;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .sidebar-user-avatar .sidebar-user-avatar-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: none;
+    }
+    .sidebar-user-status-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 10px;
+      height: 10px;
+      background: #2ee59d;
+      border-radius: 50%;
+      border: 2px solid #0f2419;
+    }
+    .sidebar-user-info {
+      min-width: 0;
+      flex: 1;
+    }
+    .sidebar-user-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-user-role {
+      font-size: 0.78rem;
+      color: #8fb3a0;
+      margin-top: 2px;
+    }
+    .sidebar-user-active-label {
+      font-size: 0.72rem;
+      color: #2ee59d;
+      margin-top: 4px;
+      font-weight: 600;
     }
     .sidebar-nav {
       padding: 0 0.75rem;
       display: flex;
       flex-direction: column;
       flex: 1;
+      gap: 2px;
     }
     .sidebar-section {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: rgba(255,255,255,0.5);
-      padding: 1rem 0.75rem 0.5rem;
+      letter-spacing: 0.55px;
+      color: rgba(255, 255, 255, 0.38);
+      padding: 1rem 0.75rem 0.45rem;
     }
     .sidebar a {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      color: rgba(255,255,255,0.85);
+      gap: 0.65rem;
+      color: #a8c5b0;
       text-decoration: none;
       padding: 10px 14px;
-      margin-bottom: 2px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-weight: 500;
-      transition: all 0.2s;
+      font-size: 0.92rem;
+      transition: background 0.2s, color 0.2s;
     }
     .sidebar a:hover {
-      background: rgba(255,255,255,0.1);
-      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+      color: #e8f5e9;
     }
     .sidebar a.active {
       background: #28a745;
       color: #fff;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.35);
     }
-    .sidebar a i { font-size: 1.1rem; width: 24px; text-align: center; }
-
-    .sidebar-bottom {
-      margin-top: auto;
-      padding: 0 0.75rem 1rem;
-    }
-
-    .sidebar-logout-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: transparent;
-      color: rgba(255,255,255,0.85);
-      border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-weight: 500;
-      cursor: pointer;
-      text-align: left;
-      font-size: 0.95rem;
-      transition: all 0.2s;
-    }
-
-    .sidebar-logout-btn i {
-      font-size: 1.1rem;
-      width: 24px;
+    .sidebar a i {
+      font-size: 1.05rem;
+      width: 22px;
       text-align: center;
     }
-
-    .sidebar-logout-btn:hover {
-      background: rgba(255,255,255,0.1);
+    .sidebar a.active i {
       color: #fff;
+    }
+    #logoutBtn.sidebar-logout-link {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-top: 2px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: #a8c5b0;
+      font-weight: 500;
+      font-size: 0.92rem;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s, color 0.2s;
+    }
+    #logoutBtn.sidebar-logout-link:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e8f5e9;
+    }
+    #logoutBtn.sidebar-logout-link i {
+      font-size: 1.05rem;
+      width: 22px;
+      text-align: center;
     }
     /* Topbar */
     .topbar {
@@ -159,272 +234,269 @@
       color: #fff;
     }
 
-    /* Main content */
-    .main-content {
-      margin-left: 260px;
-      padding: 1.5rem 2rem 2rem;
-      min-height: 100vh;
-    }
-    .page-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #1e3a2f;
-      margin: 0 0 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .page-title i { color: #28a745; }
+   /* Main content */
+.main-content {
+  margin-left: 260px;
+  padding: 1.25rem 1.25rem 1.5rem;
+  min-height: 100vh;
+}
 
-    /* Stats cards */
-    .stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-    .card {
-      flex: 1;
-      min-width: 200px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      padding: 1.25rem 1.5rem;
-      text-align: center;
-      font-weight: bold;
-      border: 1px solid #eee;
-    }
-    .card h2 {
-      font-size: 1.75rem;
-      margin: 0.25rem 0 0;
-      color: #28a745;
-    }
-    .card p {
-      margin: 0.35rem 0 0;
-      font-size: 0.85rem;
-      color: #666;
-      font-weight: 500;
-    }
+.page-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.page-title i { color: #22a447; font-size: 0.95rem; }
 
-    /* Controls / filter/search */
-    .controls-section {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
-      padding: 1.5rem 1.75rem;
-      margin-bottom: 1.5rem;
-    }
-    .controls-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .controls-header h3 {
-      font-size: 1.1rem;
-      color: #1e3a2f;
-      font-weight: 600;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .controls-header h3 i { color: #28a745; }
-    .controls-row {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .control-group {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .control-group label {
-      font-weight: 500;
-      color: #555;
-      white-space: nowrap;
-    }
-    input, select {
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      outline: none;
-      font-size: 14px;
-      transition: border-color 0.2s ease-in-out;
-      min-width: 200px;
-      background: #fff;
-    }
-    input:focus, select:focus {
-      border-color: #28a745;
-      box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
-    }
+.page-subtitle {
+  margin: 0 0 0.85rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
 
-    /* Volunteers table section */
-    .volunteers-section {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
-      padding: 1.75rem 1.75rem 2rem;
-    }
-    .volunteers-section h3 {
-      margin-bottom: 1.25rem;
-      font-size: 1.2rem;
-      color: #1e3a2f;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .volunteers-section h3 i { color: #28a745; }
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e8edf2;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: left;
+}
+.card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+.card-icon.green { background: #eaf8ef; color: #22a447; }
+.card-icon.orange { background: #fff4e6; color: #f59e0b; }
+.card-icon.blue { background: #ebf3ff; color: #2f80ed; }
 
-    .volunteers-table {
-      width: 100%;
-      border-collapse: collapse;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .volunteers-table th, .volunteers-table td {
-      padding: 12px 14px;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-      font-size: 0.9rem;
-      vertical-align: middle;
-    }
-    .volunteers-table th {
-      background: #f8f9fa;
-      font-weight: 600;
-      color: #495057;
-    }
-    .volunteers-table tbody tr:nth-child(even) { background: #fafafa; }
-    .volunteers-table tbody tr:hover { background: #f0f4f0; }
+.card h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #111827;
+}
+.card p {
+  margin: 0.22rem 0 0;
+  font-size: 0.74rem;
+  color: #6b7280;
+  font-weight: 600;
+}
 
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: capitalize;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
-    .pending-badge {
-      background: linear-gradient(135deg, #ffc107, #ff8f00);
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
-    }
-    .approved-badge {
-      background: linear-gradient(135deg, #28a745, #20c997);
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-    }
-    .rejected-badge {
-      background: linear-gradient(135deg, #dc3545, #e74c3c);
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
-    }
-    .unknown-badge {
-      background: linear-gradient(135deg, #6c757d, #495057);
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
-    }
+/* Filter section */
+.controls-section {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e8edf2;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  padding: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+.controls-header h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #1f2937;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.controls-header h3 i { color: #22a447; font-size: 0.85rem; }
 
-    .action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-right: 6px;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .accept-btn {
-      background: linear-gradient(135deg, #28a745, #20c997);
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-    }
-    .accept-btn:hover {
-      background: linear-gradient(135deg, #218838, #1e7e34);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
-    }
-    .reject-btn {
-      background: linear-gradient(135deg, #dc3545, #e74c3c);
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
-    }
-    .reject-btn:hover {
-      background: linear-gradient(135deg, #c82333, #bd2130);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
-    }
+.controls-row {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.control-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+input, select {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid #e5eaf0;
+  outline: none;
+  font-size: 0.78rem;
+  min-width: 160px;
+  background: #fff;
+}
+#searchInput {
+  min-width: 240px;
+  padding-left: 30px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' fill='%239aa4b2' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.398 1.398l3.85 3.85a1 1 0 1 0 1.414-1.414l-3.85-3.85zM12 6.5a5.5 5.5 0 1 1-11 0a5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 10px center;
+}
 
-    .empty-state {
-      text-align: center;
-      padding: 2.5rem 2rem;
-      color: #666;
-    }
-    .empty-state h4 {
-      margin-bottom: 0.5rem;
-      color: #333;
-    }
-    .empty-state p {
-      margin: 0;
-      font-size: 0.95rem;
-    }
+/* Table section */
+.volunteers-section {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e8edf2;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  padding: 0.9rem;
+}
+.table-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.volunteers-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.volunteers-section h3 i { color: #22a447; font-size: 0.85rem; }
 
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-      .topbar, .main-content { margin-left: 0; }
-      .topbar { padding-left: 3rem; }
-      .stats { flex-direction: column; }
-      .controls-row {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .control-group {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      input, select {
-        min-width: auto;
-        width: 100%;
-      }
-      .volunteers-table {
-        font-size: 0.9rem;
-      }
-      .volunteers-table th, .volunteers-table td {
-        padding: 10px 8px;
-      }
-      .action-btn {
-        padding: 4px 8px;
-        font-size: 0.8rem;
-        margin-right: 4px;
-      }
-      .status-badge {
-        padding: 4px 8px;
-        font-size: 0.8rem;
-      }
-    }
+.export-btn {
+  height: 30px;
+  border: 1px solid #e5eaf0;
+  background: #fff;
+  color: #6b7280;
+  border-radius: 7px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.volunteers-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.volunteers-table th, .volunteers-table td {
+  padding: 10px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eef2f6;
+  font-size: 0.73rem;
+  vertical-align: middle;
+}
+.volunteers-table th {
+  background:rgb(209, 209, 209);
+  color:rgb(0, 0, 0);
+  font-weight: 700;
+}
+.volunteers-table tbody tr:hover { background: #f9fbfd; }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+}
+.pending-badge { background: #fff4db; color: #b7791f; box-shadow: none; }
+.approved-badge { background: #def7e8; color: #1f9d55; box-shadow: none; }
+.rejected-badge { background: #fee2e2; color: #b91c1c; box-shadow: none; }
+.unknown-badge { background: #e5e7eb; color: #4b5563; box-shadow: none; }
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.accept-btn { background: #22a447; color: #fff; box-shadow: none; }
+.accept-btn:hover { background: #1d923e; transform: none; box-shadow: none; }
+.reject-btn { background: #ef4444; color: #fff; box-shadow: none; }
+.reject-btn:hover { background: #dc2626; transform: none; box-shadow: none; }
+
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+.empty-state h4 {
+  margin: 0.4rem 0 0.25rem;
+  color: #334155;
+  font-size: 0.95rem;
+}
+.empty-state p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .topbar, .main-content { margin-left: 0; }
+  .topbar { padding-left: 3rem; }
+
+  .stats { grid-template-columns: 1fr; }
+  .controls-row, .control-group { flex-direction: column; align-items: stretch; }
+  input, select, #searchInput { min-width: auto; width: 100%; }
+}
   </style>
 </head>
 <body>
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo"><span>KALINGA</span></div>
+
+    <div class="sidebar-user-card">
+      <div class="sidebar-user-avatar-wrap">
+        <div class="sidebar-user-avatar">
+          <img id="sidebarUserAvatarImg" alt="" class="sidebar-user-avatar-img" width="48" height="48">
+          <span id="sidebarUserInitial">?</span>
+        </div>
+        <span class="sidebar-user-status-dot" aria-hidden="true"></span>
+      </div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebarUserName">Organization</div>
+        <div class="sidebar-user-role">Coordinator</div>
+        <div class="sidebar-user-active-label">● Active</div>
+      </div>
+    </div>
+
     <nav class="sidebar-nav">
       <div class="sidebar-section">Main</div>
       <a href="/organization/dashboard"><i class="bi bi-grid-1x2"></i> Dashboard</a>
@@ -437,14 +509,10 @@
 
       <div class="sidebar-section">Account</div>
       <a href="/organization/profile"><i class="bi bi-person"></i> Profile</a>
-    </nav>
-
-    <div class="sidebar-bottom">
-      <button type="button" id="logoutBtn" class="sidebar-logout-btn">
-        <i class="bi bi-box-arrow-right"></i>
-        Logout
+      <button type="button" id="logoutBtn" class="sidebar-logout-link">
+        <i class="bi bi-box-arrow-right"></i> Logout
       </button>
-    </div>
+    </nav>
   </aside>
 
   <!-- Header -->
@@ -455,70 +523,78 @@
     </div>
   </header>
 
-  <!-- Main -->
   <main class="main-content" id="mainContent">
-    <h1 class="page-title">
-      <i class="bi bi-people"></i>
-      Volunteers
-    </h1>
+  <h1 class="page-title">
+    <i class="bi bi-people"></i>
+    Volunteers
+  </h1>
+  <p class="page-subtitle">Manage volunteer applications and approvals</p>
 
-    <!-- Stats Cards (IDs kept for JS) -->
-    <div class="stats">
-      <div class="card">
+  <div class="stats">
+    <div class="card">
+      <div class="card-icon green"><i class="bi bi-people"></i></div>
+      <div>
         <h2 id="totalVolunteers">0</h2>
         <p>Total Volunteers</p>
       </div>
-      <div class="card">
+    </div>
+    <div class="card">
+      <div class="card-icon orange"><i class="bi bi-clock-history"></i></div>
+      <div>
         <h2 id="pendingVolunteers">0</h2>
         <p>Pending Approval</p>
       </div>
-      <div class="card">
+    </div>
+    <div class="card">
+      <div class="card-icon blue"><i class="bi bi-shield-check"></i></div>
+      <div>
         <h2 id="approvedVolunteers">0</h2>
         <p>Approved</p>
       </div>
     </div>
+  </div>
 
-    <!-- Filter & Search -->
-    <section class="controls-section">
-      <div class="controls-header">
-        <h3><i class="bi bi-search"></i> Filter & Search</h3>
+  <section class="controls-section">
+    <div class="controls-header">
+      <h3><i class="bi bi-search"></i> Filter & Search</h3>
+    </div>
+    <div class="controls-row">
+      <div class="control-group">
+        <label for="filterSelect">Mission</label>
+        <select id="filterSelect">
+          <option value="">All Missions</option>
+        </select>
       </div>
-      <div class="controls-row">
-        <div class="control-group">
-          <label for="filterSelect">Mission:</label>
-          <select id="filterSelect">
-            <option value="">All Missions</option>
-            <!-- Missions will be loaded dynamically here -->
-          </select>
-        </div>
-        <div class="control-group">
-          <label for="searchInput">Search:</label>
-          <input type="text" id="searchInput" placeholder="Search by name or email">
-        </div>
+      <div class="control-group">
+        <label for="searchInput">Search</label>
+        <input type="text" id="searchInput" placeholder="Search by name or email...">
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Volunteers Table -->
-    <section class="volunteers-section">
+  <section class="volunteers-section">
+    <div class="table-head">
       <h3><i class="bi bi-clipboard-check"></i> Volunteer Applications</h3>
-      <table class="volunteers-table" id="volunteerTable">
-        <thead>
-          <tr>
-            <th>Display Name</th>
-            <th>Email</th>
-            <th>Mobile Number</th>
-            <th>Occupation</th>
-            <th>Mission</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="volunteerTableBody">
-          <!-- Filled dynamically -->
-        </tbody>
-      </table>
-    </section>
-  </main>
+    </div>
+
+    <table class="volunteers-table" id="volunteerTable">
+      <thead>
+        <tr>
+          <th>Display Name</th>
+          <th>Email</th>
+          <th>Mobile Number</th>
+          <th>Occupation</th>
+          <th>Mission</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="volunteerTableBody">
+        <!-- Filled dynamically -->
+      </tbody>
+    </table>
+  </section>
+</main>
 
   <script>
     // Optional: if you add a mobile hamburger later, toggle sidebar.open here
