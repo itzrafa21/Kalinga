@@ -1,8 +1,9 @@
 import { auth, db } from "./firebase";
-import { collection, getDocs, query, updateDoc, doc, getDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 let CURRENT_USER = null;
+let historySearchListenerAttached = false;
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -16,6 +17,46 @@ onAuthStateChanged(auth, async (user) => {
     // Load missions for this user
     await loadHistoryMissions(user);
 });
+
+function updateHistoryMissionFooter(visibleCount) {
+    const el = document.getElementById("historyCountText");
+    if (!el) return;
+    el.textContent =
+        visibleCount === 1 ? "Showing 1 mission" : `Showing ${visibleCount} missions`;
+}
+
+function filterHistoryMissionsTable() {
+    const tbody = document.getElementById("historyMissionsBody");
+    if (!tbody) return;
+
+    const q = (document.getElementById("historySearch")?.value || "").trim().toLowerCase();
+    const rows = tbody.querySelectorAll("tr.history-mission-row");
+    let visible = 0;
+
+    rows.forEach((tr) => {
+        const name = (tr.cells[0]?.textContent || "").toLowerCase();
+        const date = (tr.cells[1]?.textContent || "").toLowerCase();
+        const loc = (tr.cells[2]?.textContent || "").toLowerCase();
+        const haystack = `${name} ${date} ${loc}`;
+        const match = !q || haystack.includes(q);
+        tr.style.display = match ? "" : "none";
+        if (match) visible++;
+    });
+
+    updateHistoryMissionFooter(visible);
+}
+
+function ensureHistorySearchListener() {
+    const input = document.getElementById("historySearch");
+    if (!input) return;
+
+    if (!historySearchListenerAttached) {
+        historySearchListenerAttached = true;
+        input.addEventListener("input", filterHistoryMissionsTable);
+    }
+
+    filterHistoryMissionsTable();
+}
 
 // Function to fetch and render completed missions
 async function loadHistoryMissions(user) {
@@ -89,7 +130,7 @@ async function loadHistoryMissions(user) {
                     }
                     
                     const row = `
-                        <tr>
+                        <tr class="history-mission-row">
                             <td>${mission.missionName || mission.name || "Untitled"}</td>
                             <td>${mission.date || "N/A"}</td>
                             <td>${mission.location || "N/A"}</td>
@@ -132,6 +173,9 @@ async function loadHistoryMissions(user) {
                     </td>
                 </tr>
             `;
+            updateHistoryMissionFooter(0);
+        } else {
+            ensureHistorySearchListener();
         }
 
         console.log(`[SUCCESS] History cleanup complete:`);
@@ -155,6 +199,7 @@ async function loadHistoryMissions(user) {
                 </td>
             </tr>
         `;
+        updateHistoryMissionFooter(0);
     }
 }
 
