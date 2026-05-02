@@ -1,6 +1,27 @@
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, getDoc } from "firebase/firestore";
+
+const STORAGE_MISSIONS_SUB = "missions_sub";
+const STORAGE_APPLICATIONS_ROOT = "applications_root";
+
+async function fetchUserFieldsForVolunteer(userId) {
+    if (!userId) return {};
+    try {
+        const snap = await getDoc(doc(db, "users", userId));
+        if (!snap.exists()) return {};
+        const u = snap.data();
+        return {
+            name: u.name || u.displayName || "",
+            email: u.email || "",
+            phone: u.phone || u.mobileNumber || u.mobile || "",
+            occupation: u.occupation || "",
+        };
+    } catch (e) {
+        console.warn("[WARNING] Could not load users/", userId, e);
+        return {};
+    }
+}
 
 // Elements
 const volunteerTable = document.getElementById("volunteerTableBody");
@@ -79,58 +100,80 @@ async function loadMissions(user) {
 // Function to load volunteers
 async function loadVolunteers() {
     try {
-        console.log("[INFO] Loading volunteers from mission applications");
+        console.log("[INFO] Loading volunteers: missions/{id}/applications + root applications");
         allVolunteers = [];
-        
-        // Load volunteers from ALL missions in the main missions collection
-        const missionsRef = collection(db, "missions");
-        const missionsSnapshot = await getDocs(missionsRef);
-        
-        console.log("[INFO] Total missions found:", missionsSnapshot.size);
-        
-        for (const missionDoc of missionsSnapshot.docs) {
+
+        const missionsSnapshot = await getDocs(collection(db, "missions"));
+        const orgMissionById = new Map();
+        missionsSnapshot.docs.forEach((missionDoc) => {
             const mission = missionDoc.data();
-            const missionId = missionDoc.id;
-            
-            // Only load volunteers from missions that belong to this organization
-            if (mission.orgId !== currentUser.uid) {
-                console.log("[WARNING] Skipping mission from different org:", mission.orgId, "vs", currentUser.uid);
-                continue;
+            if (mission.orgId === currentUser.uid) {
+                orgMissionById.set(missionDoc.id, mission);
             }
-            
+        });
+
+        for (const [missionId, mission] of orgMissionById) {
             try {
-                console.log("Loading applications for mission:", mission.missionName || mission.name);
-                const applicationsRef = collection(db, "missions", missionId, "applications");
-                const applicationsSnapshot = await getDocs(applicationsRef);
-                
-                console.log(`[INFO] Found ${applicationsSnapshot.size} applications for mission: ${mission.missionName || mission.name}`);
-                
+                const applicationsSnapshot = await getDocs(
+                    collection(db, "missions", missionId, "applications")
+                );
                 applicationsSnapshot.forEach((docSnap) => {
                     const application = docSnap.data();
-                    console.log("[INFO] Application data:", application);
-                    
-                    //  Fixed volunteer data mapping to match Firebase structure
-                    const volunteer = {
+                    allVolunteers.push({
                         id: docSnap.id,
+                        storage: STORAGE_MISSIONS_SUB,
                         name: application.displayName || application.name || "N/A",
                         email: application.email || "N/A",
                         phone: application.mobileNumber || application.phone || application.mobile || "N/A",
-                        occupation: application.occupation || "N/A", // Added occupation field
-                        status: application.status || "pending", // Added status field
+                        occupation: application.occupation || "N/A",
+                        status: application.status || "pending",
                         appliedAt: application.appliedAt,
-                        missionId: missionId,
+                        missionId,
                         missionName: mission.missionName || mission.name,
-                        userId: application.userId
-                    };
-                    
-                    allVolunteers.push(volunteer);
-                    console.log("[SUCCESS] Added volunteer:", volunteer.name, "for mission:", volunteer.missionName);
+                        userId: application.userId,
+                    });
                 });
             } catch (missionError) {
-                console.error("[ERROR] Error loading applications for mission:", missionId, missionError);
+                console.error("[ERROR] subcollection applications", missionId, missionError);
             }
         }
-        
+
+        const rootAppsSnap = await getDocs(collection(db, "applications"));
+        const dedupe = new Set(
+            allVolunteers.filter((v) => v.userId).map((v) => `${v.missionId}_${v.userId}`)
+        );
+
+        for (const docSnap of rootAppsSnap.docs) {
+            const application = docSnap.data();
+            const missionId = application.missionId;
+            if (!missionId || !orgMissionById.has(missionId)) continue;
+
+            const mission = orgMissionById.get(missionId);
+            const userId = application.userId || "";
+            const key = userId ? `${missionId}_${userId}` : null;
+            if (key && dedupe.has(key)) continue;
+            if (key) dedupe.add(key);
+
+            const profile = await fetchUserFieldsForVolunteer(userId);
+            allVolunteers.push({
+                id: docSnap.id,
+                storage: STORAGE_APPLICATIONS_ROOT,
+                name:
+                    profile.name ||
+                    application.displayName ||
+                    application.name ||
+                    (userId ? `User ${userId.slice(0, 8)}…` : "N/A"),
+                email: profile.email || application.email || "N/A",
+                phone: profile.phone || application.mobileNumber || application.phone || application.mobile || "N/A",
+                occupation: profile.occupation || application.occupation || "N/A",
+                status: application.status || "pending",
+                appliedAt: application.appliedAt || application.createdAt,
+                missionId,
+                missionName: mission.missionName || mission.name,
+                userId,
+            });
+        }
+
         console.log("[SUCCESS] Total volunteers loaded:", allVolunteers.length);
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
@@ -180,29 +223,32 @@ function updateVolunteerCounts(volunteers) {
 async function updateApplicationStatus(applicationId, missionId, newStatus) {
     try {
         console.log(`[INFO] Updating application ${applicationId} status to: ${newStatus}`);
-        
-        // Update the application status in Firebase
-        const applicationRef = doc(db, "missions", missionId, "applications", applicationId);
+
+        const volunteer = allVolunteers.find(
+            (v) => v.id === applicationId && v.missionId === missionId
+        );
+        const storage = volunteer?.storage || STORAGE_MISSIONS_SUB;
+
+        const applicationRef =
+            storage === STORAGE_APPLICATIONS_ROOT
+                ? doc(db, "applications", applicationId)
+                : doc(db, "missions", missionId, "applications", applicationId);
+
         await updateDoc(applicationRef, {
             status: newStatus,
-            updatedAt: new Date()
+            updatedAt: new Date(),
         });
-        
-        console.log(`[SUCCESS] Application status updated to: ${newStatus}`);
-        
-        // Update the local volunteer data
-        const volunteer = allVolunteers.find(v => v.id === applicationId);
+
+        console.log(`[SUCCESS] Application status updated (${storage})`);
+
         if (volunteer) {
             volunteer.status = newStatus;
         }
-        
-        // Refresh the display
+
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
-        
-        // Show success message
+
         alert(`[SUCCESS] Volunteer application ${newStatus} successfully!`);
-        
     } catch (error) {
         console.error("[ERROR] Error updating application status:", error);
         alert(`[ERROR] Failed to ${newStatus} application. Please try again.`);
