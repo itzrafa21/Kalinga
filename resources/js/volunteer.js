@@ -23,6 +23,15 @@ async function fetchUserFieldsForVolunteer(userId) {
     }
 }
 
+function escapeHtml(text) {
+    const s = String(text ?? "");
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 // Elements
 const volunteerTable = document.getElementById("volunteerTableBody");
 const searchInput = document.getElementById("searchInput");
@@ -131,6 +140,7 @@ async function loadVolunteers() {
                         missionId,
                         missionName: mission.missionName || mission.name,
                         userId: application.userId,
+                        rejectionReason: application.rejectionReason || "",
                     });
                 });
             } catch (missionError) {
@@ -171,6 +181,7 @@ async function loadVolunteers() {
                 missionId,
                 missionName: mission.missionName || mission.name,
                 userId,
+                rejectionReason: application.rejectionReason || "",
             });
         }
 
@@ -220,8 +231,9 @@ function updateVolunteerCounts(volunteers) {
     }
 }
 
-async function updateApplicationStatus(applicationId, missionId, newStatus) {
+async function updateApplicationStatus(applicationId, missionId, newStatus, options = {}) {
     try {
+        const rejectionReason = (options.rejectionReason || "").trim();
         console.log(`[INFO] Updating application ${applicationId} status to: ${newStatus}`);
 
         const volunteer = allVolunteers.find(
@@ -234,15 +246,23 @@ async function updateApplicationStatus(applicationId, missionId, newStatus) {
                 ? doc(db, "applications", applicationId)
                 : doc(db, "missions", missionId, "applications", applicationId);
 
-        await updateDoc(applicationRef, {
+        const payload = {
             status: newStatus,
             updatedAt: new Date(),
-        });
+        };
 
-        console.log(`[SUCCESS] Application status updated (${storage})`);
+        if (newStatus === "rejected") {
+            payload.rejectionReason = rejectionReason;
+            payload.rejectedAt = new Date();
+        }
+
+        await updateDoc(applicationRef, payload);
 
         if (volunteer) {
             volunteer.status = newStatus;
+            if (newStatus === "rejected") {
+                volunteer.rejectionReason = rejectionReason;
+            }
         }
 
         displayVolunteers(allVolunteers);
@@ -312,23 +332,42 @@ function displayVolunteers(volunteers) {
         volunteerTable.appendChild(row);
     });
 
-    // Add event listeners for Accept buttons
-    document.querySelectorAll(".accept-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-            const applicationId = e.target.closest('.accept-btn').dataset.id;
-            const missionId = e.target.closest('.accept-btn').dataset.missionId;
-            updateApplicationStatus(applicationId, missionId, 'approved');
+        // Add event listeners for Accept buttons
+        document.querySelectorAll(".accept-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const el = e.target.closest(".accept-btn");
+                if (!el?.dataset?.id) return;
+                updateApplicationStatus(el.dataset.id, el.dataset.missionId, "approved");
+            });
         });
-    });
+    
+        // Add event listeners for Reject buttons
+        document.querySelectorAll(".reject-btn").forEach((btn) => {
+            // ... your existing 337–355 code ...
+        });
 
-    // Add event listeners for Reject buttons
-    document.querySelectorAll(".reject-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-            const applicationId = e.target.closest('.reject-btn').dataset.id;
-            const missionId = e.target.closest('.reject-btn').dataset.missionId;
-            updateApplicationStatus(applicationId, missionId, 'rejected');
+    // Add event listeners for Accept buttons
+        // Add event listeners for Reject buttons
+        document.querySelectorAll(".reject-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const el = e.target.closest(".reject-btn");
+                if (!el?.dataset?.id) return;
+                const reason = window.prompt(
+                    "Reason for rejection (required):\n\nExplain why this application is being rejected."
+                );
+                if (reason === null) {
+                    return;
+                }
+                const trimmed = reason.trim();
+                if (!trimmed) {
+                    alert("A rejection reason is required. You can try again when ready.");
+                    return;
+                }
+                updateApplicationStatus(el.dataset.id, el.dataset.missionId, "rejected", {
+                    rejectionReason: trimmed,
+                });
+            });
         });
-    });
 }
 
 // Status badge class function with better styling
@@ -354,14 +393,19 @@ function getStatusIcon(status) {
 }
 
 function showDetails(v) {
+    const rejectedBlock =
+        (v.status || "").toLowerCase() === "rejected" && (v.rejectionReason || "").trim()
+            ? `<p><strong>Reason for rejection:</strong> ${escapeHtml(v.rejectionReason.trim())}</p>`
+            : "";
     modalBody.innerHTML = `
-        <p><strong>Name:</strong> ${v.name}</p>
-        <p><strong>Email:</strong> ${v.email}</p>
-        <p><strong>Phone:</strong> ${v.phone || "N/A"}</p>
-        <p><strong>Occupation:</strong> ${v.occupation || "N/A"}</p>
-        <p><strong>Mission:</strong> ${v.missionName || "N/A"}</p>
-        <p><strong>Status:</strong> ${v.status || "N/A"}</p>
+        <p><strong>Name:</strong> ${escapeHtml(v.name)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(v.email)}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(v.phone || "N/A")}</p>
+        <p><strong>Occupation:</strong> ${escapeHtml(v.occupation || "N/A")}</p>
+        <p><strong>Mission:</strong> ${escapeHtml(v.missionName || "N/A")}</p>
+        <p><strong>Status:</strong> ${escapeHtml(v.status || "N/A")}</p>
         <p><strong>Applied At:</strong> ${v.appliedAt || "N/A"}</p>
+        ${rejectedBlock}
     `;
     detailsModal.show();
 }
