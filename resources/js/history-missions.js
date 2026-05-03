@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase";
-import { collection, getDocs, query, doc, getDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 let CURRENT_USER = null;
@@ -204,32 +204,64 @@ async function loadHistoryMissions(user) {
 }
 
 // Function to get actual volunteer count from mission applications
+// (subcollection + root "applications", same sources as volunteer.js / mission-details.js)
 async function getActualVolunteerCount(missionId) {
+    const approvedKeys = new Set();
+
+    const addIfApproved = (data, docId) => {
+        const st = (data.status || "").toLowerCase();
+        if (st !== "approved" && st !== "accepted") return;
+        const u = data.userId;
+        approvedKeys.add(u ? `u:${u}` : `d:${docId}`);
+    };
+
     try {
         console.log(`[INFO] Getting volunteer count for mission: ${missionId}`);
-        
-        // Check applications in the main missions collection
-        const applicationsRef = collection(db, "missions", missionId, "applications");
-        const applicationsQuery = query(applicationsRef);
-        const applicationsSnapshot = await getDocs(applicationsQuery);
-        
-        let approvedCount = 0;
-        let pendingCount = 0;
-        
+
+        const applicationsSnapshot = await getDocs(
+            collection(db, "missions", missionId, "applications")
+        );
         applicationsSnapshot.forEach((docSnap) => {
-            const application = docSnap.data();
-            if (application.status === "approved" || application.status === "accepted") {
-                approvedCount++;
-            } else if (application.status === "pending") {
-                pendingCount++;
-            }
+            addIfApproved(docSnap.data(), docSnap.id);
         });
-        
-        console.log(`[INFO] Mission ${missionId} - Approved: ${approvedCount}, Pending: ${pendingCount}`);
-        
-        // Return approved volunteers (you can change this to include pending if needed)
+
+        let pendingCount = 0;
+        applicationsSnapshot.forEach((docSnap) => {
+            const st = (docSnap.data().status || "").toLowerCase();
+            if (st === "pending") pendingCount++;
+        });
+
+        try {
+            const rootQ = query(
+                collection(db, "applications"),
+                where("missionId", "==", missionId)
+            );
+            const rootSnap = await getDocs(rootQ);
+            rootSnap.forEach((docSnap) => {
+                addIfApproved(docSnap.data(), docSnap.id);
+                const st = (docSnap.data().status || "").toLowerCase();
+                if (st === "pending") pendingCount++;
+            });
+        } catch {
+            try {
+                const allRoot = await getDocs(collection(db, "applications"));
+                allRoot.forEach((docSnap) => {
+                    if (docSnap.data().missionId !== missionId) return;
+                    addIfApproved(docSnap.data(), docSnap.id);
+                    const st = (docSnap.data().status || "").toLowerCase();
+                    if (st === "pending") pendingCount++;
+                });
+            } catch {
+                /* ignore */
+            }
+        }
+
+        const approvedCount = approvedKeys.size;
+        console.log(
+            `[INFO] Mission ${missionId} - Approved (unique): ${approvedCount}, Pending (partial): ${pendingCount}`
+        );
+
         return approvedCount;
-        
     } catch (error) {
         console.error(`[ERROR] Error getting volunteer count for mission ${missionId}:`, error);
         return 0;
