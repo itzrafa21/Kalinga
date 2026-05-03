@@ -205,6 +205,36 @@ onAuthStateChanged(auth, async (user) => {
   initializeFormHandlers();
 });
 
+function updateSidebarUser(data, user) {
+  const sidebarNameEl = document.getElementById("sidebarUserName");
+  const sidebarInitialEl = document.getElementById("sidebarUserInitial");
+  const wrap = document.querySelector(".sidebar-user-avatar");
+  const img = document.getElementById("sidebarUserAvatarImg");
+
+  const display =
+    (data?.name && String(data.name).trim()) ||
+    (data?.orgName && String(data.orgName).trim()) ||
+    user?.displayName ||
+    "Organization";
+
+  if (sidebarNameEl) sidebarNameEl.textContent = display;
+  if (sidebarInitialEl) {
+    const ch = String(display).trim().charAt(0);
+    sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
+  }
+
+  if (!wrap || !img) return;
+  const pic = data && (data.profilePictureBase64 || data.profilePictureURL);
+  if (pic) {
+    img.src = pic;
+    wrap.classList.add("has-photo");
+  } else {
+    img.removeAttribute("src");
+    wrap.classList.remove("has-photo");
+  }
+}
+
+
 function loadProfilePicture(imageData) {
   const profilePicturePreview = document.getElementById("profilePicturePreview");
   const placeholder = document.getElementById("profilePicturePlaceholder");
@@ -215,6 +245,12 @@ function loadProfilePicture(imageData) {
       profilePicturePreview.innerHTML = `<img src="${imageData}" alt="Profile Picture" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
       placeholder.style.display = "none";
       removeBtn.style.display = "inline-flex";
+      const wrap = document.querySelector(".sidebar-user-avatar");
+      const img = document.getElementById("sidebarUserAvatarImg");
+      if (wrap && img) {
+        img.src = imageData;
+        wrap.classList.add("has-photo");
+      }
     } catch (error) {
       console.error("[ERROR] Error loading profile picture:", error);
       resetProfilePicture();
@@ -232,6 +268,12 @@ function resetProfilePicture() {
       '<span id="profilePicturePlaceholder"><i class="bi bi-person"></i></span>';
     removeBtn.style.display = "none";
     profilePictureInput.value = "";
+    const wrap = document.querySelector(".sidebar-user-avatar");
+    const img = document.getElementById("sidebarUserAvatarImg");
+    if (wrap && img) {
+      img.removeAttribute("src");
+      wrap.classList.remove("has-photo");
+    }
   }
 }
 
@@ -251,6 +293,7 @@ function updateProfileHeader(data, user) {
     avatarInitial.textContent = display.charAt(0).toUpperCase() || "O";
   }
   if (profileEmail) profileEmail.textContent = user.email || "No email";
+  updateSidebarUser(data, user);
 }
 
 function initializeFormHandlers() {

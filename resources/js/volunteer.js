@@ -96,6 +96,43 @@ function confirmRejectFromModal() {
     });
 })();
 
+async function loadSidebarUser(user) {
+    try {
+        const orgSnap = await getDoc(doc(db, "organizations", user.uid));
+        const data = orgSnap.exists() ? orgSnap.data() : {};
+
+        const displayName =
+            (data.name && String(data.name).trim()) ||
+            (data.orgName && String(data.orgName).trim()) ||
+            user.displayName ||
+            user.email ||
+            "Organization";
+
+        const sidebarNameEl = document.getElementById("sidebarUserName");
+        const sidebarInitialEl = document.getElementById("sidebarUserInitial");
+        const avatarWrap = document.querySelector(".sidebar-user-avatar");
+        const avatarImg = document.getElementById("sidebarUserAvatarImg");
+
+        if (sidebarNameEl) sidebarNameEl.textContent = displayName;
+        if (sidebarInitialEl) {
+            const ch = String(displayName).trim().charAt(0);
+            sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
+        }
+
+        if (avatarWrap && avatarImg) {
+            const pic = data.profilePictureBase64 || data.profilePictureURL || "";
+            if (pic) {
+                avatarImg.src = pic;
+                avatarWrap.classList.add("has-photo");
+            } else {
+                avatarImg.removeAttribute("src");
+                avatarWrap.classList.remove("has-photo");
+            }
+        }
+    } catch (err) {
+        console.error("[ERROR] loadSidebarUser:", err);
+    }
+}
 // Wait for authentication
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -105,6 +142,7 @@ onAuthStateChanged(auth, async (user) => {
     }
     
     currentUser = user;
+    await loadSidebarUser(user);
     console.log("[SUCCESS] Logged in as:", user.uid);
     console.log("[SUCCESS] User email:", user.email);
     

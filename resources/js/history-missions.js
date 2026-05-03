@@ -5,6 +5,44 @@ import { onAuthStateChanged } from "firebase/auth";
 let CURRENT_USER = null;
 let historySearchListenerAttached = false;
 
+async function populateSidebarUser(user) {
+    try {
+        const snap = await getDoc(doc(db, "organizations", user.uid));
+        const data = snap.exists() ? snap.data() : {};
+
+        const displayName =
+            (data?.name && String(data.name).trim()) ||
+            (data?.orgName && String(data.orgName).trim()) ||
+            user?.displayName ||
+            user?.email ||
+            "Organization";
+
+        const sidebarNameEl = document.getElementById("sidebarUserName");
+        const sidebarInitialEl = document.getElementById("sidebarUserInitial");
+        const avatarWrap = document.querySelector(".sidebar-user-avatar");
+        const avatarImg = document.getElementById("sidebarUserAvatarImg");
+
+        if (sidebarNameEl) sidebarNameEl.textContent = displayName;
+        if (sidebarInitialEl) {
+            const ch = displayName.charAt(0);
+            sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
+        }
+
+        if (avatarWrap && avatarImg) {
+            const pic = data?.profilePictureBase64 || data?.profilePictureURL;
+            if (pic) {
+                avatarImg.src = pic;
+                avatarWrap.classList.add("has-photo");
+            } else {
+                avatarImg.removeAttribute("src");
+                avatarWrap.classList.remove("has-photo");
+            }
+        }
+    } catch (err) {
+        console.error("[ERROR] populateSidebarUser:", err);
+    }
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.href = "/organization/login";
@@ -13,6 +51,8 @@ onAuthStateChanged(auth, async (user) => {
 
     console.log("[SUCCESS] User logged in:", user.uid);
     CURRENT_USER = user;
+
+    await populateSidebarUser(user);
 
     // Load missions for this user
     await loadHistoryMissions(user);

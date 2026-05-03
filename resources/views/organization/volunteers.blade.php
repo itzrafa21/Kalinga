@@ -86,6 +86,12 @@
       border-radius: 50%;
       display: none;
     }
+    .sidebar-user-avatar.has-photo .sidebar-user-avatar-img {
+  display: block;
+}
+.sidebar-user-avatar.has-photo #sidebarUserInitial {
+  display: none;
+}
     .sidebar-user-status-dot {
       position: absolute;
       bottom: 2px;
@@ -167,6 +173,7 @@
       display: flex;
       align-items: center;
       gap: 0.65rem;
+      width: 100%;
       margin-top: 2px;
       padding: 10px 14px;
       border: none;
