@@ -42,6 +42,60 @@ let allVolunteers = [];
 let allMissions = [];
 let currentUser = null;
 
+let rejectModalContext = { applicationId: null, missionId: null };
+
+function openRejectModal(applicationId, missionId) {
+    rejectModalContext = { applicationId, missionId };
+    const overlay = document.getElementById("rejectReasonModal");
+    const textarea = document.getElementById("rejectReasonInput");
+    const err = document.getElementById("rejectReasonError");
+    if (!overlay || !textarea) return;
+    textarea.value = "";
+    if (err) err.textContent = "";
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    textarea.focus();
+}
+
+function closeRejectModal() {
+    const overlay = document.getElementById("rejectReasonModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+    rejectModalContext = { applicationId: null, missionId: null };
+}
+
+function confirmRejectFromModal() {
+    const textarea = document.getElementById("rejectReasonInput");
+    const err = document.getElementById("rejectReasonError");
+    const trimmed = (textarea?.value || "").trim();
+    if (!trimmed) {
+        if (err) err.textContent = "A rejection reason is required.";
+        textarea?.focus();
+        return;
+    }
+    if (err) err.textContent = "";
+    const { applicationId, missionId } = rejectModalContext;
+    if (!applicationId || !missionId) return;
+    closeRejectModal();
+    updateApplicationStatus(applicationId, missionId, "rejected", {
+        rejectionReason: trimmed,
+    });
+}
+
+(function initRejectReasonModal() {
+    const overlay = document.getElementById("rejectReasonModal");
+    if (!overlay) return;
+    document.getElementById("rejectModalCancel")?.addEventListener("click", closeRejectModal);
+    document.getElementById("rejectModalConfirm")?.addEventListener("click", confirmRejectFromModal);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeRejectModal();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("is-open")) closeRejectModal();
+    });
+})();
+
 // Wait for authentication
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -332,42 +386,21 @@ function displayVolunteers(volunteers) {
         volunteerTable.appendChild(row);
     });
 
-        // Add event listeners for Accept buttons
-        document.querySelectorAll(".accept-btn").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                const el = e.target.closest(".accept-btn");
-                if (!el?.dataset?.id) return;
-                updateApplicationStatus(el.dataset.id, el.dataset.missionId, "approved");
-            });
+    document.querySelectorAll(".accept-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            const el = e.target.closest(".accept-btn");
+            if (!el?.dataset?.id) return;
+            updateApplicationStatus(el.dataset.id, el.dataset.missionId, "approved");
         });
-    
-        // Add event listeners for Reject buttons
-        document.querySelectorAll(".reject-btn").forEach((btn) => {
-            // ... your existing 337–355 code ...
-        });
+    });
 
-    // Add event listeners for Accept buttons
-        // Add event listeners for Reject buttons
-        document.querySelectorAll(".reject-btn").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                const el = e.target.closest(".reject-btn");
-                if (!el?.dataset?.id) return;
-                const reason = window.prompt(
-                    "Reason for rejection (required):\n\nExplain why this application is being rejected."
-                );
-                if (reason === null) {
-                    return;
-                }
-                const trimmed = reason.trim();
-                if (!trimmed) {
-                    alert("A rejection reason is required. You can try again when ready.");
-                    return;
-                }
-                updateApplicationStatus(el.dataset.id, el.dataset.missionId, "rejected", {
-                    rejectionReason: trimmed,
-                });
-            });
+    document.querySelectorAll(".reject-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            const el = e.target.closest(".reject-btn");
+            if (!el?.dataset?.id) return;
+            openRejectModal(el.dataset.id, el.dataset.missionId);
         });
+    });
 }
 
 // Status badge class function with better styling
