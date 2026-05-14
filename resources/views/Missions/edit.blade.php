@@ -217,6 +217,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
     let marker = null;
 
+    const MAP_LOCATION_FALLBACK = "Selected map location";
+
+    function featureHasPlaceType(feature, typeId) {
+        return Array.isArray(feature.place_type) && feature.place_type.indexOf(typeId) !== -1;
+    }
+
+    function pickBestReverseLabel(features) {
+        if (!features || !features.length) return null;
+        const priority = ["poi", "address", "place", "locality", "neighborhood", "district", "postcode"];
+        for (let i = 0; i < priority.length; i++) {
+            const t = priority[i];
+            const match = features.find((f) => featureHasPlaceType(f, t) && f.place_name);
+            if (match) return match.place_name;
+        }
+        return features[0].place_name || null;
+    }
+
     async function reverseGeocode(lng, lat) {
         const path = encodeURIComponent(lng + "," + lat);
         const url =
@@ -224,13 +241,17 @@ document.addEventListener("DOMContentLoaded", function() {
             path +
             ".json?access_token=" +
             encodeURIComponent(mapboxgl.accessToken) +
-            "&limit=1&types=address,poi,place,locality,neighborhood";
+            "&limit=10&types=poi,address,place,locality,neighborhood,district,postcode";
         const res = await fetch(url);
         const data = await res.json();
-        if (data.features && data.features.length > 0) {
-            return data.features[0].place_name;
-        }
-        return `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+        return pickBestReverseLabel(data.features);
+    }
+
+    function resolveMapLocationLabel(geocodeResult) {
+        if (geocodeResult && String(geocodeResult).trim()) return geocodeResult;
+        const prev = document.getElementById("locationInput").value.trim();
+        if (prev) return document.getElementById("locationInput").value;
+        return MAP_LOCATION_FALLBACK;
     }
 
     function bindMarkerDrag(m) {
@@ -239,13 +260,15 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById("latitude").value = String(lat);
             document.getElementById("longitude").value = String(lng);
             try {
-                const label = await reverseGeocode(lng, lat);
+                const picked = await reverseGeocode(lng, lat);
+                const label = resolveMapLocationLabel(picked);
                 document.getElementById("location").value = label;
                 document.getElementById("locationInput").value = label;
             } catch (err) {
                 console.error("[ERROR] reverseGeocode (drag):", err);
-                document.getElementById("location").value = `${lat}, ${lng}`;
-                document.getElementById("locationInput").value = `${lat}, ${lng}`;
+                const label = resolveMapLocationLabel(null);
+                document.getElementById("location").value = label;
+                document.getElementById("locationInput").value = label;
             }
         });
     }
@@ -262,8 +285,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 label = await reverseGeocode(lng, lat);
             } catch (err) {
                 console.error("[ERROR] reverseGeocode:", err);
-                label = `${lat}, ${lng}`;
+                label = null;
             }
+            label = resolveMapLocationLabel(label);
         }
         document.getElementById("location").value = label;
         document.getElementById("locationInput").value = label;
