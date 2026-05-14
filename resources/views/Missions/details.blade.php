@@ -28,7 +28,7 @@
       align-items: center;
       justify-content: space-between;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      margin-left: 260px;
+      margin-left: 0px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -95,15 +95,16 @@
     .sidebar a.active { background: #28a745; color: #fff; }
     .sidebar a i { font-size: 1.1rem; width: 24px; text-align: center; }
     .main-content {
-      margin-left: 260px;
+      margin-left: 0;
       padding: 0;
       min-height: 100vh;
-      background: #12151a;
+      background:rgb(255, 255, 255);
     }
     .mission-details-wrap {
-      padding: 1rem 1.5rem 2rem;
-      max-width: 1100px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
       background: #ffffff;
     }
     .mission-page {
@@ -311,22 +312,6 @@
   </style>
 </head>
 <body>
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <img src="{{ asset('images/kalinga-logo.jpg') }}" alt="Kalinga" style="height: 32px; width: auto; margin-bottom: 0.35rem;">
-      <span>Kalinga</span>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="sidebar-section">Main</div>
-      <a href="/organization/dashboard"><i class="bi bi-grid-1x2"></i> Dashboard</a>
-      <a href="/missions/history"><i class="bi bi-journal-text"></i> History of Missions</a>
-      <a href="/organization/volunteers"><i class="bi bi-people"></i> Volunteers</a>
-      <a href="/donation"><i class="bi bi-heart"></i> Donation</a>
-      <div class="sidebar-section">Account</div>
-      <a href="/organization/profile"><i class="bi bi-person"></i> Profile</a>
-    </nav>
-  </aside>
-
   <header class="topbar">
     <div class="topbar-brand">
       <img src="{{ asset('images/kalinga-logo.jpg') }}" alt="Kalinga Logo" style="height: 28px; width: auto;">
