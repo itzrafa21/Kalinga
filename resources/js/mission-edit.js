@@ -56,6 +56,15 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("editMissionForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    const locationInputEl = document.getElementById("locationInput");
+    const locationHidden = document.getElementById("location");
+    if (locationInputEl && locationHidden) {
+      const typed = locationInputEl.value;
+      if (typed.trim()) {
+        locationHidden.value = typed;
+      }
+    }
+
     const updatedData = {
       missionName: document.getElementById("name").value,
       description: document.getElementById("description").value,

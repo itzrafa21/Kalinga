@@ -207,143 +207,203 @@ document.addEventListener("DOMContentLoaded", function() {
     const mapContainer = document.getElementById("map");
     if (!mapContainer) return;
 
-    // Initialize Mapbox
+    // Initialize Mapbox (Cebu default; forward search still uses Cebu proximity + bbox)
     const map = new mapboxgl.Map({
         container: "map",
         style: "mapbox://styles/mapbox/streets-v11",
-        center: [121.0, 14.6],
-        zoom: 5
+        center: [123.9024, 10.2943],
+        zoom: 12
     });
 
     let marker = null;
 
+    async function reverseGeocode(lng, lat) {
+        const path = encodeURIComponent(lng + "," + lat);
+        const url =
+            "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
+            path +
+            ".json?access_token=" +
+            encodeURIComponent(mapboxgl.accessToken) +
+            "&limit=1&types=address,poi,place,locality,neighborhood";
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.features && data.features.length > 0) {
+            return data.features[0].place_name;
+        }
+        return `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+    }
+
+    function bindMarkerDrag(m) {
+        m.on("dragend", async () => {
+            const { lng, lat } = m.getLngLat();
+            document.getElementById("latitude").value = String(lat);
+            document.getElementById("longitude").value = String(lng);
+            try {
+                const label = await reverseGeocode(lng, lat);
+                document.getElementById("location").value = label;
+                document.getElementById("locationInput").value = label;
+            } catch (err) {
+                console.error("[ERROR] reverseGeocode (drag):", err);
+                document.getElementById("location").value = `${lat}, ${lng}`;
+                document.getElementById("locationInput").value = `${lat}, ${lng}`;
+            }
+        });
+    }
+
+    async function applyMapPoint(lng, lat, displayLabel) {
+        document.getElementById("latitude").value = String(lat);
+        document.getElementById("longitude").value = String(lng);
+        if (marker) marker.remove();
+        marker = new mapboxgl.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(map);
+        bindMarkerDrag(marker);
+        let label = displayLabel;
+        if (label == null) {
+            try {
+                label = await reverseGeocode(lng, lat);
+            } catch (err) {
+                console.error("[ERROR] reverseGeocode:", err);
+                label = `${lat}, ${lng}`;
+            }
+        }
+        document.getElementById("location").value = label;
+        document.getElementById("locationInput").value = label;
+    }
+
+    map.on("click", (e) => {
+        applyMapPoint(e.lngLat.lng, e.lngLat.lat, null);
+    });
+
     const locationInput = document.getElementById("locationInput");
     const suggestionsBox = document.getElementById("suggestions");
+
+    const GEOCODE_TYPES = "poi,address,place,locality,neighborhood,district,postcode";
+    const CEBU_BBOX = "123.12,9.50,124.22,11.38";
+    const CEBU_PROXIMITY = "123.9024,10.2943";
+
+    function buildCebuGeocodeUrl(q) {
+        const params = new URLSearchParams({
+            access_token: mapboxgl.accessToken,
+            autocomplete: "true",
+            limit: "15",
+            country: "ph",
+            types: GEOCODE_TYPES,
+            proximity: CEBU_PROXIMITY,
+            bbox: CEBU_BBOX,
+        });
+        return (
+            "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
+            encodeURIComponent(q) +
+            ".json?" +
+            params.toString()
+        );
+    }
+
+    let locationSearchDebounce = null;
+    let locationSearchAbort = null;
+
+    locationInput.addEventListener("blur", function() {
+        if (this.value.trim()) {
+            document.getElementById("location").value = this.value;
+        }
+    });
 
     // Load existing location data when page loads
     const existingLocation = document.getElementById("location").value;
     const existingLat = document.getElementById("latitude").value;
     const existingLng = document.getElementById("longitude").value;
-    
+
     if (existingLocation && existingLat && existingLng) {
-        locationInput.value = existingLocation;
-        
-        // Add marker for existing location
-        if (marker) marker.remove();
-        marker = new mapboxgl.Marker().setLngLat([parseFloat(existingLng), parseFloat(existingLat)]).addTo(map);
-        map.flyTo({ center: [parseFloat(existingLng), parseFloat(existingLat)], zoom: 14 });
+        const lng = parseFloat(existingLng);
+        const lat = parseFloat(existingLat);
+        if (Number.isFinite(lng) && Number.isFinite(lat)) {
+            locationInput.value = existingLocation;
+            void applyMapPoint(lng, lat, existingLocation).then(() => {
+                map.flyTo({ center: [lng, lat], zoom: 14 });
+            });
+        }
     }
 
-    locationInput.addEventListener("input", async function() {
-        const query = this.value.trim();
-        if (query.length < 3) {
+    locationInput.addEventListener("input", function() {
+        const trimmed = this.value.trim();
+        if (trimmed.length < 3) {
+            if (locationSearchAbort) {
+                locationSearchAbort.abort();
+                locationSearchAbort = null;
+            }
+            clearTimeout(locationSearchDebounce);
             suggestionsBox.style.display = "none";
             return;
         }
+        clearTimeout(locationSearchDebounce);
+        locationSearchDebounce = setTimeout(function() {
+            void runLocationSearch();
+        }, 280);
+    });
+
+    async function runLocationSearch() {
+        const query = locationInput.value.trim();
+        if (query.length < 3) return;
+
+        if (locationSearchAbort) locationSearchAbort.abort();
+        const ac = new AbortController();
+        locationSearchAbort = ac;
 
         console.log("[INFO] Searching for:", query);
 
         try {
-            // First, try the known establishments fallback
-            const knownPlaces = getKnownCebuEstablishments(query);
-            console.log("[INFO] Known places found:", knownPlaces.length);
-
-                        // Cebu-focused Mapbox geocoding (proximity + bbox)
-                        const CEBU_BBOX = "123.12,9.50,124.22,11.38";
-            const CEBU_PROXIMITY = "123.9024,10.2943";
-            const cebuGeocodeParams = new URLSearchParams({
-                access_token: mapboxgl.accessToken,
-                autocomplete: "true",
-                limit: "15",
-                country: "ph",
-                types: "poi,address,place,locality,neighborhood,district",
-                proximity: CEBU_PROXIMITY,
-                bbox: CEBU_BBOX,
-            });
-            const cebuUrl = (q) =>
-                `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?${cebuGeocodeParams.toString()}`;
-
             const searchStrategies = [
-                cebuUrl(query),
-                cebuUrl(query + ", Cebu, Philippines"),
-                `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query + ", Cebu, Philippines")}.json?access_token=${mapboxgl.accessToken}&autocomplete=true&limit=10&country=ph&types=poi,address,place,locality,neighborhood&proximity=${CEBU_PROXIMITY}`,
+                buildCebuGeocodeUrl(query),
+                buildCebuGeocodeUrl(query + ", Cebu, Philippines"),
             ];
 
             let allResults = [];
-            
+
             for (const url of searchStrategies) {
                 try {
                     console.log("[INFO] Trying search strategy:", url);
-                    const res = await fetch(url);
+                    const res = await fetch(url, { signal: ac.signal });
                     const data = await res.json();
                     if (data.features) {
                         allResults = allResults.concat(data.features);
                         console.log("[SUCCESS] Found", data.features.length, "results from strategy");
                     }
                 } catch (error) {
+                    if (error.name === "AbortError") return;
                     console.log("[ERROR] Search strategy failed:", error);
                 }
             }
 
-            // Remove duplicates and limit results
-            const uniqueResults = allResults.filter((place, index, self) => 
-                index === self.findIndex(p => p.place_name === place.place_name)
-            ).slice(0, 15);
+            const uniqueResults = allResults
+                .filter(
+                    (place, index, self) =>
+                        index === self.findIndex((p) => p.place_name === place.place_name)
+                )
+                .slice(0, 15);
 
             console.log("[INFO] Total unique results:", uniqueResults.length);
 
             suggestionsBox.innerHTML = "";
-            
-            // Always show known establishments first if they match
-            if (knownPlaces.length > 0) {
-                console.log("[INFO] Showing known establishments first");
-                knownPlaces.forEach(place => {
-                    const li = document.createElement("li");
-                    li.innerHTML = `<i class="bi bi-building"></i> <strong>${place.name}</strong><br><small>${place.address}</small>`;
-                    li.classList.add("list-group-item");
-                    li.style.backgroundColor = "#e8f5e8"; // Light green background for known places
 
-                    li.addEventListener("click", () => {
-                        locationInput.value = place.name;
-                        document.getElementById("location").value = place.name;
-                        document.getElementById("latitude").value = place.lat;
-                        document.getElementById("longitude").value = place.lng;
-
-                        map.flyTo({ center: [place.lng, place.lat], zoom: 15 });
-                        if (marker) marker.remove();
-                        marker = new mapboxgl.Marker().setLngLat([place.lng, place.lat]).addTo(map);
-                        suggestionsBox.style.display = "none";
-                    });
-                    suggestionsBox.appendChild(li);
-                });
-            }
-
-            // Then show API results
             if (uniqueResults.length > 0) {
                 console.log("[INFO] Showing API results");
-                uniqueResults.forEach(place => {
+                uniqueResults.forEach((place) => {
                     const li = document.createElement("li");
                     const categoryIcon = getCategoryIcon(place.properties?.category);
                     li.innerHTML = `${categoryIcon} <strong>${place.text}</strong><br><small>${place.place_name}</small>`;
                     li.classList.add("list-group-item");
 
                     li.addEventListener("click", () => {
-                        locationInput.value = place.place_name;
-                        document.getElementById("location").value = place.place_name;
-                        document.getElementById("latitude").value = place.center[1];
-                        document.getElementById("longitude").value = place.center[0];
-
+                        const lng = place.center[0];
+                        const lat = place.center[1];
                         map.flyTo({ center: place.center, zoom: 15 });
-                        if (marker) marker.remove();
-                        marker = new mapboxgl.Marker().setLngLat(place.center).addTo(map);
+                        applyMapPoint(lng, lat, place.place_name);
                         suggestionsBox.style.display = "none";
                     });
                     suggestionsBox.appendChild(li);
                 });
             }
 
-            // If no results at all, show a message
-            if (knownPlaces.length === 0 && uniqueResults.length === 0) {
+            if (uniqueResults.length === 0) {
                 const li = document.createElement("li");
                 li.innerHTML = "No locations found. Try a different search term.";
                 li.classList.add("list-group-item", "text-muted");
@@ -352,11 +412,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
             suggestionsBox.style.display = "block";
         } catch (err) {
+            if (err.name === "AbortError") return;
             console.error("Geocoding error:", err);
-            suggestionsBox.innerHTML = '<li class="list-group-item text-danger">Error searching locations. Please try again.</li>';
+            suggestionsBox.innerHTML =
+                '<li class="list-group-item text-danger">Error searching locations. Please try again.</li>';
             suggestionsBox.style.display = "block";
         }
-    });
+    }
 
     // Helper function to get category icons
     function getCategoryIcon(category) {
@@ -372,44 +434,6 @@ document.addEventListener("DOMContentLoaded", function() {
             'default': '<i class="bi bi-geo-alt"></i>'
         };
         return icons[category] || icons.default;
-    }
-
-    // Helper function for known Cebu establishments
-    function getKnownCebuEstablishments(query) {
-        const establishments = [
-            { name: "University of San Jose - Recoletos", address: "Magallanes St, Cebu City", lat: 10.2943, lng: 123.9024 },
-            { name: "Cebu Institute of Technology", address: "N. Bacalso Ave, Cebu City", lat: 10.3072, lng: 123.8894 },
-            { name: "University of the Philippines Cebu", address: "Lahug, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "Cebu Doctors' University", address: "Gov. M. Cuenco Ave, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "Chong Hua Hospital", address: "Fuente Osmeña, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "Cebu City Medical Center", address: "N. Bacalso Ave, Cebu City", lat: 10.3072, lng: 123.8894 },
-            { name: "SM City Cebu", address: "North Reclamation Area, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "Ayala Center Cebu", address: "Cebu Business Park, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "Cebu Provincial Capitol", address: "Capitol Site, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "Basilica del Santo Niño", address: "Osmeña Blvd, Cebu City", lat: 10.3200, lng: 123.9000 },
-            { name: "San Jose Recoletos", address: "Magallanes St, Cebu City", lat: 10.2943, lng: 123.9024 },
-            { name: "USJ-R", address: "Magallanes St, Cebu City", lat: 10.2943, lng: 123.9024 },
-            { name: "USJR", address: "Magallanes St, Cebu City", lat: 10.2943, lng: 123.9024 }
-        ];
-        
-        const lowerQuery = query.toLowerCase();
-        
-        return establishments.filter(place => {
-            const nameMatch = place.name.toLowerCase().includes(lowerQuery);
-            const addressMatch = place.address.toLowerCase().includes(lowerQuery);
-            
-            // Special handling for "University of San Jose" variations
-            if (lowerQuery.includes("san jose") && lowerQuery.includes("university")) {
-                return place.name.toLowerCase().includes("san jose") && place.name.toLowerCase().includes("university");
-            }
-            
-            // Special handling for "recoletos" variations
-            if (lowerQuery.includes("recoletos")) {
-                return place.name.toLowerCase().includes("recoletos");
-            }
-            
-            return nameMatch || addressMatch;
-        });
     }
 
     // Hide suggestions when clicking outside

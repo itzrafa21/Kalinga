@@ -40,6 +40,16 @@ function initializeFormSubmission() {
             const orgName = currentUser.displayName || currentUser.email || "Unknown Organization";
             console.log("[INFO] Organization name:", orgName);
             
+            // Keep hidden #location in sync with visible field (typed addresses, commas, spaces)
+            const locationInputEl = document.getElementById("locationInput");
+            const locationHidden = document.getElementById("location");
+            if (locationInputEl && locationHidden) {
+                const typed = locationInputEl.value;
+                if (typed.trim()) {
+                    locationHidden.value = typed;
+                }
+            }
+
             // Get location data
             const location = document.getElementById("location")?.value || "N/A";
             const latitude = document.getElementById("latitude")?.value || "N/A";
