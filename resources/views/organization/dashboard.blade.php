@@ -136,6 +136,13 @@
   border-radius: 50%;
   display: none;
 }
+
+.sidebar-user-avatar.has-photo .sidebar-user-avatar-img {
+      display: block;
+    }
+    .sidebar-user-avatar.has-photo #sidebarUserInitial {
+      display: none;
+    }
     .sidebar-user-status-dot {
       position: absolute;
       bottom: 2px;

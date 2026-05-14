@@ -33,22 +33,22 @@ onAuthStateChanged(auth, async (user) => {
       const snap = await getDoc(docRef);
 
       let displayName;
+      let orgData = null;
 
       if (snap.exists()) {
-        const data = snap.data();
-        console.log("[SUCCESS] Org data:", data);
+        orgData = snap.data();
+        console.log("[SUCCESS] Org data:", orgData);
 
         displayName =
-          (data.name && String(data.name).trim()) ||
-          (data.orgName && String(data.orgName).trim()) ||
+          (orgData.name && String(orgData.name).trim()) ||
+          (orgData.orgName && String(orgData.orgName).trim()) ||
           user.displayName ||
           user.email;
       } else {
         displayName = user.displayName || user.email;
       }
 
-      updateSidebarAvatar(data);
-
+      updateSidebarAvatar(orgData);
       if (orgNameEl) orgNameEl.textContent = displayName;
       if (welcomeNameEl) welcomeNameEl.textContent = displayName;
       if (sidebarNameEl) sidebarNameEl.textContent = displayName;
@@ -66,5 +66,6 @@ onAuthStateChanged(auth, async (user) => {
         const ch = String(fallback).trim().charAt(0);
         sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
       }
+      updateSidebarAvatar(null);
     }
   });
