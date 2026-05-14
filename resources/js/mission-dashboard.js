@@ -272,18 +272,28 @@ function isMissionInFuture(mission) {
     }
 }
 
-//  Move mission to history
+//  Move mission to history (merge global missions/{id} so volunteers etc. stay correct)
 async function moveMissionToHistory(orgId, missionId, mission) {
     try {
         const historyRef = doc(db, "organizations", orgId, "history", missionId);
-        await setDoc(historyRef, {
-            ...mission,
-            movedToHistoryAt: new Date()
-        });
-        
-        // Delete from active missions
+
+        let payload = { ...mission, movedToHistoryAt: new Date() };
+
+        try {
+            const globalSnap = await getDoc(doc(db, "missions", missionId));
+            if (globalSnap.exists()) {
+                const globalData = globalSnap.data();
+                // Global doc wins on overlapping keys (fixes stale volunteers on org snapshot)
+                payload = { ...mission, ...globalData, movedToHistoryAt: new Date() };
+            }
+        } catch (e) {
+            console.warn("[WARNING] Could not read global mission for merge:", missionId, e);
+        }
+
+        await setDoc(historyRef, payload);
+
         await deleteDoc(doc(db, "organizations", orgId, "missions", missionId));
-        
+
         console.log(`[SUCCESS] Mission "${mission.missionName}" moved to history`);
     } catch (error) {
         console.error("[ERROR] Error moving mission to history:", error);
