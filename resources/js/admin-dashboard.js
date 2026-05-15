@@ -110,8 +110,8 @@ function showTab(tabName) {
 
 function loadTabData(tabName) {
     switch(tabName) {
-        case 'users':
-            loadUsersData();
+        case 'organizations':
+            loadOrganizationsData();
             break;
         case 'missions':
             loadMissionsData();
@@ -129,51 +129,66 @@ function loadTabData(tabName) {
 }
 
 
-async function loadUsersData() {
+async function loadOrganizationsData() {
     try {
-        // Get users from Firebase
-        const usersQuery = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50));
-        const usersSnapshot = await getDocs(usersQuery);
-        
-        const tbody = document.getElementById('usersTableBody');
-        
-        if (usersSnapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No users found</td></tr>';
+        const snapshot = await getDocs(collection(db, "organizations"));
+        const tbody = document.getElementById("organizationsTableBody");
+        if (!tbody) return;
+
+        if (snapshot.empty) {
+            tbody.innerHTML =
+                '<tr><td colspan="6" class="text-center">No organizations found</td></tr>';
             return;
         }
-        
-        tbody.innerHTML = usersSnapshot.docs.map(doc => {
-            const user = doc.data();
-            const userId = doc.id;
-            
-            return `
+
+        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) =>
+            String(a.name || a.orgName || "").localeCompare(
+                String(b.name || b.orgName || ""),
+                undefined,
+                { sensitivity: "base" }
+            )
+        );
+
+        tbody.innerHTML = list
+            .map((org) => {
+                const name = org.name || org.orgName || "Unnamed organization";
+                const email = org.email || "—";
+                const phone = org.phone || "—";
+                const location =
+                    [org.address, org.city, org.state, org.country]
+                        .filter(Boolean)
+                        .join(", ") || "Not specified";
+                const verified = org.verified === true;
+                const statusLabel = verified ? "Verified" : "Registered";
+                const statusClass = verified ? "bg-success" : "bg-secondary";
+
+                return `
                 <tr>
-                    <td>${user.name || user.email}</td>
-                    <td>${user.email}</td>
-                    <td><span class="badge ${user.role === 'organization' ? 'bg-primary' : 'bg-success'}">${user.role || 'Volunteer'}</span></td>
-                    <td>${user.location || 'Not specified'}</td>
-                    <td><span class="badge ${user.verified ? 'bg-success' : 'bg-warning'}">${user.verified ? 'Verified' : 'Pending'}</span></td>
+                    <td><strong>${name}</strong></td>
+                    <td>${email}</td>
+                    <td>${phone}</td>
+                    <td>${location}</td>
+                    <td><span class="badge ${statusClass}">${statusLabel}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-admin" onclick="verifyUser('${userId}')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('${userId}')">
-                            <i class="fas fa-trash"></i>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewOrganization('${org.id}')">
+                            <i class="fas fa-eye"></i> View
                         </button>
                     </td>
-                </tr>
-            `;
-        }).join('');
-        
-        console.log("[SUCCESS] Users data loaded from Firebase");
+                </tr>`;
+            })
+            .join("");
+
+        console.log("[SUCCESS] Organizations loaded from Firebase");
     } catch (error) {
-        console.error("Error loading users data:", error);
-        // Fallback to mock data
-        const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading users data</td></tr>';
+        console.error("Error loading organizations:", error);
+        const tbody = document.getElementById("organizationsTableBody");
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="6" class="text-center text-danger">Error loading organizations</td></tr>';
+        }
     }
 }
-
 async function loadMissionsData() {
     try {
         console.log("[INFO] Loading missions data from Firebase...");
@@ -423,13 +438,13 @@ function setupEventListeners() {
     });
     
     // Search functionality with null checks
-    const userSearch = document.getElementById('userSearch');
-    const missionSearch = document.getElementById('missionSearch');
-    const volunteerSearch = document.getElementById('volunteerSearch');
-    
-    if (userSearch) {
-        userSearch.addEventListener('input', filterUsers);
-        console.log("[SUCCESS] User search listener added");
+    const orgSearch = document.getElementById("orgSearch");
+    const missionSearch = document.getElementById("missionSearch");
+    const volunteerSearch = document.getElementById("volunteerSearch");
+
+    if (orgSearch) {
+        orgSearch.addEventListener("input", filterOrganizations);
+        console.log("[SUCCESS] Organization search listener added");
     }
     if (missionSearch) {
         missionSearch.addEventListener('input', filterMissions);
@@ -462,37 +477,6 @@ function setupEventListeners() {
     
     console.log("[SUCCESS] All event listeners set up successfully");
 }
-
-// Action functions
-window.verifyUser = async function(userId) {
-    try {
-        const userRef = doc(db, "users", userId);
-        await updateDoc(userRef, {
-            verified: true,
-            verifiedAt: serverTimestamp()
-        });
-        
-        alert(`User verified successfully!`);
-        loadUsersData(); // Refresh data
-    } catch (error) {
-        console.error("Error verifying user:", error);
-        alert("Error verifying user. Please try again.");
-    }
-};
-
-window.deleteUser = async function(userId) {
-    if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-        try {
-            await deleteDoc(doc(db, "users", userId));
-            alert("User deleted successfully!");
-            loadUsersData(); // Refresh data
-        } catch (error) {
-            console.error("Error deleting user:", error);
-            alert("Error deleting user. Please try again.");
-        }
-    }
-};
-
 window.approveMission = async function(missionId) {
     try {
         const submissionRef = doc(db, "mission_submissions", missionId);
@@ -648,12 +632,15 @@ function saveLeaderboardSettings(e) {
 }
 
 // Filter functions
-function filterUsers() {
-    const searchTerm = document.getElementById('userSearch').value.toLowerCase();
-    const filterType = document.getElementById('userFilter').value;
-    
-    // Implement filtering logic here
-    console.log(`Filtering users: ${searchTerm}, type: ${filterType}`);
+function filterOrganizations() {
+    const q = (document.getElementById("orgSearch")?.value || "").toLowerCase().trim();
+    const tbody = document.getElementById("organizationsTableBody");
+    if (!tbody) return;
+
+    tbody.querySelectorAll("tr").forEach((row) => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = !q || text.includes(q) ? "" : "none";
+    });
 }
 
 function filterMissions() {
@@ -766,7 +753,33 @@ onAuthStateChanged(auth, async (user) => {
     
     // Load initial data
     await loadMissionsData();
-    await loadUsersData();
+    await loadOrganizationsData();
+
+    window.viewOrganization = async function (orgId) {
+        try {
+            const snap = await getDoc(doc(db, "organizations", orgId));
+            if (!snap.exists()) {
+                alert("Organization not found.");
+                return;
+            }
+            const o = snap.data();
+            const lines = [
+                `Name: ${o.name || o.orgName || "N/A"}`,
+                `Email: ${o.email || "N/A"}`,
+                `Phone: ${o.phone || "N/A"}`,
+                `Address: ${o.address || "—"}`,
+                `City: ${o.city || "—"}`,
+                `State: ${o.state || "—"}`,
+                `Postal: ${o.postalCode || "—"}`,
+                `Country: ${o.country || "—"}`,
+                `Org ID: ${orgId}`,
+            ];
+            alert(lines.join("\n"));
+        } catch (e) {
+            console.error(e);
+            alert("Could not load organization.");
+        }
+    };
     
     //  Sync mission statuses to ensure consistency
     await syncMissionStatuses();

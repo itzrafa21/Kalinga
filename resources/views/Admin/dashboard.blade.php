@@ -164,9 +164,10 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="#users" data-tab="users">
-            <i class="fas fa-users"></i> Users & Organizations
+          <a class="nav-link" href="#organizations" data-tab="organizations">
+            <i class="fas fa-building"></i> Organizations
           </a>
+        </li>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="#missions" data-tab="missions">
@@ -181,9 +182,6 @@
         <li class="nav-item">
           <a class="nav-link" href="#analytics" data-tab="analytics">
             <i class="fas fa-chart-bar"></i> Analytics
-          </a>
-        </li>
-        </li>
           </a>
         </li>
       </ul>
@@ -246,19 +244,15 @@
       </div>
     </div>
 
-    <!-- Users & Organizations Tab -->
-    <div id="users-tab" class="tab-content" style="display: none;">
+        <!-- Organizations Tab -->
+        <div id="organizations-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-users"></i> Users & Organizations Management</h5>
+          <h5 class="mb-0"><i class="fas fa-building"></i> Organization Management</h5>
           <div class="d-flex gap-2">
-            <input type="text" class="form-control search-box" id="userSearch" placeholder="Search users...">
-            <select class="form-select filter-dropdown" id="userFilter">
-              <option value="all">All Users</option>
-              <option value="organizations">Organizations</option>
-              <option value="volunteers">Volunteers</option>
-              <option value="verified">Verified</option>
-              <option value="pending">Pending</option>
+            <input type="text" class="form-control search-box" id="orgSearch" placeholder="Search organizations...">
+            <select class="form-select filter-dropdown" id="orgFilter">
+              <option value="all">All organizations</option>
             </select>
           </div>
         </div>
@@ -267,16 +261,15 @@
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Type</th>
+                  <th>Organization</th>
+                  <th>Contact email</th>
+                  <th>Phone</th>
                   <th>Location</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="usersTableBody">
-                <!-- Users will be loaded here -->
+              <tbody id="organizationsTableBody">
               </tbody>
             </table>
           </div>
