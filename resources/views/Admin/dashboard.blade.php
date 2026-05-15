@@ -244,41 +244,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Quick Actions -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card admin-card">
-            <div class="card-header">
-              <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
-            </div>
-            <div class="card-body">
-              <div class="row">
-                <div class="col-md-3 mb-2">
-                  <button class="btn btn-admin w-100" onclick="showTab('missions')">
-                    <i class="fas fa-check-circle"></i> Test
-                  </button>
-                </div>
-                <div class="col-md-3 mb-2">
-                  <button class="btn btn-admin w-100" onclick="showTab('users')">
-                    <i class="fas fa-user-check"></i> Test
-                  </button>
-                </div>
-                <div class="col-md-3 mb-2">
-                  <button class="btn btn-admin w-100" onclick="showTab('analytics')">
-                    <i class="fas fa-download"></i> Test
-                  </button>
-                </div>
-                <div class="col-md-3 mb-2">
-                  <button class="btn btn-admin w-100" onclick="showTab('notifications')">
-                    <i class="fas fa-bullhorn"></i> Test
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Users & Organizations Tab -->
