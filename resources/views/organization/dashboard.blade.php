@@ -339,12 +339,14 @@
       font-weight: 500;
       opacity: 0.95;
       margin-bottom: 0.35rem;
+      color: #000000;
     }
     .stat-card-header .stat-card-value {
       font-size: 2.25rem;
       font-weight: 700;
       margin: 0;
       line-height: 1.2;
+      color: #000000;
     }
     .stat-card-header .stat-card-icon {
       position: absolute;
@@ -353,33 +355,12 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.9);
+      border: 2px solid rgba(0, 0, 0, 0.9);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
     }
-    .stat-card-body {
-      background: #fff;
-      padding: 1rem 1.25rem 1.25rem;
-    }
-    .stat-card-body .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.35rem 0;
-      font-size: 0.9rem;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .stat-card-body .stat-row:last-child { border-bottom: none; }
-    .stat-card-body .stat-row strong {
-      color: #333;
-      margin-right: 0.5rem;
-    }
-    .stat-card-body .stat-row span {
-      color: #666;
-    }
-
     /* Table */
     .table-wrap {
       background: #fff;
@@ -513,11 +494,6 @@
             <i class="bi bi-journal-check"></i>
           </div>
         </div>
-        <div class="stat-card-body">
-          <div class="stat-row"><strong>—</strong><span>Pending</span></div>
-          <div class="stat-row"><strong>—</strong><span>Completed</span></div>
-          <div class="stat-row"><strong>—</strong><span>All missions</span></div>
-        </div>
       </div>
       <div class="stat-card">
         <div class="stat-card-header card-teal">
@@ -526,11 +502,6 @@
           <div class="stat-card-icon">
             <i class="bi bi-clock-history"></i>
           </div>
-        </div>
-        <div class="stat-card-body">
-          <div class="stat-row"><strong>—</strong><span>Active now</span></div>
-          <div class="stat-row"><strong>—</strong><span>This week</span></div>
-          <div class="stat-row"><strong>—</strong><span>This month</span></div>
         </div>
       </div>
     </div>
