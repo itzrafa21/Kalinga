@@ -142,57 +142,55 @@ async function loadHistoryMissions(user) {
 
             try {
                 // Check if this mission still exists in the main missions collection
+                const status = (mission.status || "").toLowerCase();
                 const mainMissionRef = doc(db, "missions", missionId);
                 const mainMissionSnap = await getDoc(mainMissionRef);
-                
-                if (mainMissionSnap.exists()) {
-                    // Mission still exists in main collection, show it in history
-                    validMissionsCount++;
-                    
-                    // Get actual volunteer count from mission applications
-                    const actualVolunteers = await getActualVolunteerCount(missionId);
-                    const totalNeeded = parseInt(mission.volunteers) || 0;
-                    
-                    // Format volunteer display
-                    const volunteerDisplay = `${actualVolunteers}/${totalNeeded} volunteers`;
-                    
-                    // Add to stats
-                    totalVolunteersHelped += actualVolunteers;
-                    
-                    // Check if mission was completed this month
-                    if (mission.date) {
-                        const missionDate = new Date(mission.date);
-                        const now = new Date();
-                        if (missionDate.getMonth() === now.getMonth() && 
-                            missionDate.getFullYear() === now.getFullYear()) {
-                            thisMonthCount++;
-                        }
-                    }
-                    
-                    const row = `
-                        <tr class="history-mission-row">
-                            <td>${mission.missionName || mission.name || "Untitled"}</td>
-                            <td>${mission.date || "N/A"}</td>
-                            <td>${mission.location || "N/A"}</td>
-                            <td>${volunteerDisplay}</td>
-                            <td><span class="status-badge status-completed">Completed</span></td>
-                        </tr>
-                    `;
-                    historyTableBody.insertAdjacentHTML("beforeend", row);
-                    
-                    console.log(`[SUCCESS] Mission ${missionId} - Volunteers: ${volunteerDisplay}`);
-                } else {
-                    // Mission no longer exists in main collection, remove it from history
-                    console.log(`[WARNING] [Mission ${missionId} no longer exists in main collection, removing from history`);
-                    
+
+                const showInHistory =
+                    status === "rejected" || mainMissionSnap.exists();
+
+                if (!showInHistory) {
                     try {
                         await deleteDoc(doc(db, "organizations", user.uid, "history", missionId));
                         removedMissionsCount++;
-                        console.log(`[INFO] Removed mission ${missionId} from history`);
                     } catch (deleteError) {
                         console.error(`[ERROR] Error removing mission ${missionId} from history:`, deleteError);
                     }
+                    continue;
                 }
+
+                validMissionsCount++;
+
+                const actualVolunteers =
+                    status === "rejected"
+                        ? 0
+                        : await getActualVolunteerCount(missionId);
+                const totalNeeded = parseInt(mission.volunteers, 10) || 0;
+                const volunteerDisplay =
+                    status === "rejected"
+                        ? "—"
+                        : `${actualVolunteers}/${totalNeeded} volunteers`;
+
+                if (status !== "rejected") {
+                    totalVolunteersHelped += actualVolunteers;
+                    // ... keep existing this-month logic if you want
+                }
+
+                const statusLabel =
+                    status === "rejected" ? "Rejected" : "Completed";
+                const statusClass =
+                    status === "rejected" ? "status-rejected" : "status-completed";
+
+                const row = `
+                    <tr class="history-mission-row">
+                        <td>${mission.missionName || mission.name || "Untitled"}</td>
+                        <td>${mission.date || "N/A"}</td>
+                        <td>${mission.location || "N/A"}</td>
+                        <td>${volunteerDisplay}</td>
+                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    </tr>
+                `;
+                historyTableBody.insertAdjacentHTML("beforeend", row);
             } catch (checkError) {
                 console.error(`[ERROR] Error checking mission ${missionId}:`, checkError);
                 // If there's an error checking, we'll skip this mission

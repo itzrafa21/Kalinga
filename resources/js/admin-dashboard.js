@@ -595,7 +595,26 @@ window.approveMission = async function(missionId) {
                         doc(db, "organizations", submissionData.orgId, "missions", missionId),
                         rejectionUpdate
                     );
+
+                    const historyRef = doc(
+                        db,
+                        "organizations",
+                        submissionData.orgId,
+                        "history",
+                        missionId
+                    );
+                    await setDoc(historyRef, {
+                        ...submissionData,
+                        ...rejectionUpdate,
+                        status: "rejected",
+                        movedToHistoryAt: new Date(),
+                    });
+
+                    await deleteDoc(
+                        doc(db, "organizations", submissionData.orgId, "missions", missionId)
+                    );
                 }
+        
         
                 alert("[INFO] Mission rejected.");
                 loadMissionsData();

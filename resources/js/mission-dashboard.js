@@ -171,28 +171,34 @@ async function loadMissions(user) {
 
         snapshot.forEach((docSnap) => {
             const mission = docSnap.data();
-            totalCount++;
+            const normalizedStatus = (mission.status || "").toLowerCase();
 
-            //  Check if mission should be moved to history (more aggressive)
+            // Rejected → move to history, do not show on dashboard
+            if (normalizedStatus === "rejected") {
+                console.log(`[INFO] Moving rejected mission "${mission.missionName}" to history`);
+                moveMissionToHistory(user.uid, docSnap.id, mission);
+                return;
+            }
+
             const shouldMoveToHistory = shouldMoveMissionToHistory(mission, today);
-            
+
             if (shouldMoveToHistory) {
                 console.log(`[INFO] Moving mission "${mission.missionName}" to history`);
                 moveMissionToHistory(user.uid, docSnap.id, mission);
-                return; // Skip adding to table
+                return;
             }
 
-            //  Count ongoing missions (Open, Ongoing, or future missions)
-            const normalizedStatus = (mission.status || '').toLowerCase();
-            const isMissionOngoing = normalizedStatus === 'open' || 
-                                   normalizedStatus === 'ongoing' || 
-                                   (normalizedStatus === 'completed' && isMissionInFuture(mission));
-            
+            totalCount++;
+
+            const isMissionOngoing =
+                normalizedStatus === "open" ||
+                normalizedStatus === "ongoing" ||
+                (normalizedStatus === "completed" && isMissionInFuture(mission));
+
             if (isMissionOngoing) {
                 ongoingCount++;
             }
 
-            // Add mission to the table
             const row = `
                 <tr>
                     <td>${mission.missionName || "Untitled"}</td>
