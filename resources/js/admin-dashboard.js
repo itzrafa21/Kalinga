@@ -506,7 +506,7 @@ function missionDetailRow(iconClass, label, value, isBadge = false) {
         : `<span class="org-detail-row__value">${value ?? "N/A"}</span>`;
     return `
         <div class="org-detail-row">
-                        <motion.div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
+            <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
             <div class="org-detail-row__content">
                 <span class="org-detail-row__label">${label}</span>
                 ${valHtml}
@@ -820,8 +820,13 @@ onAuthStateChanged(auth, async (user) => {
     await loadOrganizationsData();
 
     function openOrgDetailsModal() {
-        document.getElementById("orgDetailsModal")?.removeAttribute("hidden");
-        document.getElementById("orgDetailsBackdrop")?.removeAttribute("hidden");
+        const modal = document.getElementById("orgDetailsModal");
+        const backdrop = document.getElementById("orgDetailsBackdrop");
+        backdrop?.removeAttribute("hidden");
+        if (modal) {
+            modal.removeAttribute("hidden");
+            modal.style.display = "flex";
+        }
         document.body.style.overflow = "hidden";
     }
 
@@ -841,11 +846,15 @@ onAuthStateChanged(auth, async (user) => {
 
     
     function closeOrgDetailsModal() {
-        document.getElementById("orgDetailsModal")?.setAttribute("hidden", "");
-        document.getElementById("orgDetailsBackdrop")?.setAttribute("hidden", "");
+        const modal = document.getElementById("orgDetailsModal");
+        const backdrop = document.getElementById("orgDetailsBackdrop");
+        backdrop?.setAttribute("hidden", "");
+        if (modal) {
+            modal.setAttribute("hidden", "");
+            modal.style.display = "none";
+        }
         document.body.style.overflow = "";
     }
-    
     function orgDetailRow(iconClass, label, value, isBadge = false) {
         const valHtml = isBadge
             ? `<span class="org-status-badge ${String(value).toLowerCase()}">${value}</span>`
