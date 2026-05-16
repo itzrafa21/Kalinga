@@ -554,9 +554,9 @@
       </div>
     </div>
 
-      <!-- Organization details modal -->
-  <motion.div class="org-modal-backdrop" id="orgDetailsBackdrop" hidden></motion.div>
-  <div class="org-details-modal" id="orgDetailsModal" role="dialog" aria-labelledby="orgDetailsTitle" hidden>
+    <!-- Organization details modal -->
+    <div class="org-modal-backdrop" id="orgDetailsBackdrop" hidden></div>
+  <motion.div class="org-details-modal" id="orgDetailsModal" role="dialog" aria-labelledby="orgDetailsTitle" hidden>
     <div class="org-details-modal__header">
       <div class="org-details-modal__title-wrap">
         <i class="fas fa-building"></i>
@@ -567,6 +567,22 @@
     <div class="org-details-modal__body" id="orgDetailsBody"></div>
     <div class="org-details-modal__footer">
       <button type="button" class="org-details-modal__close-btn" id="orgDetailsCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- Mission details modal -->
+  <div class="org-modal-backdrop" id="missionDetailsBackdrop" hidden></div>
+  <div class="org-details-modal" id="missionDetailsModal" role="dialog" aria-labelledby="missionDetailsTitle" hidden>
+    <div class="org-details-modal__header">
+      <div class="org-details-modal__title-wrap">
+        <i class="fas fa-bullseye"></i>
+        <h2 id="missionDetailsTitle">MISSION DETAILS</h2>
+      </div>
+      <button type="button" class="org-details-modal__close-x" id="missionDetailsCloseX" aria-label="Close">&times;</button>
+    </div>
+    <div class="org-details-modal__body" id="missionDetailsBody"></div>
+    <div class="org-details-modal__footer">
+      <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
     </div>
   </div>
 

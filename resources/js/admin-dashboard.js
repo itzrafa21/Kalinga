@@ -477,6 +477,49 @@ function setupEventListeners() {
     
     console.log("[SUCCESS] All event listeners set up successfully");
 }
+
+function openMissionDetailsModal() {
+    const modal = document.getElementById("missionDetailsModal");
+    const backdrop = document.getElementById("missionDetailsBackdrop");
+    backdrop?.removeAttribute("hidden");
+    if (modal) {
+        modal.removeAttribute("hidden");
+        modal.style.display = "flex";
+    }
+    document.body.style.overflow = "hidden";
+}
+
+function closeMissionDetailsModal() {
+    const modal = document.getElementById("missionDetailsModal");
+    const backdrop = document.getElementById("missionDetailsBackdrop");
+    backdrop?.setAttribute("hidden", "");
+    if (modal) {
+        modal.setAttribute("hidden", "");
+        modal.style.display = "none";
+    }
+    document.body.style.overflow = "";
+}
+
+function missionDetailRow(iconClass, label, value, isBadge = false) {
+    const valHtml = isBadge
+        ? `<span class="org-status-badge ${String(value).toLowerCase()}">${value}</span>`
+        : `<span class="org-detail-row__value">${value ?? "N/A"}</span>`;
+    return `
+        <div class="org-detail-row">
+                        <motion.div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
+            <div class="org-detail-row__content">
+                <span class="org-detail-row__label">${label}</span>
+                ${valHtml}
+            </div>
+        </div>`;
+}
+
+function formatMissionSubmittedAt(mission) {
+    const t = mission.submittedAt;
+    if (t?.toDate) return t.toDate().toLocaleString();
+    if (t) return new Date(t).toLocaleString();
+    return "N/A";
+}
 window.approveMission = async function(missionId) {
     try {
         const submissionRef = doc(db, "mission_submissions", missionId);
@@ -562,36 +605,53 @@ window.approveMission = async function(missionId) {
             }
         };
 
-window.viewMissionDetails = async function(missionId) {
-    try {
-        const missionRef = doc(db, "missions", missionId);
-        const missionDoc = await getDoc(missionRef);
+        window.viewMissionDetails = async function (missionId) {
+            try {
+                let snap = await getDoc(doc(db, "mission_submissions", missionId));
+                if (!snap.exists()) {
+                    snap = await getDoc(doc(db, "missions", missionId));
+                }
+                if (!snap.exists()) {
+                    alert("Mission not found.");
+                    return;
+                }
         
-        if (missionDoc.exists()) {
-            const mission = missionDoc.data();
-            const details = `
-Mission Details:
-Name: ${mission.missionName || 'N/A'}
-Organization: ${mission.orgName || 'N/A'}
-Type: ${mission.type || 'N/A'}
-Date: ${mission.date || 'N/A'}
-Time: ${mission.startTime || 'N/A'} - ${mission.endTime || 'N/A'}
-Location: ${mission.location || 'N/A'}
-Volunteers Needed: ${mission.volunteers || 'N/A'}
-Status: ${mission.status || 'N/A'}
-Description: ${mission.description || 'N/A'}
-Submitted: ${mission.submittedAt ? new Date(mission.submittedAt).toLocaleString() : 'N/A'}
-Submitted By: ${mission.submittedBy || 'N/A'}
-            `;
-            alert(details);
-        } else {
-            alert("Mission not found.");
-        }
-    } catch (error) {
-        console.error("Error viewing mission details:", error);
-        alert("Error loading mission details.");
-    }
-};
+                const mission = snap.data();
+                const statusLabel = String(mission.status || "N/A").toUpperCase();
+                const body = document.getElementById("missionDetailsBody");
+                if (!body) return;
+        
+                const rows = [
+                    missionDetailRow("fa-flag", "Mission Name:", mission.missionName || mission.name),
+                    missionDetailRow("fa-building", "Organization:", mission.orgName),
+                    missionDetailRow("fa-tag", "Type:", mission.type),
+                    missionDetailRow("fa-calendar", "Date:", mission.date),
+                    missionDetailRow("fa-clock", "Time:", `${mission.startTime || "—"} – ${mission.endTime || "—"}`),
+                    missionDetailRow("fa-map-marker-alt", "Location:", mission.location),
+                    missionDetailRow("fa-users", "Volunteers Needed:", mission.volunteers),
+                    missionDetailRow("fa-info-circle", "Status:", statusLabel, true),
+                    missionDetailRow("fa-align-left", "Description:", mission.description || "—"),
+                    missionDetailRow("fa-paper-plane", "Submitted:", formatMissionSubmittedAt(mission)),
+                    missionDetailRow("fa-user", "Submitted By:", mission.submittedBy),
+                ];
+        
+                if ((mission.status || "").toLowerCase() === "rejected") {
+                    rows.push(
+                        missionDetailRow(
+                            "fa-comment-dots",
+                            "Rejection Reason:",
+                            mission.rejectionReason || "No reason provided"
+                        )
+                    );
+                }
+        
+                body.innerHTML = rows.join("");
+                openMissionDetailsModal();
+            } catch (error) {
+                console.error("Error viewing mission details:", error);
+                alert("Error loading mission details.");
+            }
+        };
 
 // Test function to debug button clicking
 window.testButton = function(missionId) {
@@ -770,6 +830,13 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("orgDetailsBackdrop")?.addEventListener("click", closeOrgDetailsModal);
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") closeOrgDetailsModal();
+    });
+
+    document.getElementById("missionDetailsCloseBtn")?.addEventListener("click", closeMissionDetailsModal);
+    document.getElementById("missionDetailsCloseX")?.addEventListener("click", closeMissionDetailsModal);
+    document.getElementById("missionDetailsBackdrop")?.addEventListener("click", closeMissionDetailsModal);
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeMissionDetailsModal();
     });
 
     
