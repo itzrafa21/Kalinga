@@ -377,6 +377,10 @@
       background: #d4edda;
       color: #155724;
     }
+    .status-rejected {
+      background: #f8d7da;
+      color: #721c24;
+    }
 
     .empty-state {
       text-align: center;
