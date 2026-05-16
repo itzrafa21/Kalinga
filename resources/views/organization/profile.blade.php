@@ -27,7 +27,7 @@
        /* Sidebar (dashboard / volunteers — user card + #0f2419) */
        .sidebar {
       width: 260px;
-      background: #0f2419;
+      background: #ffffff;
       height: 100vh;
       position: fixed;
       left: 0;
@@ -41,21 +41,21 @@
     }
     .sidebar-logo {
       padding: 0 1rem 1rem 1.25rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(31, 31, 31, 0.08);
       margin-bottom: 1rem;
     }
     .sidebar-logo span {
       font-weight: 700;
       font-size: 1.05rem;
       letter-spacing: 0.12em;
-      color: #fff;
+      color: #030303;
     }
     .sidebar-user-card {
       margin: 0 0.85rem 1.25rem;
       padding: 1rem;
       border-radius: 14px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(39, 39, 39, 0.06);
+      border: 1px solid rgba(39, 39, 39, 0.06);
       display: flex;
       align-items: center;
       gap: 0.85rem;
@@ -111,7 +111,7 @@
     .sidebar-user-name {
       font-weight: 700;
       font-size: 0.95rem;
-      color: #fff;
+      color: #020202;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
