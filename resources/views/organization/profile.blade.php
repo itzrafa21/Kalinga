@@ -254,12 +254,12 @@
       max-width: 1200px;
     }
     .profile-header {
-      background: #ffffff;
+      background: #d4d4d4;
       color: #000000;
       padding: 1.75rem 2rem;
       border-radius: 16px;
       margin-bottom: 1.5rem;
-      box-shadow: 0 8px 24px rgba(40, 167, 69, 0.28);
+      box-shadow: 0 8px 24px rgba(95, 95, 95, 0.28);
       position: relative;
     }
     .profile-header-content {
