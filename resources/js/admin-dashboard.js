@@ -520,43 +520,47 @@ window.approveMission = async function(missionId) {
     }
 };
 
-        // Also update organization's dashboard copy
-        const submissionDoc = await getDoc(submissionRef);
-        if (submissionDoc.exists()) {
-            const submissionData = submissionDoc.data();
-            await updateDoc(doc(db, "organizations", submissionData.orgId, "missions", missionId), {
-                status: "rejected",
-                workflowStatus: "rejected",
-                rejectedAt: serverTimestamp(),
-                rejectedBy: auth.currentUser.email,
-                rejectionReason: reason
-            });
-        }
 
-
-window.rejectMission = async function(missionId) {
-    const reason = prompt("Please provide a reason for rejecting this mission:");
-    if (reason === null) return;
-
-    if (confirm("Are you sure you want to reject this mission?")) {
-        try {
-            const submissionRef = doc(db, "mission_submissions", missionId);
-            await updateDoc(submissionRef, {
-                status: "rejected",
-                workflowStatus: "rejected",
-                rejectedAt: serverTimestamp(),
-                rejectedBy: auth.currentUser.email,
-                rejectionReason: reason
-            });
-
-            alert("[INFO] Mission rejected.");
-            loadMissionsData();
-        } catch (error) {
-            console.error("Error rejecting mission:", error);
-            alert("Error rejecting mission. Please try again.");
-        }
-    }
-};
+        window.rejectMission = async function(missionId) {
+            const reason = prompt("Please provide a reason for rejecting this mission:");
+            if (reason === null) return;
+        
+            if (!confirm("Are you sure you want to reject this mission?")) return;
+        
+            try {
+                const submissionRef = doc(db, "mission_submissions", missionId);
+                const submissionSnap = await getDoc(submissionRef);
+        
+                if (!submissionSnap.exists()) {
+                    alert("Mission submission not found.");
+                    return;
+                }
+        
+                const submissionData = submissionSnap.data();
+                const rejectionUpdate = {
+                    status: "rejected",
+                    workflowStatus: "rejected",
+                    rejectedAt: serverTimestamp(),
+                    rejectedBy: auth.currentUser.email,
+                    rejectionReason: reason
+                };
+        
+                await updateDoc(submissionRef, rejectionUpdate);
+        
+                if (submissionData.orgId) {
+                    await updateDoc(
+                        doc(db, "organizations", submissionData.orgId, "missions", missionId),
+                        rejectionUpdate
+                    );
+                }
+        
+                alert("[INFO] Mission rejected.");
+                loadMissionsData();
+            } catch (error) {
+                console.error("Error rejecting mission:", error);
+                alert("Error rejecting mission. Please try again.");
+            }
+        };
 
 window.viewMissionDetails = async function(missionId) {
     try {

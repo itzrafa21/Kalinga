@@ -14,6 +14,7 @@ export default defineConfig({
                 'resources/js/organization-dashboard.js',
                 'resources/js/organization-logout.js',
                 'resources/js/organization-profile.js',
+                'resources/js/admin-dashboard.js',
             ],
             refresh: true,
         }),
