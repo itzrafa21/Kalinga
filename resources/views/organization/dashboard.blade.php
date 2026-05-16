@@ -327,11 +327,14 @@
       min-height: 90px;
     }
     .stat-card-header.card-purple {
-      background: #28a745;
+      background:rgb(255, 255, 255);
       color: #fff;
     }
+    .stat-card-header .stat-card-icon i {
+  color:rgb(0, 0, 0);   /* icon color — try #000000 for black */
+}
     .stat-card-header.card-teal {
-      background: #28a745;
+      background:rgb(255, 255, 255);
       color: #fff;
     }
     .stat-card-header .stat-card-title {
