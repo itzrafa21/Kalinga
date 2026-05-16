@@ -221,35 +221,31 @@ async function loadMissions(user) {
 
 //  Check if mission should be moved to history (FIXED)
 function shouldMoveMissionToHistory(mission, today) {
-    //  Move ANY mission that has passed its end time, regardless of status
-    if (mission.date && mission.endTime) {
-        try {
-            let missionEndDateTime;
-            
-            // Parse end time correctly
-            if (mission.endTime.includes('AM') || mission.endTime.includes('PM')) {
-                missionEndDateTime = parse12HourTime(mission.date, mission.endTime);
-            } else {
-                missionEndDateTime = new Date(`${mission.date}T${mission.endTime}`);
-            }
-            
-            const timeDiff = today.getTime() - missionEndDateTime.getTime();
-            
-            console.log(`[INFO] Checking mission "${mission.missionName}":`, {
-                endTime: missionEndDateTime.toISOString(),
-                now: today.toISOString(),
-                timeDiff: timeDiff,
-                shouldMove: timeDiff > 0
-            });
-            
-            // Move to history if mission end time has passed (even by 1 second)
-            return timeDiff > 0;
-        } catch (error) {
-            console.error("Error checking mission end time:", error);
-        }
+    // Pending missions should stay on the dashboard until admin acts
+    const status = (mission.status || '').toLowerCase();
+    if (status === 'pending') {
+        return false;
     }
-    
-    return false;
+
+    const endDate = mission.endDate || mission.date;
+    if (!endDate || !mission.endTime) {
+        return false;
+    }
+
+    try {
+        let missionEndDateTime;
+
+        if (mission.endTime.includes('AM') || mission.endTime.includes('PM')) {
+            missionEndDateTime = parse12HourTime(endDate, mission.endTime);
+        } else {
+            missionEndDateTime = new Date(`${endDate}T${mission.endTime}`);
+        }
+
+        return today.getTime() > missionEndDateTime.getTime();
+    } catch (error) {
+        console.error("Error checking mission end time:", error);
+        return false;
+    }
 }
 
 //  Check if mission is in the future
