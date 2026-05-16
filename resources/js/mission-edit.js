@@ -65,6 +65,9 @@ onAuthStateChanged(auth, async (user) => {
       }
     }
 
+    const latVal = parseFloat(document.getElementById("latitude").value);
+    const lngVal = parseFloat(document.getElementById("longitude").value);
+
     const updatedData = {
       missionName: document.getElementById("name").value,
       description: document.getElementById("description").value,
@@ -74,8 +77,8 @@ onAuthStateChanged(auth, async (user) => {
       startTime: document.getElementById("startTime").value,
       endTime: document.getElementById("endTime").value,
       location: document.getElementById("location").value,
-      latitude: document.getElementById("latitude").value,
-      longitude: document.getElementById("longitude").value,
+      latitude: Number.isFinite(latVal) ? latVal : document.getElementById("latitude").value,
+      longitude: Number.isFinite(lngVal) ? lngVal : document.getElementById("longitude").value,
       volunteers: document.getElementById("volunteers").value,
     };
     

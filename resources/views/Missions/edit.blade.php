@@ -257,8 +257,8 @@ document.addEventListener("DOMContentLoaded", function() {
     function bindMarkerDrag(m) {
         m.on("dragend", async () => {
             const { lng, lat } = m.getLngLat();
-            document.getElementById("latitude").value = String(lat);
-            document.getElementById("longitude").value = String(lng);
+            document.getElementById("latitude").value = Number(lat).toFixed(6);
+            document.getElementById("longitude").value = Number(lng).toFixed(6);
             try {
                 const picked = await reverseGeocode(lng, lat);
                 const label = resolveMapLocationLabel(picked);
@@ -274,8 +274,8 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     async function applyMapPoint(lng, lat, displayLabel) {
-        document.getElementById("latitude").value = String(lat);
-        document.getElementById("longitude").value = String(lng);
+        document.getElementById("latitude").value = Number(lat).toFixed(6);
+        document.getElementById("longitude").value = Number(lng).toFixed(6);
         if (marker) marker.remove();
         marker = new mapboxgl.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(map);
         bindMarkerDrag(marker);

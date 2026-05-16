@@ -52,8 +52,10 @@ function initializeFormSubmission() {
 
             // Get location data
             const location = document.getElementById("location")?.value || "N/A";
-            const latitude = document.getElementById("latitude")?.value || "N/A";
-            const longitude = document.getElementById("longitude")?.value || "N/A";
+            const latVal = parseFloat(document.getElementById("latitude")?.value);
+            const lngVal = parseFloat(document.getElementById("longitude")?.value);
+            const latitude = Number.isFinite(latVal) ? latVal : "N/A";
+            const longitude = Number.isFinite(lngVal) ? lngVal : "N/A";
             
             console.log("[INFO] Location data from form:");
             console.log("  - Location:", location);
