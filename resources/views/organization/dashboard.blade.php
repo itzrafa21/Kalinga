@@ -73,7 +73,7 @@
     }
 
        /* Sidebar — reference layout */
-       .sidebar {
+      .sidebar {
       width: 260px;
       background: #0f2419;
       height: 100vh;
@@ -136,13 +136,6 @@
   border-radius: 50%;
   display: none;
 }
-
-.sidebar-user-avatar.has-photo .sidebar-user-avatar-img {
-      display: block;
-    }
-    .sidebar-user-avatar.has-photo #sidebarUserInitial {
-      display: none;
-    }
     .sidebar-user-status-dot {
       position: absolute;
       bottom: 2px;
@@ -188,14 +181,14 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.55px;
-      color: rgba(255, 255, 255, 0.38);
+      color: #000000;
       padding: 1rem 0.75rem 0.45rem;
     }
     .sidebar a {
       display: flex;
       align-items: center;
       gap: 0.65rem;
-      color: #a8c5b0;
+      color: #000000;
       text-decoration: none;
       padding: 10px 14px;
       border-radius: 10px;
@@ -205,20 +198,22 @@
     }
     .sidebar a:hover {
       background: rgba(255, 255, 255, 0.06);
-      color: #e8f5e9;
+      color: #000000;
     }
     .sidebar a.active {
       background: #28a745;
-      color: #fff;
+      color: #000000;
       box-shadow: 0 2px 8px rgba(40, 167, 69, 0.35);
     }
     .sidebar a i {
       font-size: 1.05rem;
       width: 22px;
       text-align: center;
+      color: #000000;
     }
+    .sidebar a:hover i,
     .sidebar a.active i {
-      color: #fff;
+      color: #000000;
     }
     #logoutBtn.sidebar-logout-link {
       display: flex;
@@ -229,7 +224,7 @@
       border: none;
       border-radius: 10px;
       background: transparent;
-      color: #a8c5b0;
+      color: #000000;
       font-weight: 500;
       font-size: 0.92rem;
       font-family: inherit;
@@ -239,12 +234,13 @@
     }
     #logoutBtn.sidebar-logout-link:hover {
       background: rgba(255, 255, 255, 0.06);
-      color: #e8f5e9;
+      color: #000000;
     }
     #logoutBtn.sidebar-logout-link i {
       font-size: 1.05rem;
       width: 22px;
       text-align: center;
+      color: #000000;
     }
     @media (max-width: 768px) {
       .sidebar {
@@ -256,241 +252,200 @@
     }
 
     /* Main content */
-.main-content {
-  margin-left: 260px; /* keep space for sidebar */
-  padding: 20px 16px 24px;
-  min-height: 100vh;
-}
+    .main-content {
+      margin-left: 260px;
+      padding: 1.5rem 2rem 2rem;
+      min-height: 100vh;
+    }
 
-.page-welcome {
-  margin: 0;
-  font-size: 14px;
-  color: #6b7280;
-}
+    /* Page title */
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #1e3a2f;
+      margin: 0 0 1.25rem;
+    }
 
-.page-title {
-  margin: 2px 0 14px;
-  font-size: 42px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: #1f2937;
-}
+    /* Toolbar - search, filters, primary button */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .toolbar-search {
+      flex: 1;
+      min-width: 200px;
+      padding: 8px 14px 8px 36px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
+    }
+    .toolbar-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .create-btn {
+      background: #28a745;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .create-btn:hover {
+      background: #218838;
+      transform: translateY(-1px);
+    }
 
-/* Cards */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
+        /* Stats cards - header + body style */
+        .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      flex: 1;
+      min-width: 240px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid #eee;
+    }
+    .stat-card-header {
+      padding: 1.25rem 1.25rem 1rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 90px;
+    }
+    .stat-card-header.card-purple {
+      background: #28a745;
+      color: #fff;
+    }
+    .stat-card-header.card-teal {
+      background: #28a745;
+      color: #fff;
+    }
+    .stat-card-header .stat-card-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      opacity: 0.95;
+      margin-bottom: 0.35rem;
+    }
+    .stat-card-header .stat-card-value {
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .stat-card-header .stat-card-icon {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+    .stat-card-body {
+      background: #fff;
+      padding: 1rem 1.25rem 1.25rem;
+    }
+    .stat-card-body .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.35rem 0;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .stat-card-body .stat-row:last-child { border-bottom: none; }
+    .stat-card-body .stat-row strong {
+      color: #333;
+      margin-right: 0.5rem;
+    }
+    .stat-card-body .stat-row span {
+      color: #666;
+    }
 
-.stat-card {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e7ebf0;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-}
+    /* Table */
+    .table-wrap {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border: 1px solid #eee;
+      overflow: hidden;
+    }
+    .missions table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .missions th, .missions td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .missions th {
+      background:rgb(56, 107, 87);
+      font-weight: 600;
+      color:rgb(255, 255, 255);
+    }
+    .missions tbody tr:hover { background: #f8f9fa; }
+    .missions tbody tr:nth-child(even) { background: #fafafa; }
+    .missions tbody tr:nth-child(even):hover { background: #f0f4f0; }
 
-.stat-card-header {
-  background: #22a447;
-  color: #fff;
-  padding: 12px 14px;
-  min-height: 82px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
+    .edit-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      background: #ffc107;
+      color: #000;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .edit-btn:hover { background: #e0a800; color: #000; }
+    .delete-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      background: #dc3545;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      margin-left: 6px;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .delete-btn:hover { background: #c82333; }
 
-.stat-card-header .stat-card-title {
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.95;
-  margin-bottom: 4px;
-}
-
-.stat-card-header .stat-card-value {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.stat-card-header .stat-card-icon {
-  position: absolute;
-  right: 12px;
-  top: 10px;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  display: grid;
-  place-items: center;
-  font-size: 14px;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.stat-card-body {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
-  background: #fff;
-  padding: 10px 12px;
-}
-
-.stat-mini {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 0 8px;
-  border-right: 1px solid #edf1f5;
-}
-
-.stat-mini:last-child {
-  border-right: 0;
-}
-
-.stat-mini-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  transform: translateY(-1px);
-}
-
-.dot-orange { background: #f59e0b; }
-.dot-green { background: #22c55e; }
-.dot-blue { background: #3b82f6; }
-.dot-purple { background: #a855f7; }
-
-.stat-mini strong {
-  font-size: 13px;
-  color: #111827;
-}
-
-.stat-mini span {
-  font-size: 11px;
-  color: #6b7280;
-  white-space: nowrap;
-}
-
-/* Toolbar */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.toolbar-search {
-  flex: 1;
-  height: 40px;
-  border: 1px solid #e6eaf0;
-  border-radius: 8px;
-  font-size: 14px;
-  padding: 0 12px 0 36px;
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.398 1.398l3.85 3.85a1 1 0 1 0 1.414-1.414l-3.85-3.85zM12 6.5a5.5 5.5 0 1 1-11 0a5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
-}
-
-.toolbar-actions {
-  display: flex;
-  align-items: center;
-}
-
-#missionsTable th:last-child,
-#missionsTable td:last-child {
-  width: 120px;
-  white-space: nowrap;
-}
-
-
-.create-btn {
-  height: 40px;
-  border: none;
-  border-radius: 8px;
-  background: #22a447;
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 0 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.create-btn:hover {
-  background: #1d923e;
-}
-
-/* Table */
-.table-wrap {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  border: 1px solid #eee;
-  overflow: hidden;
-}
-
-.table-title {
-  display: none; /* hide extra title to match old look */
-}
-
-.missions table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.missions th, .missions td {
-  padding: 12px 14px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.missions th {
-  background: rgb(56, 107, 87); /* dark green header */
-  color: #fff;
-  font-weight: 600;
-}
-
-.missions tbody tr:hover { background: #f8f9fa; }
-.missions tbody tr:nth-child(even) { background: #fafafa; }
-.missions tbody tr:nth-child(even):hover { background: #f0f4f0; }
-
-/* Bring back yellow View Details button style */
-.edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 600;
-  background: #ffc107;
-  color: #000;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-}
-.edit-btn:hover {
-  background: #e0a800;
-  color: #000;
-}
-
-/* Keep sidebar behavior on mobile */
-@media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
-  .topbar, .main-content { margin-left: 0; }
-  .topbar { padding-left: 3rem; }
-
-  .stats { grid-template-columns: 1fr; }
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .create-btn { width: 100%; justify-content: center; }
-}
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .topbar, .main-content { margin-left: 0; }
+      .topbar { padding-left: 3rem; }
+    }
   </style>
 </head>
 <body>
@@ -532,73 +487,81 @@
 </aside>
 
   <!-- Header -->
-<header class="topbar">
+  <header class="topbar">
   <div class="topbar-brand">
-    <img src="{{ asset('images/kalinga-logo.jpg') }}" alt="Kalinga Logo" style="height:24px;width:auto;">
+    <img src="{{ asset('images/kalinga-logo.jpg') }}" alt="Kalinga Logo" style="height: 28px; width: auto;">
     <span>Kalinga</span>
   </div>
+
+  
 </header>
 
 <main class="main-content">
   <div class="page-header">
-    <p class="page-welcome">Welcome back, <span id="orgNameWelcome">Organization</span>!</p>
+    <p class="page-welcome">
+      Welcome, <span id="orgNameWelcome">Organization</span>!
+    </p>
     <h1 class="page-title">Dashboard</h1>
   </div>
 
-  <div class="stats">
-    <div class="stat-card">
-      <div class="stat-card-header card-purple">
-        <span class="stat-card-title">Total Missions</span>
-        <p class="stat-card-value" id="totalMissions">0</p>
-        <div class="stat-card-icon"><i class="bi bi-journal-check"></i></div>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-card-header card-purple">
+          <span class="stat-card-title">Total Missions</span>
+          <p class="stat-card-value" id="totalMissions">0</p>
+          <div class="stat-card-icon">
+            <i class="bi bi-journal-check"></i>
+          </div>
+        </div>
+        <div class="stat-card-body">
+          <div class="stat-row"><strong>—</strong><span>Pending</span></div>
+          <div class="stat-row"><strong>—</strong><span>Completed</span></div>
+          <div class="stat-row"><strong>—</strong><span>All missions</span></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-header card-teal">
+          <span class="stat-card-title">Ongoing Missions</span>
+          <p class="stat-card-value" id="ongoingMissions">0</p>
+          <div class="stat-card-icon">
+            <i class="bi bi-clock-history"></i>
+          </div>
+        </div>
+        <div class="stat-card-body">
+          <div class="stat-row"><strong>—</strong><span>Active now</span></div>
+          <div class="stat-row"><strong>—</strong><span>This week</span></div>
+          <div class="stat-row"><strong>—</strong><span>This month</span></div>
+        </div>
       </div>
     </div>
 
-    <div class="stat-card">
-      <div class="stat-card-header card-teal">
-        <span class="stat-card-title">Ongoing Missions</span>
-        <p class="stat-card-value" id="ongoingMissions">0</p>
-        <div class="stat-card-icon"><i class="bi bi-clock-history"></i></div>
+    <div class="missions">
+      <div class="toolbar">
+        <input type="text" class="toolbar-search" id="missionSearch" placeholder="Search missions..." aria-label="Search missions">
+        <div class="toolbar-actions">
+          <button type="button" class="create-btn" onclick="window.location.href='/missions/create'">
+            <i class="bi bi-plus-lg"></i> Create New Mission
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="missionsTable">
+          <thead>
+            <tr>
+              <th>Missions</th>
+              <th>Description</th>
+              <th>Type</th>
+              <th>Volunteers</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="missionsBody"></tbody>
+        </table>
       </div>
     </div>
-  </div>
-
-  <div class="missions">
-    <div class="toolbar">
-      <input type="text" class="toolbar-search" id="missionSearch" placeholder="Search missions..." aria-label="Search missions">
-      <div class="toolbar-actions">
-        <button type="button" class="create-btn" onclick="window.location.href='/missions/create'">
-          <i class="bi bi-plus-lg"></i> Create New Mission
-        </button>
-      </div>
-    </div>
-
-    <div class="table-wrap">
-      <div class="table-title">Missions</div>
-      <table id="missionsTable">
-        <thead>
-          <tr>
-            <th>Missions</th>
-            <th>Description</th>
-            <th>Type</th>
-            <th>Volunteers</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="missionsBody">
-          <tr class="empty-row">
-            <td colspan="6">
-              <div class="empty-icon"><i class="bi bi-inbox"></i></div>
-              <div class="empty-title">No missions yet</div>
-              <div class="empty-sub">Create your first mission to get started.</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</main>
+  </main>
 
   <script>
     // Optional: filter table by search
