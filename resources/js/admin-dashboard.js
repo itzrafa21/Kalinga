@@ -759,6 +759,40 @@ onAuthStateChanged(auth, async (user) => {
     await loadMissionsData();
     await loadOrganizationsData();
 
+    function openOrgDetailsModal() {
+        document.getElementById("orgDetailsModal")?.removeAttribute("hidden");
+        document.getElementById("orgDetailsBackdrop")?.removeAttribute("hidden");
+        document.body.style.overflow = "hidden";
+    }
+
+    document.getElementById("orgDetailsCloseBtn")?.addEventListener("click", closeOrgDetailsModal);
+    document.getElementById("orgDetailsCloseX")?.addEventListener("click", closeOrgDetailsModal);
+    document.getElementById("orgDetailsBackdrop")?.addEventListener("click", closeOrgDetailsModal);
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeOrgDetailsModal();
+    });
+
+    
+    function closeOrgDetailsModal() {
+        document.getElementById("orgDetailsModal")?.setAttribute("hidden", "");
+        document.getElementById("orgDetailsBackdrop")?.setAttribute("hidden", "");
+        document.body.style.overflow = "";
+    }
+    
+    function orgDetailRow(iconClass, label, value, isBadge = false) {
+        const valHtml = isBadge
+            ? `<span class="org-status-badge ${String(value).toLowerCase()}">${value}</span>`
+            : `<span class="org-detail-row__value">${value || "N/A"}</span>`;
+        return `
+            <div class="org-detail-row">
+                <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
+                <div class="org-detail-row__content">
+                    <span class="org-detail-row__label">${label}</span>
+                    ${valHtml}
+                </div>
+            </div>`;
+    }
+    
     window.viewOrganization = async function (orgId) {
         try {
             const snap = await getDoc(doc(db, "organizations", orgId));
@@ -767,18 +801,25 @@ onAuthStateChanged(auth, async (user) => {
                 return;
             }
             const o = snap.data();
-            const lines = [
-                `Name: ${o.name || o.orgName || "N/A"}`,
-                `Email: ${o.email || "N/A"}`,
-                `Phone: ${o.phone || "N/A"}`,
-                `Address: ${o.address || "—"}`,
-                `City: ${o.city || "—"}`,
-                `State: ${o.state || "—"}`,
-                `Postal: ${o.postalCode || "—"}`,
-                `Country: ${o.country || "—"}`,
-                `Org ID: ${orgId}`,
-            ];
-            alert(lines.join("\n"));
+            const statusLabel = o.verified === true ? "VERIFIED" : "REGISTERED";
+    
+            const body = document.getElementById("orgDetailsBody");
+            if (!body) return;
+    
+            body.innerHTML = [
+                orgDetailRow("fa-building", "Organization Name:", o.name || o.orgName),
+                orgDetailRow("fa-envelope", "Email:", o.email),
+                orgDetailRow("fa-phone", "Phone:", o.phone || "—"),
+                orgDetailRow("fa-map-marker-alt", "Address:", o.address || "—"),
+                orgDetailRow("fa-city", "City:", o.city || "—"),
+                orgDetailRow("fa-map", "State / Province:", o.state || "—"),
+                orgDetailRow("fa-mail-bulk", "Postal Code:", o.postalCode || "—"),
+                orgDetailRow("fa-globe", "Country:", o.country || "—"),
+                orgDetailRow("fa-check-circle", "Status:", statusLabel, true),
+                orgDetailRow("fa-fingerprint", "Org ID:", orgId),
+            ].join("");
+    
+            openOrgDetailsModal();
         } catch (e) {
             console.error(e);
             alert("Could not load organization.");

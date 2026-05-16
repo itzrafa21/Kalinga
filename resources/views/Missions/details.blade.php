@@ -305,6 +305,27 @@
       padding: 2rem;
       text-align: center;
     }
+    .mission-status--rejected {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .mission-rejection-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+    .mission-rejection-reason {
+      font-size: 1.05rem;
+      color: #991b1b;
+      margin: 0.75rem 0;
+      line-height: 1.5;
+    }
+    .mission-rejection-meta {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin: 0;
+    }
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); }
       .topbar, .main-content { margin-left: 0; }

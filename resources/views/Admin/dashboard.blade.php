@@ -11,6 +11,133 @@
     'resources/js/admin-dashboard.js'
   ])
   <style>
+    .org-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1040;
+}
+.org-modal-backdrop:not([hidden]) { display: block; }
+
+.org-details-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, 92vw);
+  max-height: 90vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 1050;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+.org-details-modal[hidden] { display: none !important; }
+
+.org-details-modal__header {
+  background: #1e5c3a;
+  color: #fff;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.org-details-modal__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 0.95rem;
+}
+.org-details-modal__title-wrap h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.org-details-modal__close-x {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.9;
+}
+.org-details-modal__close-x:hover { opacity: 1; }
+
+.org-details-modal__body {
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.org-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #eee;
+}
+.org-detail-row__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e8f5ee;
+  color: #1e5c3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+.org-detail-row__content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+.org-detail-row__label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+.org-detail-row__value {
+  color: #555;
+  font-size: 0.9rem;
+  text-align: right;
+  word-break: break-word;
+}
+.org-status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #28a745;
+  color: #fff;
+}
+.org-status-badge.registered { background: #6c757d; }
+
+.org-details-modal__footer {
+  padding: 1.25rem;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+.org-details-modal__close-btn {
+  background: #1e5c3a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 2.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.org-details-modal__close-btn:hover { background: #174a2e; }
     body {
       background: #f8f9fa;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -427,6 +554,22 @@
       </div>
     </div>
 
+      <!-- Organization details modal -->
+  <motion.div class="org-modal-backdrop" id="orgDetailsBackdrop" hidden></motion.div>
+  <div class="org-details-modal" id="orgDetailsModal" role="dialog" aria-labelledby="orgDetailsTitle" hidden>
+    <div class="org-details-modal__header">
+      <div class="org-details-modal__title-wrap">
+        <i class="fas fa-building"></i>
+        <h2 id="orgDetailsTitle">ORGANIZATION DETAILS</h2>
+      </div>
+      <button type="button" class="org-details-modal__close-x" id="orgDetailsCloseX" aria-label="Close">&times;</button>
+    </div>
+    <div class="org-details-modal__body" id="orgDetailsBody"></div>
+    <div class="org-details-modal__footer">
+      <button type="button" class="org-details-modal__close-btn" id="orgDetailsCloseBtn">Close</button>
+    </div>
+  </div>
+
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Chart.js -->
@@ -484,3 +627,4 @@
   </script>
 </body>
 </html>
+

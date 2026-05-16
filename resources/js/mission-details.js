@@ -59,6 +59,7 @@ function statusPillClass(status) {
   if (s === "open" || s === "ongoing") return "mission-status--open";
   if (s === "approved") return "mission-status--approved";
   if (s === "pending") return "mission-status--pending";
+  if (s === "rejected") return "mission-status--rejected";
   return "mission-status--muted";
 }
 
@@ -126,6 +127,83 @@ async function submitVolunteerApplication(missionId, user) {
     userId: user.uid,
   });
   alert("Your volunteer application was submitted.");
+}
+
+async function loadMissionDocument(missionId, user) {
+  const globalSnap = await getDoc(doc(db, "missions", missionId));
+  if (globalSnap.exists()) {
+    return { mission: globalSnap.data() };
+  }
+
+  if (user?.uid) {
+    const orgSnap = await getDoc(
+      doc(db, "organizations", user.uid, "missions", missionId)
+    );
+    if (orgSnap.exists()) {
+      return { mission: orgSnap.data() };
+    }
+  }
+
+  const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+  if (subSnap.exists()) {
+    return { mission: subSnap.data() };
+  }
+
+  return null;
+}
+
+function renderRejectedMissionPage(container, mission, missionId, user) {
+  const reason =
+    (mission.rejectionReason || "").trim() ||
+    "No reason was provided by the administrator.";
+  const rejectedBy = mission.rejectedBy || "Administrator";
+
+  let rejectedWhen = "—";
+  if (mission.rejectedAt?.toDate) {
+    rejectedWhen = mission.rejectedAt.toDate().toLocaleString();
+  } else if (mission.rejectedAt) {
+    rejectedWhen = new Date(mission.rejectedAt).toLocaleString();
+  }
+
+  const isOwner = Boolean(user && mission.orgId && mission.orgId === user.uid);
+
+  container.innerHTML = `
+    <motion.div class="mission-page">
+      <header class="mission-hero">
+        <div class="mission-hero__top">
+          <span class="mission-kicker">Mission Details</span>
+          <span class="mission-status-pill mission-status--rejected">Rejected</span>
+        </div>
+        <h1 class="mission-title">${escapeHtml(mission.missionName || "Untitled mission")}</h1>
+        <div class="mission-hero__meta">
+          <span class="mission-chip">${escapeHtml(mission.type || "General")}</span>
+          <span class="mission-location"><i class="bi bi-geo-alt-fill"></i> ${escapeHtml(mission.location || "Location TBD")}</span>
+        </div>
+      </header>
+
+      <div class="mission-body">
+        <section class="mission-section">
+          <h2 class="mission-label">Description</h2>
+          <p class="mission-desc">${escapeHtml(mission.description || "No description provided.")}</p>
+        </section>
+
+        <div class="mission-divider"></div>
+
+        <section class="mission-section mission-rejection-box">
+          <h2 class="mission-label">Reason for rejection</h2>
+          <p class="mission-rejection-reason">${escapeHtml(reason)}</p>
+          <p class="mission-rejection-meta">
+            Rejected by: ${escapeHtml(rejectedBy)}<br>
+            Date: ${escapeHtml(rejectedWhen)}
+          </p>
+        </section>
+
+                <motion.div class="mission-actions">
+          <a class="mission-btn mission-btn--ghost" href="/organization/dashboard">← Dashboard</a>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderMissionPage(container, mission, missionId, user, signedUp) {
@@ -236,12 +314,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   onAuthStateChanged(auth, async (user) => {
     try {
-      const snap = await getDoc(doc(db, "missions", missionId));
-      if (!snap.exists()) {
+      const loaded = await loadMissionDocument(missionId, user);
+
+      if (!loaded) {
         container.innerHTML = `<p class="mission-error">Mission not found.</p>`;
         return;
       }
-      const mission = snap.data();
+
+      const mission = loaded.mission;
+      const status = (mission.status || "").toLowerCase();
+
+      if (status === "rejected") {
+        renderRejectedMissionPage(container, mission, missionId, user);
+        return;
+      }
+
       const signedUp = await countUniqueSignups(missionId);
       renderMissionPage(container, mission, missionId, user, signedUp);
     } catch (err) {
