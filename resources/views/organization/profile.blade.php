@@ -254,8 +254,8 @@
       max-width: 1200px;
     }
     .profile-header {
-      background: #28a745;
-      color: #fff;
+      background: #ffffff;
+      color: #000000;
       padding: 1.75rem 2rem;
       border-radius: 16px;
       margin-bottom: 1.5rem;
@@ -274,13 +274,13 @@
       width: 100px;
       height: 100px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(37, 37, 37, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 2.5rem;
       font-weight: 700;
-      border: 3px solid rgba(255, 255, 255, 0.45);
+      border: 3px solid rgba(36, 36, 36, 0.45);
       flex-shrink: 0;
     }
     .profile-info { flex: 1; min-width: 200px; }
@@ -288,17 +288,20 @@
       margin: 0 0 0.35rem;
       font-size: 1.85rem;
       font-weight: 700;
+      color: #000000;
     }
     .profile-info > p {
       margin: 0 0 1rem;
       font-size: 1rem;
       opacity: 0.95;
+      color: #000000;
     }
     .profile-stats {
       display: flex;
       align-items: center;
       gap: 1rem 1.25rem;
       flex-wrap: nowrap;
+      color: #000000;
     }
     .profile-stat {
       display: flex;
@@ -325,6 +328,7 @@
       align-self: center;
       border: none;
       padding: 0 0.5rem;
+      color: #000000;
     }
 
     .profile-picture-section {
