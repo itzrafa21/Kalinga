@@ -239,12 +239,16 @@
   </div>
 </div>
 <div class="form-group">
-                                <label for="type">Mission Type</label>
-                                <input type="text" id="type" class="form-control" required
-                                    placeholder="e.g. Medical, Outreach, or your own category"
-                                    maxlength="120"
-                                    autocomplete="off">
-                            </div>
+    <label for="type">Mission Type</label>
+    <select id="type" class="form-select" required>
+        <option value="" disabled selected>Select mission type</option>
+        <option value="General">General</option>
+        <option value="Health/Medical">Health/Medical</option>
+        <option value="Environment">Environment</option>
+        <option value="Education">Education</option>
+        <option value="Disaster Relief">Disaster Relief</option>
+    </select>
+</div>
 
                             <div class="form-group">
                                 <label for="locationInput">Location</label>

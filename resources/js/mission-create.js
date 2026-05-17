@@ -65,7 +65,7 @@ function initializeFormSubmission() {
             const missionData = {
                 missionName: document.getElementById("name")?.value || "Untitled",
                 description: document.getElementById("description")?.value || "",
-                type: document.getElementById("type")?.value || "Other",
+                type: document.getElementById("type")?.value || "General",
                 status: "Pending",
                 date: document.getElementById("date")?.value || "",
                 startTime: document.getElementById("start_time")?.value || "",
