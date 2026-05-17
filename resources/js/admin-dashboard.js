@@ -39,7 +39,10 @@ function checkAdminAuth() {
             // Check if user is admin
             if (user.email.includes('@admin.kalinga.com') || user.email.includes('admin@')) {
                 console.log("[SUCCESS] Admin authenticated:", user.email);
-                document.getElementById('adminEmail').textContent = user.email;
+                const email = user.email;
+                document.getElementById('adminEmail').textContent = email;
+                const sidebarEmail = document.getElementById('adminEmailSidebar');
+                if (sidebarEmail) sidebarEmail.textContent = email;
                 
                 // Initialize dashboard
                 initializeDashboard();
@@ -59,16 +62,6 @@ function checkAdminAuth() {
 }
 
 function initializeDashboard() {
-    // Setup tab navigation
-    document.querySelectorAll('[data-tab]').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            e.preventDefault();
-            const tabName = tab.getAttribute('data-tab');
-            showTab(tabName);
-        });
-    });
-    
-    // Initialize charts
     initializeCharts();
 }
 
@@ -81,8 +74,7 @@ function showTab(tabName) {
         console.log("[INFO] Hiding tab:", tab.id);
     });
     
-    // Remove active class from all nav links
-    document.querySelectorAll('.nav-link').forEach(link => {
+    document.querySelectorAll('[data-tab]').forEach(link => {
         link.classList.remove('active');
     });
     
@@ -95,16 +87,23 @@ function showTab(tabName) {
         console.error("[ERROR] Tab content not found:", `${tabName}-tab`);
     }
     
-    // Add active class to selected nav link
     const selectedNavLink = document.querySelector(`[data-tab="${tabName}"]`);
     if (selectedNavLink) {
         selectedNavLink.classList.add('active');
-        console.log("[INFO] Activated nav link:", tabName);
-    } else {
-        console.error("[ERROR] Nav link not found:", tabName);
     }
-    
-    // Load tab-specific data
+
+    const topbarTitle = document.getElementById('topbarTitle');
+    const pageTitles = {
+        dashboard: 'Dashboard',
+        organizations: 'Organizations',
+        missions: 'Missions',
+        volunteers: 'Volunteers',
+        analytics: 'Analytics',
+    };
+    if (topbarTitle) {
+        topbarTitle.textContent = pageTitles[tabName] || tabName;
+    }
+
     loadTabData(tabName);
 }
 
@@ -370,8 +369,11 @@ function loadVolunteersData() {
 }
 
 function initializeCharts() {
-    // Activity Chart
-    const activityCtx = document.getElementById('activityChart').getContext('2d');
+    const activityEl = document.getElementById('activityChart');
+    const missionTypesEl = document.getElementById('missionTypesChart');
+    if (!activityEl || !missionTypesEl) return;
+
+    const activityCtx = activityEl.getContext('2d');
     new Chart(activityCtx, {
         type: 'line',
         data: {
@@ -401,7 +403,7 @@ function initializeCharts() {
     });
     
     // Mission Types Chart
-    const missionTypesCtx = document.getElementById('missionTypesChart').getContext('2d');
+    const missionTypesCtx = missionTypesEl.getContext('2d');
     new Chart(missionTypesCtx, {
         type: 'doughnut',
         data: {
@@ -428,9 +430,9 @@ function setupEventListeners() {
     // Tab navigation - use event delegation for better reliability
     document.addEventListener('click', (e) => {
         // Check if clicked element is a nav link with data-tab
-        if (e.target.closest('.nav-link[data-tab]')) {
+        if (e.target.closest('[data-tab]')) {
             e.preventDefault();
-            const link = e.target.closest('.nav-link[data-tab]');
+            const link = e.target.closest('[data-tab]');
             const tabName = link.getAttribute('data-tab');
             console.log('[INFO] Tab clicked:', tabName);
             showTab(tabName);

@@ -6,6 +6,7 @@
   <title>Admin Dashboard - Kalinga</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   @vite([
     'resources/css/app.css',
     'resources/js/admin-dashboard.js'
@@ -43,7 +44,7 @@
 .org-details-modal[hidden] { display: none !important; }
 
 .org-details-modal__header {
-  background: #1e5c3a;
+  background: #16a34a;
   color: #fff;
   padding: 1rem 1.25rem;
   display: flex;
@@ -91,7 +92,7 @@
   height: 36px;
   border-radius: 50%;
   background: #e8f5ee;
-  color: #1e5c3a;
+  color: #16a34a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -135,7 +136,7 @@
   border-top: 1px solid #eee;
 }
 .org-details-modal__close-btn {
-  background: #1e5c3a;
+  background: #16a34a;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -143,242 +144,191 @@
   font-weight: 600;
   cursor: pointer;
 }
-.org-details-modal__close-btn:hover { background: #174a2e; }
+.org-details-modal__close-btn:hover { background: #15803d; }
+
+    * { box-sizing: border-box; }
     body {
-      background: #f8f9fa;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f6f8;
+      height: 100vh;
     }
-    
-    .admin-header {
-      background: linear-gradient(135deg, #66eaacff  0%, #55a24bff  100%);
-      color: white;
-      padding: 20px 0;
-      margin-bottom: 30px;
+    .shell { display: flex; height: 100vh; overflow: hidden; }
+
+    .sidebar {
+      width: 210px; min-width: 210px; background: #fff;
+      border-right: 1px solid #eaecef;
+      display: flex; flex-direction: column; height: 100vh;
     }
-    
-    .admin-navbar {
-      background: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      padding: 15px 0;
-      margin-bottom: 30px;
+    .sb-header { padding: 20px 16px 16px; border-bottom: 1px solid #f0f2f5; }
+    .sb-brand { display: flex; align-items: center; gap: 10px; }
+    .sb-icon {
+      width: 28px; height: 28px; background: #16a34a; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    
+    .sb-icon i { color: #fff; font-size: 15px; }
+    .sb-title { font-size: 14px; font-weight: 600; color: #111; }
+    .sb-sub { font-size: 10px; color: #b0b0b0; margin-top: 1px; }
+    .sb-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .sb-section {
+      font-size: 10px; color: #c8c8c8; padding: 10px 8px 5px;
+      letter-spacing: .07em; text-transform: uppercase; font-weight: 500;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 11px; border-radius: 8px; font-size: 13px; color: #666;
+      cursor: pointer; margin-bottom: 2px; text-decoration: none;
+      transition: background .12s, color .12s;
+    }
+    .nav-item:hover { background: #f4f5f7; color: #222; }
+    .nav-item.active { background: #f0fdf4; color: #16a34a; font-weight: 500; }
+    .nav-item i { font-size: 17px; }
+    .sb-footer { padding: 14px; border-top: 1px solid #f0f2f5; }
+    .sb-user {
+      font-size: 11px; color: #b0b0b0; margin-bottom: 8px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .logout-btn {
+      display: flex; align-items: center; gap: 6px; font-size: 12px;
+      color: #ef4444; cursor: pointer; background: none; border: none;
+      padding: 0; font-family: inherit;
+    }
+    .logout-btn:hover { color: #dc2626; }
+
+    .main {
+      flex: 1; overflow-y: auto; background: #f5f6f8;
+      display: flex; flex-direction: column;
+    }
+    .topbar {
+      background: #fff; border-bottom: 1px solid #eaecef;
+      padding: 0 24px; height: 50px;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .topbar-title { font-size: 14px; font-weight: 600; color: #111; }
+    .topbar-user { font-size: 12px; color: #b0b0b0; }
+    .content { padding: 24px; flex: 1; }
+
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 20px;
+    }
+    @media (max-width: 992px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 576px) { .stat-grid { grid-template-columns: 1fr; } }
+    .stat-card {
+      background: #fff; border: 1px solid #eaecef;
+      border-radius: 10px; padding: 16px 18px;
+    }
+    .stat-icon { font-size: 20px; color: #16a34a; margin-bottom: 8px; }
+    .stat-val { font-size: 26px; font-weight: 600; color: #111; line-height: 1; }
+    .stat-label { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    .chart-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 14px; margin-bottom: 20px;
+    }
+    @media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+    .chart-card {
+      background: #fff; border: 1px solid #eaecef;
+      border-radius: 10px; padding: 18px;
+    }
+    .chart-title { font-size: 13px; font-weight: 500; color: #444; margin-bottom: 10px; }
+
     .admin-card {
-      border: none;
-      border-radius: 15px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      transition: transform 0.3s ease;
-      margin-bottom: 20px;
+      border: 1px solid #eaecef; border-radius: 10px;
+      box-shadow: none; margin-bottom: 14px; background: #fff;
     }
-    
-    .admin-card:hover {
-      transform: translateY(-5px);
+    .admin-card:hover { transform: none; }
+    .admin-card .card-header {
+      background: #fff; border-bottom: 1px solid #f0f2f5;
+      font-size: 14px; font-weight: 600;
     }
-    
-    .stats-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+    .table-responsive { border-radius: 10px; overflow: hidden; }
+    .search-box, .filter-dropdown {
+      border-radius: 8px; border: 1px solid #e5e7eb; padding: 7px 12px; font-size: 12px;
     }
-    
-    .organizations-card {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      color: white;
+    .search-box:focus, .filter-dropdown:focus {
+      border-color: #16a34a; box-shadow: 0 0 0 2px #dcfce7;
     }
-    
-    .missions-card {
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-      color: white;
-    }
-    
-    .volunteers-card {
-      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-      color: white;
-    }
-    
-    .admin-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      color: white;
-      margin: 0 auto 15px;
-      background: rgba(255, 255, 255, 0.2);
-    }
-    
-    .nav-pills .nav-link {
-      border-radius: 25px;
-      margin: 0 5px;
-    }
-    
-    .nav-pills .nav-link.active {
-      background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
-    }
-    
-    .table-responsive {
-      border-radius: 15px;
-      overflow: hidden;
-    }
-    
     .btn-admin {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
-      color: white;
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-weight: 500;
+      background: #16a34a; border: none; color: #fff; border-radius: 8px;
+      padding: 8px 16px; font-weight: 500;
     }
-    
-    .btn-admin:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .search-box {
-      border-radius: 25px;
-      border: 2px solid #e9ecef;
-      padding: 10px 20px;
-    }
-    
-    .search-box:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    
-    .filter-dropdown {
-      border-radius: 8px;
-      border: 2px solid #e9ecef;
-    }
-    
-    .notification-badge {
-      position: absolute;
-      top: -5px;
-      right: -5px;
-      background: #dc3545;
-      color: white;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .btn-admin:hover { background: #15803d; transform: none; box-shadow: none; }
   </style>
 </head>
 <body>
-  <!-- Admin Header -->
-  <div class="admin-header">
-    <div class="container">
-      <div class="row align-items-center">
-        <div class="col-md-6">
-          <h1 class="mb-0"><i class="fas fa-shield-alt"></i> Admin Dashboard</h1>
-          <p class="mb-0">Kalinga Management System</p>
-        </div>
-        <div class="col-md-6 text-end">
-          <span id="adminEmail" class="badge bg-light text-dark fs-6"></span>
-          <button id="adminLogoutBtn" type="button" class="btn btn-outline-light ms-3">
-            <i class="fas fa-sign-out-alt"></i> Logout
-          </button>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">
+        <div class="sb-icon"><i class="ti ti-shield"></i></div>
+        <div>
+          <div class="sb-title">Kalinga</div>
+          <div class="sb-sub">Management System</div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Admin Navigation -->
-  <div class="admin-navbar">
-    <div class="container">
-      <ul class="nav nav-pills justify-content-center">
-        <li class="nav-item">
-          <a class="nav-link active" href="#dashboard" data-tab="dashboard">
-            <i class="fas fa-tachometer-alt"></i> Dashboard
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#organizations" data-tab="organizations">
-            <i class="fas fa-building"></i> Organizations
-          </a>
-        </li>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#missions" data-tab="missions">
-            <i class="fas fa-bullseye"></i> Missions
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#volunteers" data-tab="volunteers">
-            <i class="fas fa-hands-helping"></i> Volunteers
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#analytics" data-tab="analytics">
-            <i class="fas fa-chart-bar"></i> Analytics
-          </a>
-        </li>
-      </ul>
+    <nav class="sb-nav">
+      <div class="sb-section">Main</div>
+      <a class="nav-item active" href="#dashboard" data-tab="dashboard">
+        <i class="ti ti-layout-dashboard"></i> Dashboard
+      </a>
+      <a class="nav-item" href="#organizations" data-tab="organizations">
+        <i class="ti ti-building"></i> Organizations
+      </a>
+      <a class="nav-item" href="#missions" data-tab="missions">
+        <i class="ti ti-target"></i> Missions
+      </a>
+      <a class="nav-item" href="#volunteers" data-tab="volunteers">
+        <i class="ti ti-users"></i> Volunteers
+      </a>
+      <div class="sb-section">System</div>
+      <a class="nav-item" href="#analytics" data-tab="analytics">
+        <i class="ti ti-chart-bar"></i> Analytics
+      </a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user" id="adminEmailSidebar"></div>
+      <button type="button" class="logout-btn" id="adminLogoutBtn">
+        <i class="ti ti-logout"></i> Logout
+      </button>
     </div>
-  </div>
+  </aside>
 
-  <!-- Main Content -->
-  <div class="container">
-    <!-- Dashboard Tab -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+      <span class="topbar-user" id="adminEmail"></span>
+    </div>
+    <div class="content">
+
     <div id="dashboard-tab" class="tab-content">
-      <!-- Stats Cards -->
-      <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-          <div class="card admin-card stats-card">
-            <div class="card-body text-center">
-              <div class="admin-icon">
-                <i class="fas fa-users"></i>
-              </div>
-              <h3 id="totalUsers">-</h3>
-              <p class="mb-0">Total Users</p>
-            </div>
-          </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon"><i class="ti ti-users"></i></div>
+          <div class="stat-val" id="totalUsers">-</div>
+          <div class="stat-label">Total users</div>
         </div>
-        
-        <div class="col-md-3 mb-3">
-          <div class="card admin-card organizations-card">
-            <div class="card-body text-center">
-              <div class="admin-icon">
-                <i class="fas fa-building"></i>
-              </div>
-              <h3 id="totalOrganizations">-</h3>
-              <p class="mb-0">Organizations</p>
-            </div>
-          </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="ti ti-building"></i></div>
+          <div class="stat-val" id="totalOrganizations">-</div>
+          <div class="stat-label">Organizations</div>
         </div>
-        
-        <div class="col-md-3 mb-3">
-          <div class="card admin-card missions-card">
-            <div class="card-body text-center">
-              <div class="admin-icon">
-                <i class="fas fa-bullseye"></i>
-              </div>
-              <h3 id="totalMissions">-</h3>
-              <p class="mb-0">Active Missions</p>
-            </div>
-          </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="ti ti-target"></i></div>
+          <div class="stat-val" id="totalMissions">-</div>
+          <div class="stat-label">Active missions</div>
         </div>
-        
-        <div class="col-md-3 mb-3">
-          <div class="card admin-card volunteers-card">
-            <div class="card-body text-center">
-              <div class="admin-icon">
-                <i class="fas fa-hands-helping"></i>
-              </div>
-              <h3 id="totalVolunteers">-</h3>
-              <p class="mb-0">Volunteers</p>
-            </div>
-          </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="ti ti-award"></i></div>
+          <div class="stat-val" id="totalVolunteers">-</div>
+          <div class="stat-label">Volunteers</div>
         </div>
       </div>
     </div>
 
-        <!-- Organizations Tab -->
-        <div id="organizations-tab" class="tab-content" style="display: none;">
+    <!-- Organizations Tab -->
+    <div id="organizations-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0"><i class="fas fa-building"></i> Organization Management</h5>
@@ -442,7 +392,6 @@
                 </tr>
               </thead>
               <tbody id="missionsTableBody">
-                <!-- Missions will be loaded here -->
               </tbody>
             </table>
           </div>
@@ -480,7 +429,6 @@
                 </tr>
               </thead>
               <tbody id="volunteersTableBody">
-                <!-- Volunteers will be loaded here -->
               </tbody>
             </table>
           </div>
@@ -512,7 +460,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="row">
         <div class="col-12">
           <div class="card admin-card">
@@ -560,93 +508,43 @@
       </div>
     </div>
 
-        <!-- Organization details modal -->
-        <div class="org-modal-backdrop" id="orgDetailsBackdrop" hidden></div>
-    <div class="org-details-modal" id="orgDetailsModal" role="dialog" aria-labelledby="orgDetailsTitle" hidden>
-      <div class="org-details-modal__header">
-        <div class="org-details-modal__title-wrap">
-          <i class="fas fa-building"></i>
-          <h2 id="orgDetailsTitle">ORGANIZATION DETAILS</h2>
-        </div>
-        <button type="button" class="org-details-modal__close-x" id="orgDetailsCloseX" aria-label="Close">&times;</button>
-      </div>
-      <div class="org-details-modal__body" id="orgDetailsBody"></div>
-      <div class="org-details-modal__footer">
-        <button type="button" class="org-details-modal__close-btn" id="orgDetailsCloseBtn">Close</button>
-      </div>
     </div>
+  </div>
+</div>
 
-       <!-- Mission details modal -->
-       <motion.div class="org-modal-backdrop" id="missionDetailsBackdrop" hidden></motion.div>
-    <div class="org-details-modal" id="missionDetailsModal" role="dialog" aria-labelledby="missionDetailsTitle" hidden>
-      <div class="org-details-modal__header">
-        <div class="org-details-modal__title-wrap">
-          <i class="fas fa-bullseye"></i>
-          <h2 id="missionDetailsTitle">MISSION DETAILS</h2>
-        </div>
-        <button type="button" class="org-details-modal__close-x" id="missionDetailsCloseX" aria-label="Close">&times;</button>
-      </div>
-      <div class="org-details-modal__body" id="missionDetailsBody"></div>
-      <div class="org-details-modal__footer">
-        <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
-      </div>
+<!-- Organization details modal -->
+<div class="org-modal-backdrop" id="orgDetailsBackdrop" hidden></div>
+<div class="org-details-modal" id="orgDetailsModal" role="dialog" aria-labelledby="orgDetailsTitle" hidden>
+  <div class="org-details-modal__header">
+    <div class="org-details-modal__title-wrap">
+      <i class="fas fa-building"></i>
+      <h2 id="orgDetailsTitle">ORGANIZATION DETAILS</h2>
     </div>
+    <button type="button" class="org-details-modal__close-x" id="orgDetailsCloseX" aria-label="Close">&times;</button>
+  </div>
+  <div class="org-details-modal__body" id="orgDetailsBody"></div>
+  <div class="org-details-modal__footer">
+    <button type="button" class="org-details-modal__close-btn" id="orgDetailsCloseBtn">Close</button>
+  </div>
+</div>
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <!-- Emergency Tab Navigation Fix -->
-  <script>
-    console.log("[INFO] Emergency tab navigation script loaded");
-    
-    // Immediate tab navigation fix
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log("[INFO] DOM loaded - setting up emergency tab navigation");
-      
-      // Add click handlers to all nav links
-      const navLinks = document.querySelectorAll('.nav-link[data-tab]');
-      console.log("[INFO] Found nav links:", navLinks.length);
-      
-      navLinks.forEach((link, index) => {
-        const tabName = link.getAttribute('data-tab');
-        console.log(`[INFO] Setting up nav link ${index}:`, tabName);
-        
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          console.log("[INFO] Emergency tab click:", tabName);
-          
-          // Hide all tabs
-          document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.style.display = 'none';
-          });
-          
-          // Remove active class from all nav links
-          document.querySelectorAll('.nav-link').forEach(navLink => {
-            navLink.classList.remove('active');
-          });
-          
-          // Show selected tab
-          const selectedTab = document.getElementById(tabName + '-tab');
-          if (selectedTab) {
-            selectedTab.style.display = 'block';
-            console.log("[INFO] Showing tab:", selectedTab.id);
-          } else {
-            console.error("[ERROR] Tab not found:", tabName + '-tab');
-          }
-          
-          // Add active class to clicked nav link
-          link.classList.add('active');
-          
-          // Show success message
-          console.log("[SUCCESS] Tab switched successfully to:", tabName);
-        });
-      });
-      
-      console.log("[SUCCESS] Emergency tab navigation set up complete");
-    });
-  </script>
+<!-- Mission details modal -->
+<div class="org-modal-backdrop" id="missionDetailsBackdrop" hidden></div>
+<div class="org-details-modal" id="missionDetailsModal" role="dialog" aria-labelledby="missionDetailsTitle" hidden>
+  <div class="org-details-modal__header">
+    <div class="org-details-modal__title-wrap">
+      <i class="fas fa-bullseye"></i>
+      <h2 id="missionDetailsTitle">MISSION DETAILS</h2>
+    </div>
+    <button type="button" class="org-details-modal__close-x" id="missionDetailsCloseX" aria-label="Close">&times;</button>
+  </div>
+  <div class="org-details-modal__body" id="missionDetailsBody"></div>
+  <div class="org-details-modal__footer">
+    <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
-
