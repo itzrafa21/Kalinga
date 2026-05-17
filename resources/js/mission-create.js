@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase";
 import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { getBasePointsForType, updateBasePointsDisplay } from "./mission-type-points.js";
 
 let currentUser = null;
 let selectedMissionImageFile = null;
@@ -17,8 +18,19 @@ onAuthStateChanged(auth, async (user) => {
     
     // Initialize form submission
     initializeFormSubmission();
+    initializeMissionTypePoints();
     initializeImageUpload();
 });
+
+function initializeMissionTypePoints() {
+    const typeSelect = document.getElementById("type");
+    const display = document.getElementById("basePointsDisplay");
+    if (!typeSelect) return;
+
+    const sync = () => updateBasePointsDisplay(typeSelect, display);
+    typeSelect.addEventListener("change", sync);
+    sync();
+}
 
 // Initialize form submission
 function initializeFormSubmission() {
@@ -61,11 +73,15 @@ function initializeFormSubmission() {
             console.log("  - Location:", location);
             console.log("  - Latitude:", latitude);
             console.log("  - Longitude:", longitude);
+
+            const missionType = document.getElementById("type")?.value || "General";
+            const basePoints = getBasePointsForType(missionType);
             
             const missionData = {
                 missionName: document.getElementById("name")?.value || "Untitled",
                 description: document.getElementById("description")?.value || "",
                 type: document.getElementById("type")?.value || "General",
+                basePoints: basePoints,
                 status: "Pending",
                 date: document.getElementById("date")?.value || "",
                 startTime: document.getElementById("start_time")?.value || "",
