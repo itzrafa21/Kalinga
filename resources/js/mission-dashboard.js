@@ -80,55 +80,54 @@ async function updateMissionStatuses(user) {
 //  Calculate what a mission's status should be
 function calculateMissionStatus(mission) {
     const now = new Date();
-    const missionDate = mission.date;
+    const startDate = mission.date;
+    const endDate = mission.endDate || mission.date;
     const startTime = mission.startTime;
     const endTime = mission.endTime;
-    
-    if (!missionDate || !startTime || !endTime) {
+
+    if (!startDate || !endDate || !startTime || !endTime) {
         console.log("[WARNING] Mission missing date/time info:", mission);
-        return mission.status; // Return current status if data is incomplete
+        return mission.status;
     }
-    
+
     try {
-        //  Fix date/time parsing - handle both 24hr and 12hr formats
-        let missionDateTime, endDateTime;
-        
-        // Parse start time
-        if (startTime.includes('AM') || startTime.includes('PM')) {
-            // Already in 12hr format, convert to 24hr for Date parsing
-            missionDateTime = parse12HourTime(missionDate, startTime);
+        let missionDateTime;
+        let endDateTime;
+
+        if (startTime.includes("AM") || startTime.includes("PM")) {
+            missionDateTime = parse12HourTime(startDate, startTime);
         } else {
-            // Assume 24hr format
-            missionDateTime = new Date(`${missionDate}T${startTime}`);
+            missionDateTime = new Date(`${startDate}T${startTime}`);
         }
-        
-        // Parse end time
-        if (endTime.includes('AM') || endTime.includes('PM')) {
-            // Already in 12hr format, convert to 24hr for Date parsing
-            endDateTime = parse12HourTime(missionDate, endTime);
+
+        if (endTime.includes("AM") || endTime.includes("PM")) {
+            endDateTime = parse12HourTime(endDate, endTime);
         } else {
-            // Assume 24hr format
-            endDateTime = new Date(`${missionDate}T${endTime}`);
+            endDateTime = new Date(`${endDate}T${endTime}`);
         }
-        
+
+        if (endDateTime < missionDateTime) {
+            console.warn("[WARNING] End before start; treating end as after start:", mission.missionName);
+            endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
+        }
+
         console.log("[INFO] Status calculation for mission:", {
             missionName: mission.missionName,
             now: now.toISOString(),
             missionStart: missionDateTime.toISOString(),
             missionEnd: endDateTime.toISOString(),
-            isPast: now > endDateTime
         });
-        
+
         if (now < missionDateTime) {
-            return "Open"; // Mission hasn't started yet
-        } else if (now >= missionDateTime && now <= endDateTime) {
-            return "Ongoing"; // Mission is currently happening
-        } else {
-            return "Completed"; // Mission has ended
+            return "Open";
         }
+        if (now >= missionDateTime && now <= endDateTime) {
+            return "Ongoing";
+        }
+        return "Completed";
     } catch (error) {
         console.error("[ERROR] Error calculating mission status:", error);
-        return mission.status; // Return current status on error
+        return mission.status;
     }
 }
 
