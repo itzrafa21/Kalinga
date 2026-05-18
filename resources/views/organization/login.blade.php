@@ -28,7 +28,7 @@
     margin: 0;
     min-height: 100vh;
     font-family: "Poppins", "Segoe UI", Tahoma, sans-serif;
-    background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
+    background: #ffffff;
     display: grid;
     place-items: center;
     padding: 24px;
@@ -48,6 +48,7 @@
   .auth-form-side {
     padding: 56px 64px;
     display: flex;
+    background-color: #ffffff;
     align-items: center;
     justify-content: center;
   }
@@ -93,7 +94,7 @@
     height: 48px;
     border: none;
     border-radius: 10px;
-    background: var(--btn);
+    background:rgb(110, 40, 167);
     color: var(--white);
     font-weight: 600;
     margin-top: 6px;
@@ -109,7 +110,7 @@
   }
 
   .auth-links a {
-    color: var(--btn);
+    color: rgb(110, 40, 167);
     text-decoration: none;
     font-weight: 600;
   }
@@ -118,7 +119,7 @@
 
   .auth-art-side {
     position: relative;
-    background: #d7d6df;
+    background:rgb(255, 255, 255);
     padding: 12px;
   }
 
