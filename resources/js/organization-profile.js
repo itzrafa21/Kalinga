@@ -236,44 +236,54 @@ function updateSidebarUser(data, user) {
 
 
 function loadProfilePicture(imageData) {
-  const profilePicturePreview = document.getElementById("profilePicturePreview");
-  const placeholder = document.getElementById("profilePicturePlaceholder");
+  const avatar = document.getElementById("profileAvatar");
+  const initial = document.getElementById("avatarInitial");
   const removeBtn = document.getElementById("removeProfilePicture");
+  if (!avatar || !initial) return;
 
-  if (profilePicturePreview && placeholder && removeBtn) {
-    try {
-      profilePicturePreview.innerHTML = `<img src="${imageData}" alt="Profile Picture" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-      placeholder.style.display = "none";
-      removeBtn.style.display = "inline-flex";
-      const wrap = document.querySelector(".sidebar-user-avatar");
-      const img = document.getElementById("sidebarUserAvatarImg");
-      if (wrap && img) {
-        img.src = imageData;
-        wrap.classList.add("has-photo");
-      }
-    } catch (error) {
-      console.error("[ERROR] Error loading profile picture:", error);
-      resetProfilePicture();
+  try {
+    let img = document.getElementById("profileAvatarImg");
+    if (!img) {
+      img = document.createElement("img");
+      img.id = "profileAvatarImg";
+      img.alt = "Profile picture";
+      avatar.appendChild(img);
     }
+    img.src = imageData;
+    avatar.classList.add("has-photo");
+    initial.style.display = "none";
+    if (removeBtn) removeBtn.style.display = "inline-block";
+
+    const wrap = document.querySelector(".sidebar-user-avatar");
+    const sidebarImg = document.getElementById("sidebarUserAvatarImg");
+    if (wrap && sidebarImg) {
+      sidebarImg.src = imageData;
+      wrap.classList.add("has-photo");
+    }
+  } catch (error) {
+    console.error("[ERROR] Error loading profile picture:", error);
+    resetProfilePicture();
   }
 }
 
 function resetProfilePicture() {
-  const profilePicturePreview = document.getElementById("profilePicturePreview");
+  const avatar = document.getElementById("profileAvatar");
+  const initial = document.getElementById("avatarInitial");
   const removeBtn = document.getElementById("removeProfilePicture");
   const profilePictureInput = document.getElementById("profilePictureInput");
+  const img = document.getElementById("profileAvatarImg");
 
-  if (profilePicturePreview && removeBtn && profilePictureInput) {
-    profilePicturePreview.innerHTML =
-      '<span id="profilePicturePlaceholder"><i class="bi bi-person"></i></span>';
-    removeBtn.style.display = "none";
-    profilePictureInput.value = "";
-    const wrap = document.querySelector(".sidebar-user-avatar");
-    const img = document.getElementById("sidebarUserAvatarImg");
-    if (wrap && img) {
-      img.removeAttribute("src");
-      wrap.classList.remove("has-photo");
-    }
+  if (img) img.remove();
+  if (avatar) avatar.classList.remove("has-photo");
+  if (initial) initial.style.display = "";
+  if (removeBtn) removeBtn.style.display = "none";
+  if (profilePictureInput) profilePictureInput.value = "";
+
+  const wrap = document.querySelector(".sidebar-user-avatar");
+  const sidebarImg = document.getElementById("sidebarUserAvatarImg");
+  if (wrap && sidebarImg) {
+    sidebarImg.removeAttribute("src");
+    wrap.classList.remove("has-photo");
   }
 }
 
@@ -291,6 +301,8 @@ function updateProfileHeader(data, user) {
   if (profileName) profileName.textContent = display;
   if (avatarInitial) {
     avatarInitial.textContent = display.charAt(0).toUpperCase() || "O";
+    const hasPhoto = document.getElementById("profileAvatar")?.classList.contains("has-photo");
+    avatarInitial.style.display = hasPhoto ? "none" : "";
   }
   if (profileEmail) profileEmail.textContent = user.email || "No email";
   updateSidebarUser(data, user);
@@ -304,9 +316,16 @@ function initializeFormHandlers() {
   }
 
   const profilePictureInput = document.getElementById("profilePictureInput");
-  const profilePicturePreview = document.getElementById("profilePicturePreview");
-  const placeholder = document.getElementById("profilePicturePlaceholder");
   const removeBtn = document.getElementById("removeProfilePicture");
+  const uploadBtn = document.getElementById("profileAvatarUploadBtn");
+  const avatarEl = document.getElementById("profileAvatar");
+
+  const openFilePicker = () => profilePictureInput?.click();
+  uploadBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openFilePicker();
+  });
+  avatarEl?.addEventListener("click", openFilePicker);
 
   if (profilePictureInput) {
     profilePictureInput.addEventListener("change", async function (e) {
@@ -324,15 +343,15 @@ function initializeFormHandlers() {
       }
       try {
         const base64Image = await convertToBase64(file);
-        if (profilePicturePreview && placeholder && removeBtn) {
-          profilePicturePreview.innerHTML = `<img src="${base64Image}" alt="Profile Picture" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-          placeholder.style.display = "none";
-          removeBtn.style.display = "inline-flex";
-        }
+        loadProfilePicture(base64Image);
         await updateDoc(orgRef, {
           profilePictureBase64: base64Image,
           profilePictureURL: null,
         });
+        updateSidebarUser(
+          { profilePictureBase64: base64Image, name: document.getElementById("orgName")?.value },
+          currentUser
+        );
         alert("[SUCCESS] Profile picture updated successfully!");
       } catch (error) {
         console.error("[ERROR] Error storing profile picture:", error);
@@ -343,7 +362,8 @@ function initializeFormHandlers() {
   }
 
   if (removeBtn) {
-    removeBtn.addEventListener("click", async function () {
+    removeBtn.addEventListener("click", async function (e) {
+      e.stopPropagation();
       if (!confirm("Are you sure you want to remove your profile picture?")) return;
       try {
         await updateDoc(orgRef, {

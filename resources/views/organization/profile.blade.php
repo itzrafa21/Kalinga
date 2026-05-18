@@ -270,6 +270,17 @@
       position: relative;
       z-index: 1;
     }
+    .profile-avatar-wrap {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .profile-avatar-inner {
+      position: relative;
+      width: 100px;
+      height: 100px;
+    }
     .profile-avatar {
       width: 100px;
       height: 100px;
@@ -281,7 +292,56 @@
       font-size: 2.5rem;
       font-weight: 700;
       border: 3px solid rgba(36, 36, 36, 0.45);
-      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .profile-avatar img,
+    #profileAvatarImg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .profile-avatar.has-photo #avatarInitial {
+      display: none;
+    }
+    .profile-avatar-inner .pp-camera-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #28a745;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid #d4d4d4;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 0;
+      z-index: 2;
+    }
+    .profile-avatar-inner .pp-camera-badge:hover {
+      background: #218838;
+    }
+    .profile-avatar-remove {
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: #dc3545;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      display: none;
+    }
+    .profile-avatar-remove:hover {
+      color: #a71d2a;
     }
     .profile-info { flex: 1; min-width: 200px; }
     .profile-info h1 {
@@ -329,111 +389,6 @@
       border: none;
       padding: 0 0.5rem;
       color: #000000;
-    }
-
-    .profile-picture-section {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
-      padding: 1.5rem 1.75rem;
-      margin-bottom: 1.5rem;
-    }
-    .card-heading { margin-bottom: 1rem; }
-    .card-heading h3 {
-      margin: 0 0 0.25rem;
-      font-size: 1.15rem;
-      color: #1e3a2f;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .card-heading h3 i { color: #28a745; }
-    .card-heading .card-sub {
-      margin: 0;
-      font-size: 0.88rem;
-      color: #6c757d;
-    }
-    .profile-picture-layout {
-      display: flex;
-      align-items: center;
-      gap: 2rem;
-      flex-wrap: wrap;
-      justify-content: space-between;
-    }
-    .profile-picture-preview-wrap { position: relative; }
-    .profile-picture-preview {
-      width: 160px;
-      height: 160px;
-      border-radius: 50%;
-      background: #f8f9fa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 3.5rem;
-      color: #6c757d;
-      border: 3px solid #e1e5e9;
-      overflow: hidden;
-      position: relative;
-    }
-    .profile-picture-preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 50%;
-    }
-    .pp-camera-badge {
-      position: absolute;
-      bottom: 6px;
-      right: 6px;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: #28a745;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 3px solid #fff;
-      font-size: 1rem;
-    }
-    .profile-picture-actions-col {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .btn-upload-outline {
-      padding: 10px 20px;
-      border-radius: 10px;
-      border: 2px solid #28a745;
-      background: #fff;
-      color: #28a745;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all 0.2s;
-    }
-    .btn-upload-outline:hover {
-      background: #e8f5e9;
-    }
-    .btn-remove-outline {
-      padding: 10px 20px;
-      border-radius: 10px;
-      border: 2px solid #dc3545;
-      background: #fff;
-      color: #dc3545;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all 0.2s;
-    }
-    .btn-remove-outline:hover {
-      background: #fce8e8;
     }
 
     .profile-sections {
@@ -637,9 +592,6 @@
       .password-form {
         grid-template-columns: 1fr;
       }
-      .profile-picture-actions .btn {
-        width: 100%;
-      }
     }
   </style>
 </head>
@@ -693,8 +645,17 @@
   <main class="main-content" id="mainContent">
     <section class="profile-header">
       <div class="profile-header-content">
-        <div class="profile-avatar" id="profileAvatar">
-          <span id="avatarInitial">O</span>
+        <div class="profile-avatar-wrap">
+          <div class="profile-avatar-inner">
+            <div class="profile-avatar" id="profileAvatar" title="Change profile photo">
+              <span id="avatarInitial">O</span>
+            </div>
+            <button type="button" class="pp-camera-badge" id="profileAvatarUploadBtn" aria-label="Upload profile photo">
+              <i class="bi bi-camera-fill"></i>
+            </button>
+          </div>
+          <input type="file" id="profilePictureInput" accept="image/*" hidden>
+          <button type="button" class="profile-avatar-remove" id="removeProfilePicture">Remove photo</button>
         </div>
         <div class="profile-info">
           <h1 id="profileName">Organization Name</h1>
@@ -718,29 +679,6 @@
       </div>
     </section>
 
-    <section class="profile-picture-section">
-      <div class="card-heading">
-        <h3><i class="bi bi-camera"></i> Profile Picture</h3>
-        <p class="card-sub">Add a profile picture to personalize your account.</p>
-      </div>
-      <div class="profile-picture-layout">
-        <div class="profile-picture-preview-wrap">
-          <div class="profile-picture-preview" id="profilePicturePreview">
-            <span id="profilePicturePlaceholder"><i class="bi bi-person"></i></span>
-          </div>
-          <div class="pp-camera-badge" aria-hidden="true"><i class="bi bi-camera-fill"></i></div>
-        </div>
-        <div class="profile-picture-actions-col">
-          <input type="file" id="profilePictureInput" accept="image/*" style="display:none;">
-          <button type="button" class="btn-upload-outline" onclick="document.getElementById('profilePictureInput').click()">
-            <i class="bi bi-cloud-upload"></i> Upload Photo
-          </button>
-          <button type="button" class="btn-remove-outline" id="removeProfilePicture" style="display:none;">
-            <i class="bi bi-trash"></i> Remove Photo
-          </button>
-        </div>
-      </div>
-    </section>
 
     <section class="profile-sections">
       <div class="profile-section">
