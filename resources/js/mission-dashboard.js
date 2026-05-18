@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase";
-import { collection, getDocs, query, doc, deleteDoc, setDoc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, deleteDoc, setDoc, updateDoc, getDoc, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 let CURRENT_USER = null;
@@ -43,6 +43,10 @@ async function updateMissionStatuses(user) {
             // Skip pending missions
             if (mission.status === "Pending" || mission.status === "pending") {
                 continue;
+            }
+
+            if (newStatus === "Completed") {
+                await closePendingApplicationsForMission(missionId);
             }
             
             const newStatus = calculateMissionStatus(mission);
@@ -128,6 +132,43 @@ function calculateMissionStatus(mission) {
     } catch (error) {
         console.error("[ERROR] Error calculating mission status:", error);
         return mission.status;
+    }
+}
+
+async function closePendingApplicationsForMission(missionId) {
+    const reason =
+        "Mission has ended. This application was closed automatically.";
+    const payload = {
+        status: "closed",
+        closedAt: new Date(),
+        closeReason: reason,
+        updatedAt: new Date(),
+    };
+
+    try {
+        const subSnap = await getDocs(
+            collection(db, "missions", missionId, "applications")
+        );
+        for (const appDoc of subSnap.docs) {
+            if ((appDoc.data().status || "").toLowerCase() !== "pending") continue;
+            await updateDoc(appDoc.ref, payload);
+        }
+    } catch (e) {
+        console.warn("[WARNING] close pending subcollection apps", missionId, e);
+    }
+
+    try {
+        const rootQ = query(
+            collection(db, "applications"),
+            where("missionId", "==", missionId)
+        );
+        const rootSnap = await getDocs(rootQ);
+        for (const appDoc of rootSnap.docs) {
+            if ((appDoc.data().status || "").toLowerCase() !== "pending") continue;
+            await updateDoc(appDoc.ref, payload);
+        }
+    } catch (e) {
+        console.warn("[WARNING] close pending root apps", missionId, e);
     }
 }
 

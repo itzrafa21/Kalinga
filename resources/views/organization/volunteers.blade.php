@@ -438,6 +438,7 @@ input, select {
 .pending-badge { background: #fff4db; color: #b7791f; box-shadow: none; }
 .approved-badge { background: #def7e8; color: #1f9d55; box-shadow: none; }
 .rejected-badge { background: #fee2e2; color: #b91c1c; box-shadow: none; }
+.closed-badge { background: #e5e7eb; color: #4b5563; box-shadow: none; }
 .unknown-badge { background: #e5e7eb; color: #4b5563; box-shadow: none; }
 
 .action-btn {

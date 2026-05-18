@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, doc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, getDoc, where } from "firebase/firestore";
 
 const STORAGE_MISSIONS_SUB = "missions_sub";
 const STORAGE_APPLICATIONS_ROOT = "applications_root";
@@ -30,6 +30,91 @@ function escapeHtml(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
+}
+
+const AUTO_CLOSE_REASON =
+    "Mission has ended. This application was closed automatically.";
+
+function parseMissionEndDateTime(mission) {
+    const endDate = mission.endDate || mission.date;
+    const endTime = mission.endTime;
+    if (!endDate || !endTime) return null;
+
+    if (endTime.includes("AM") || endTime.includes("PM")) {
+        const [time, period] = endTime.split(" ");
+        const [hours, minutes] = time.split(":");
+        let hour24 = parseInt(hours, 10);
+        if (period === "AM") {
+            if (hour24 === 12) hour24 = 0;
+        } else if (period === "PM") {
+            if (hour24 !== 12) hour24 += 12;
+        }
+        return new Date(
+            `${endDate}T${String(hour24).padStart(2, "0")}:${minutes}`
+        );
+    }
+    return new Date(`${endDate}T${endTime}`);
+}
+
+function isMissionCompleted(mission) {
+    if (!mission) return false;
+    const status = (mission.status || "").toLowerCase();
+    if (status === "completed") return true;
+
+    const end = parseMissionEndDateTime(mission);
+    return end ? Date.now() > end.getTime() : false;
+}
+
+async function autoClosePendingApplications(orgMissionById) {
+    let closedCount = 0;
+
+    for (const [missionId, mission] of orgMissionById) {
+        if (!isMissionCompleted(mission)) continue;
+
+        const pending = allVolunteers.filter(
+            (v) =>
+                v.missionId === missionId &&
+                (v.status || "").toLowerCase() === "pending"
+        );
+
+        for (const volunteer of pending) {
+            try {
+                const applicationRef =
+                    volunteer.storage === STORAGE_APPLICATIONS_ROOT
+                        ? doc(db, "applications", volunteer.id)
+                        : doc(
+                              db,
+                              "missions",
+                              missionId,
+                              "applications",
+                              volunteer.id
+                          );
+
+                await updateDoc(applicationRef, {
+                    status: "closed",
+                    closedAt: new Date(),
+                    closeReason: AUTO_CLOSE_REASON,
+                    updatedAt: new Date(),
+                });
+
+                volunteer.status = "closed";
+                volunteer.closeReason = AUTO_CLOSE_REASON;
+                closedCount++;
+            } catch (err) {
+                console.error(
+                    "[ERROR] auto-close application",
+                    volunteer.id,
+                    err
+                );
+            }
+        }
+    }
+
+    if (closedCount > 0) {
+        console.log(
+            `[INFO] Auto-closed ${closedCount} pending application(s) for completed missions`
+        );
+    }
 }
 
 // Elements
@@ -277,6 +362,8 @@ async function loadVolunteers() {
             });
         }
 
+        await autoClosePendingApplications(orgMissionById);
+
         console.log("[SUCCESS] Total volunteers loaded:", allVolunteers.length);
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
@@ -403,6 +490,12 @@ function displayVolunteers(volunteers) {
                     <i class="fas fa-times-circle"></i> Rejected
                 </span>
             `;
+        } else if (normalizedStatus === 'closed') {
+            actionButtons = `
+                <span class="status-badge closed-badge">
+                    <i class="fas fa-ban"></i> Closed
+                </span>
+            `;
         } else {
             actionButtons = `
                 <span class="status-badge unknown-badge">
@@ -418,7 +511,7 @@ function displayVolunteers(volunteers) {
             <td>${v.phone || "N/A"}</td>
             <td>${v.occupation || "N/A"}</td>
             <td>${v.missionName || "N/A"}</td>
-            <td><span class="status-badge ${getStatusBadgeClass(v.status)}">${getStatusIcon(v.status)} ${v.status || "N/A"}</span></td>
+                        <td><span class="status-badge ${getStatusBadgeClass(v.status)}">${getStatusIcon(v.status)} ${v.status || "N/A"}</span></td>
             <td>${actionButtons}</td>
         `;
         volunteerTable.appendChild(row);
@@ -477,6 +570,7 @@ function showDetails(v) {
         <p><strong>Status:</strong> ${escapeHtml(v.status || "N/A")}</p>
         <p><strong>Applied At:</strong> ${v.appliedAt || "N/A"}</p>
         ${rejectedBlock}
+        closeReason: application.closeReason || "",
     `;
     detailsModal.show();
 }
