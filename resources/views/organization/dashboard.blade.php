@@ -12,7 +12,6 @@
     'resources/js/organization-dashboard.js',
     'resources/js/mission-dashboard.js',
     'resources/js/organization-logout.js',
-    'resources/js/organization-profile.js'
   ])
   <style>
     * { box-sizing: border-box; }
@@ -136,6 +135,12 @@
   border-radius: 50%;
   display: none;
 }
+.sidebar-user-avatar.has-photo .sidebar-user-avatar-img {
+      display: block;
+    }
+    .sidebar-user-avatar.has-photo #sidebarUserInitial {
+      display: none;
+    }
     .sidebar-user-status-dot {
       position: absolute;
       bottom: 2px;
