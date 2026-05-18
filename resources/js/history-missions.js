@@ -98,6 +98,35 @@ function ensureHistorySearchListener() {
     filterHistoryMissionsTable();
 }
 
+function toJsDate(value) {
+    if (!value) return null;
+    if (typeof value.toDate === "function") return value.toDate();
+    if (value instanceof Date) return value;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function getMissionCompletionDate(mission) {
+    const fromFields = toJsDate(mission.movedToHistoryAt)
+        || toJsDate(mission.completedAt)
+        || toJsDate(mission.lastStatusUpdate);
+
+    if (fromFields) return fromFields;
+
+    const endDate = mission.endDate || mission.date;
+    if (!endDate) return null;
+    return toJsDate(`${endDate}T12:00:00`);
+}
+
+function isInCurrentMonth(date) {
+    if (!date) return false;
+    const now = new Date();
+    return (
+        date.getFullYear() === now.getFullYear() &&
+        date.getMonth() === now.getMonth()
+    );
+}
+
 // Function to fetch and render completed missions
 async function loadHistoryMissions(user) {
     const historyTableBody = document.getElementById("historyMissionsBody");
@@ -171,10 +200,14 @@ async function loadHistoryMissions(user) {
                         ? "—"
                         : `${actualVolunteers}/${totalNeeded} volunteers`;
 
-                if (status !== "rejected") {
-                    totalVolunteersHelped += actualVolunteers;
-                    // ... keep existing this-month logic if you want
-                }
+                        if (status !== "rejected") {
+                            totalVolunteersHelped += actualVolunteers;
+        
+                            const completedOn = getMissionCompletionDate(mission);
+                            if (isInCurrentMonth(completedOn)) {
+                                thisMonthCount++;
+                            }
+                        }
 
                 const statusLabel =
                     status === "rejected" ? "Rejected" : "Completed";
