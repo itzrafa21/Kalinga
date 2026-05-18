@@ -565,66 +565,118 @@ window.approveMission = async function(missionId) {
     }
 };
 
+let pendingRejectMissionId = null;
 
-        window.rejectMission = async function(missionId) {
-            const reason = prompt("Please provide a reason for rejecting this mission:");
-            if (reason === null) return;
-        
-            if (!confirm("Are you sure you want to reject this mission?")) return;
-        
-            try {
-                const submissionRef = doc(db, "mission_submissions", missionId);
-                const submissionSnap = await getDoc(submissionRef);
-        
-                if (!submissionSnap.exists()) {
-                    alert("Mission submission not found.");
-                    return;
-                }
-        
-                const submissionData = submissionSnap.data();
-                const rejectionUpdate = {
-                    status: "rejected",
-                    workflowStatus: "rejected",
-                    rejectedAt: serverTimestamp(),
-                    rejectedBy: auth.currentUser.email,
-                    rejectionReason: reason
-                };
-        
-                await updateDoc(submissionRef, rejectionUpdate);
-        
-                if (submissionData.orgId) {
-                    await updateDoc(
-                        doc(db, "organizations", submissionData.orgId, "missions", missionId),
-                        rejectionUpdate
-                    );
+function openMissionRejectModal(missionId) {
+    pendingRejectMissionId = missionId;
+    const overlay = document.getElementById("missionRejectModal");
+    const textarea = document.getElementById("missionRejectReasonInput");
+    const err = document.getElementById("missionRejectReasonError");
+    if (!overlay || !textarea) return;
+    textarea.value = "";
+    if (err) err.textContent = "";
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    textarea.focus();
+}
 
-                    const historyRef = doc(
-                        db,
-                        "organizations",
-                        submissionData.orgId,
-                        "history",
-                        missionId
-                    );
-                    await setDoc(historyRef, {
-                        ...submissionData,
-                        ...rejectionUpdate,
-                        status: "rejected",
-                        movedToHistoryAt: new Date(),
-                    });
+function closeMissionRejectModal() {
+    const overlay = document.getElementById("missionRejectModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+    pendingRejectMissionId = null;
+}
 
-                    await deleteDoc(
-                        doc(db, "organizations", submissionData.orgId, "missions", missionId)
-                    );
-                }
-        
-        
-                alert("[INFO] Mission rejected.");
-                loadMissionsData();
-            } catch (error) {
-                console.error("Error rejecting mission:", error);
-                alert("Error rejecting mission. Please try again.");
-            }
+async function performMissionRejection(missionId, reason) {
+    try {
+        const submissionRef = doc(db, "mission_submissions", missionId);
+        const submissionSnap = await getDoc(submissionRef);
+
+        if (!submissionSnap.exists()) {
+            alert("Mission submission not found.");
+            return;
+        }
+
+        const submissionData = submissionSnap.data();
+        const rejectionUpdate = {
+            status: "rejected",
+            workflowStatus: "rejected",
+            rejectedAt: serverTimestamp(),
+            rejectedBy: auth.currentUser.email,
+            rejectionReason: reason,
         };
+
+        await updateDoc(submissionRef, rejectionUpdate);
+
+        if (submissionData.orgId) {
+            await updateDoc(
+                doc(db, "organizations", submissionData.orgId, "missions", missionId),
+                rejectionUpdate
+            );
+
+            const historyRef = doc(
+                db,
+                "organizations",
+                submissionData.orgId,
+                "history",
+                missionId
+            );
+            await setDoc(historyRef, {
+                ...submissionData,
+                ...rejectionUpdate,
+                status: "rejected",
+                movedToHistoryAt: new Date(),
+            });
+
+            await deleteDoc(
+                doc(db, "organizations", submissionData.orgId, "missions", missionId)
+            );
+        }
+
+        alert("[INFO] Mission rejected.");
+        loadMissionsData();
+    } catch (error) {
+        console.error("Error rejecting mission:", error);
+        alert("Error rejecting mission. Please try again.");
+    }
+}
+
+(function initMissionRejectModal() {
+    const overlay = document.getElementById("missionRejectModal");
+    if (!overlay) return;
+
+    document.getElementById("missionRejectCancel")?.addEventListener("click", closeMissionRejectModal);
+    document.getElementById("missionRejectConfirm")?.addEventListener("click", async () => {
+        const textarea = document.getElementById("missionRejectReasonInput");
+        const err = document.getElementById("missionRejectReasonError");
+        const trimmed = (textarea?.value || "").trim();
+        if (!trimmed) {
+            if (err) err.textContent = "A rejection reason is required.";
+            textarea?.focus();
+            return;
+        }
+        if (err) err.textContent = "";
+        const missionId = pendingRejectMissionId;
+        if (!missionId) return;
+        closeMissionRejectModal();
+        await performMissionRejection(missionId, trimmed);
+    });
+
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeMissionRejectModal();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+            closeMissionRejectModal();
+        }
+    });
+})();
+
+
+window.rejectMission = function (missionId) {
+    openMissionRejectModal(missionId);
+};
 
         window.viewMissionDetails = async function (missionId) {
             try {

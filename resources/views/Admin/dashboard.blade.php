@@ -41,6 +41,99 @@
 #missionDetailsBackdrop {
   z-index: 1055;
 }
+/* Mission reject modal */
+.reject-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 36, 25, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+}
+.reject-modal-overlay.is-open {
+  display: flex;
+}
+.reject-modal-overlay[hidden] {
+  display: none !important;
+}
+.reject-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 440px;
+  width: 100%;
+  padding: 1.5rem 1.5rem 1.25rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+.reject-modal h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  color: #0f2419;
+}
+.reject-modal-help {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+.reject-modal label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.4rem;
+}
+.reject-modal textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.reject-modal textarea:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+}
+.reject-modal-error {
+  min-height: 1.25rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: #b91c1c;
+}
+.reject-modal-actions {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+  margin-top: 1.15rem;
+}
+.reject-modal-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reject-modal-cancel {
+  background: #f1f5f9;
+  color: #334155;
+}
+.reject-modal-cancel:hover {
+  background: #e2e8f0;
+}
+.reject-modal-confirm {
+  background: #ef4444;
+  color: #fff;
+}
+.reject-modal-confirm:hover {
+  background: #dc2626;
+}
 .org-details-modal[hidden] { display: none !important; }
 
 .org-details-modal__header {
@@ -542,6 +635,33 @@
   <div class="org-details-modal__footer">
     <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
   </div>
+</div>
+
+<!-- Mission reject reason modal -->
+<div
+  id="missionRejectModal"
+  class="reject-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="missionRejectModalTitle"
+>
+<div class="reject-modal" role="document">
+    <h2 id="missionRejectModalTitle">Reject mission</h2>
+    <p class="reject-modal-help">Please provide a reason for rejecting this mission. The organization may see this message.</p>
+    <label for="missionRejectReasonInput">Reason (required)</label>
+    <textarea
+      id="missionRejectReasonInput"
+      rows="4"
+      placeholder="e.g. Incomplete details, policy violation…"
+      autocomplete="off"
+    ></textarea>
+    <p id="missionRejectReasonError" class="reject-modal-error" role="alert"></p>
+    <div class="reject-modal-actions">
+      <button type="button" class="reject-modal-cancel" id="missionRejectCancel">Cancel</button>
+      <button type="button" class="reject-modal-confirm" id="missionRejectConfirm">Reject mission</button>
+    </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
