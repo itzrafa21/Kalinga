@@ -17,7 +17,7 @@
     --muted: #6b7280;
     --input: #eceef2;
     --btn: #9b6a7b;
-    --btn-hover: #87596a;
+    --btn-hover:rgb(139, 52, 219);
     --white: #fff;
     --shadow: 0 22px 40px rgba(20, 18, 28, 0.25);
   }
