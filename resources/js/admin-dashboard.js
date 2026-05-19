@@ -522,6 +522,38 @@ function formatMissionSubmittedAt(mission) {
     if (t) return new Date(t).toLocaleString();
     return "N/A";
 }
+function openMissionApproveSuccessModal() {
+    const overlay = document.getElementById("missionApproveSuccessModal");
+    if (!overlay) return;
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    document.getElementById("missionApproveSuccessOk")?.focus();
+}
+
+function closeMissionApproveSuccessModal() {
+    const overlay = document.getElementById("missionApproveSuccessModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+}
+
+(function initMissionApproveSuccessModal() {
+    const overlay = document.getElementById("missionApproveSuccessModal");
+    if (!overlay) return;
+
+    const onClose = () => {
+        closeMissionApproveSuccessModal();
+        if (typeof loadMissionsData === "function") loadMissionsData();
+    };
+
+    document.getElementById("missionApproveSuccessOk")?.addEventListener("click", onClose);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) onClose();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("is-open")) onClose();
+    });
+})();
 window.approveMission = async function(missionId) {
     try {
         const submissionRef = doc(db, "mission_submissions", missionId);
@@ -557,7 +589,7 @@ window.approveMission = async function(missionId) {
             
         });
 
-        alert("[SUCCESS] Mission approved and published.");
+        openMissionApproveSuccessModal();
         loadMissionsData();
     } catch (error) {
         console.error("Error approving mission:", error);

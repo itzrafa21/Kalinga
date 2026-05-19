@@ -134,6 +134,67 @@
 .reject-modal-confirm:hover {
   background: #dc2626;
 }
+
+/* Mission approve success modal */
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 36, 25, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2100;
+  padding: 1rem;
+}
+.success-modal-overlay.is-open {
+  display: flex;
+}
+.success-modal-overlay[hidden] {
+  display: none !important;
+}
+.success-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.75rem 1.5rem 1.25rem;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+.success-modal-icon {
+  font-size: 3rem;
+  color: #16a34a;
+  margin-bottom: 0.75rem;
+  line-height: 1;
+}
+.success-modal h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  color: #0f2419;
+}
+.success-modal-message {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+.success-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+.success-modal-confirm {
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #16a34a;
+  color: #fff;
+}
+.success-modal-confirm:hover {
+  background: #15803d;
+}
 .org-details-modal[hidden] { display: none !important; }
 
 .org-details-modal__header {
@@ -634,6 +695,29 @@
   <div class="org-details-modal__body" id="missionDetailsBody"></div>
   <div class="org-details-modal__footer">
     <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- Mission approve success modal -->
+<div
+  id="missionApproveSuccessModal"
+  class="success-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="missionApproveSuccessTitle"
+>
+  <div class="success-modal" role="document">
+    <div class="success-modal-icon" aria-hidden="true">
+      <i class="fas fa-check-circle"></i>
+    </motion.div>
+    <h2 id="missionApproveSuccessTitle">Mission approved</h2>
+    <p class="success-modal-message">
+      The mission was approved and published. It is now visible to volunteers.
+    </p>
+    <div class="success-modal-actions">
+      <button type="button" class="success-modal-confirm" id="missionApproveSuccessOk">OK</button>
+    </div>
   </div>
 </div>
 
