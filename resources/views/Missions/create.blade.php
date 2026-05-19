@@ -30,6 +30,66 @@
             border: none;
         }
 
+        .success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 36, 25, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  padding: 1rem;
+}
+.success-modal-overlay.is-open {
+  display: flex;
+}
+.success-modal-overlay[hidden] {
+  display: none !important;
+}
+.success-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.75rem 1.5rem 1.25rem;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+.success-modal-icon {
+  font-size: 3rem;
+  color: #28a745;
+  margin-bottom: 0.75rem;
+  line-height: 1;
+}
+.success-modal h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  color: #0f2419;
+}
+.success-modal-message {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+.success-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+.success-modal-confirm {
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #28a745;
+  color: #fff;
+}
+.success-modal-confirm:hover {
+  background: #218838;
+}
+
         .card-header {
     background: #28a745;
     color: white;
@@ -302,6 +362,29 @@
             </div>
         </div>
     </div>
+
+    <!-- Mission created success modal -->
+<div
+  id="missionSuccessModal"
+  class="success-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="missionSuccessModalTitle"
+>
+  <div class="success-modal" role="document">
+  <div class="success-modal-icon" aria-hidden="true">
+      <i class="bi bi-check-circle-fill"></i>
+    </motion.div>
+    <h2 id="missionSuccessModalTitle">Mission submitted</h2>
+    <p class="success-modal-message" id="missionSuccessModalMessage">
+      Your mission was submitted successfully. It is now pending admin approval and will be visible to volunteers once approved.
+    </p>
+    <div class="success-modal-actions">
+      <button type="button" class="success-modal-confirm" id="missionSuccessModalOk">OK</button>
+    </div>
+  </div>
+</div>
 
     <!-- Mapbox JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>

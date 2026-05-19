@@ -6,6 +6,45 @@ import { getBasePointsForType, updateBasePointsDisplay } from "./mission-type-po
 let currentUser = null;
 let selectedMissionImageFile = null;
 
+function openMissionSuccessModal() {
+    const overlay = document.getElementById("missionSuccessModal");
+    if (!overlay) return;
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    document.getElementById("missionSuccessModalOk")?.focus();
+  }
+  
+  function closeMissionSuccessModal() {
+    const overlay = document.getElementById("missionSuccessModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+  }
+  
+  function initMissionSuccessModal() {
+    const overlay = document.getElementById("missionSuccessModal");
+    if (!overlay) return;
+  
+    document.getElementById("missionSuccessModalOk")?.addEventListener("click", () => {
+      closeMissionSuccessModal();
+      window.location.href = "/organization/dashboard";
+    });
+  
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        closeMissionSuccessModal();
+        window.location.href = "/organization/dashboard";
+      }
+    });
+  
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+        closeMissionSuccessModal();
+        window.location.href = "/organization/dashboard";
+      }
+    });
+  }
+
 // Wait for authentication
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -20,6 +59,7 @@ onAuthStateChanged(auth, async (user) => {
     initializeFormSubmission();
     initializeMissionTypePoints();
     initializeImageUpload();
+    initMissionSuccessModal();
 });
 
 function initializeMissionTypePoints() {
@@ -135,8 +175,7 @@ function initializeFormSubmission() {
             });
             console.log("[SUCCESS] Mission saved to organization dashboard as Pending");  
 
-            alert("[SUCCESS] Mission submitted successfully! It is now pending admin approval and will be visible to volunteers once approved.");
-            window.location.href = "/organization/dashboard";
+            openMissionSuccessModal();
         } catch (error) {
             console.error("[ERROR] Error creating mission:", error.message, error);
             alert("Failed to create mission. Please check console.");
