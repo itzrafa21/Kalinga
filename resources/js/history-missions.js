@@ -4,6 +4,8 @@ import { onAuthStateChanged } from "firebase/auth";
 
 let CURRENT_USER = null;
 let historySearchListenerAttached = false;
+let historyPageSize = 10;
+let historyCurrentPage = 1;
 
 async function populateSidebarUser(user) {
     try {
@@ -71,7 +73,6 @@ function filterHistoryMissionsTable() {
 
     const q = (document.getElementById("historySearch")?.value || "").trim().toLowerCase();
     const rows = tbody.querySelectorAll("tr.history-mission-row");
-    let visible = 0;
 
     rows.forEach((tr) => {
         const name = (tr.cells[0]?.textContent || "").toLowerCase();
@@ -80,11 +81,104 @@ function filterHistoryMissionsTable() {
         const haystack = `${name} ${date} ${loc}`;
         const match = !q || haystack.includes(q);
         tr.style.display = match ? "" : "none";
-        if (match) visible++;
+        tr.classList.remove("history-row-paged-out");
     });
 
-    updateHistoryMissionFooter(visible);
+    historyCurrentPage = 1;
+    applyHistoryPagination();
 }
+
+    function getVisibleHistoryRows() {
+        const tbody = document.getElementById("historyMissionsBody");
+        if (!tbody) return [];
+        return Array.from(tbody.querySelectorAll("tr.history-mission-row")).filter(
+            (tr) => tr.style.display !== "none"
+        );
+    }
+    
+    function applyHistoryPagination() {
+        const allVisible = getVisibleHistoryRows();
+        const total = allVisible.length;
+        const totalPages = Math.max(1, Math.ceil(total / historyPageSize));
+    
+        if (historyCurrentPage > totalPages) {
+            historyCurrentPage = totalPages;
+        }
+        if (historyCurrentPage < 1) {
+            historyCurrentPage = 1;
+        }
+    
+        const start = (historyCurrentPage - 1) * historyPageSize;
+        const end = start + historyPageSize;
+    
+        const tbody = document.getElementById("historyMissionsBody");
+        if (tbody) {
+            tbody.querySelectorAll("tr.history-mission-row").forEach((tr) => {
+                tr.classList.remove("history-row-paged-out");
+            });
+            allVisible.forEach((tr, index) => {
+                if (index < start || index >= end) {
+                    tr.classList.add("history-row-paged-out");
+                }
+            });
+        }
+    
+        const prevBtn = document.getElementById("historyPrevPage");
+        const nextBtn = document.getElementById("historyNextPage");
+        const pageInfo = document.getElementById("historyPageInfo");
+    
+        if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1 || total === 0;
+        if (nextBtn) nextBtn.disabled = historyCurrentPage >= totalPages || total === 0;
+        if (pageInfo) pageInfo.textContent = `Page ${historyCurrentPage} of ${totalPages}`;
+    
+        const countEl = document.getElementById("historyCountText");
+        if (countEl) {
+            if (total === 0) {
+                countEl.textContent = "Showing 0 missions";
+            } else {
+                const from = start + 1;
+                const to = Math.min(end, total);
+                countEl.textContent =
+                    total === 1
+                        ? "Showing 1 mission"
+                        : `Showing ${from}–${to} of ${total} missions`;
+            }
+        }
+    }
+    
+    function initHistoryPaginationControls() {
+        const sizeSelect = document.getElementById("historyPageSize");
+        const prevBtn = document.getElementById("historyPrevPage");
+        const nextBtn = document.getElementById("historyNextPage");
+    
+        if (sizeSelect && !sizeSelect.dataset.bound) {
+            sizeSelect.dataset.bound = "1";
+            sizeSelect.addEventListener("change", () => {
+                historyPageSize = parseInt(sizeSelect.value, 10) || 10;
+                historyCurrentPage = 1;
+                applyHistoryPagination();
+            });
+        }
+    
+        if (prevBtn && !prevBtn.dataset.bound) {
+            prevBtn.dataset.bound = "1";
+            prevBtn.addEventListener("click", () => {
+                if (historyCurrentPage > 1) {
+                    historyCurrentPage--;
+                    applyHistoryPagination();
+                }
+            });
+        }
+    
+        if (nextBtn && !nextBtn.dataset.bound) {
+            nextBtn.dataset.bound = "1";
+            nextBtn.addEventListener("click", () => {
+                historyCurrentPage++;
+                applyHistoryPagination();
+            });
+        }
+    }
+
 
 function ensureHistorySearchListener() {
     const input = document.getElementById("historySearch");
@@ -247,6 +341,9 @@ async function loadHistoryMissions(user) {
             updateHistoryMissionFooter(0);
         } else {
             ensureHistorySearchListener();
+            initHistoryPaginationControls();
+            historyCurrentPage = 1;
+            applyHistoryPagination();
         }
 
         console.log(`[SUCCESS] History cleanup complete:`);

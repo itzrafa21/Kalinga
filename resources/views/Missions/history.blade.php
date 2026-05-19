@@ -345,6 +345,55 @@
       color: #666;
     }
 
+    .history-pagination {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+    }
+    .history-page-size-label {
+      font-size: 0.85rem;
+      color: #555;
+      margin-right: 0.35rem;
+    }
+    .history-page-size {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    .history-page-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .history-page-btn {
+      padding: 0.4rem 0.85rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .history-page-btn:hover:not(:disabled) {
+      background: #f0f4f0;
+      border-color: #28a745;
+    }
+    .history-page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #historyPageInfo {
+      font-size: 0.85rem;
+      color: #555;
+      min-width: 6rem;
+      text-align: center;
+    }
+    tr.history-mission-row.history-row-paged-out {
+      display: none !important;
+    }
+
     .missions table {
       width: 100%;
       border-collapse: collapse;
@@ -496,8 +545,24 @@
           </tbody>
         </table>
       </div>
-      <div class="history-footer">
+      <div.div class="history-footer">
         <span id="historyCountText">Showing 0 missions</span>
+
+        <div class="history-pagination">
+          <label class="history-page-size-label" for="historyPageSize">Rows per page</label>
+          <select id="historyPageSize" class="history-page-size" aria-label="Rows per page">
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+          </select>
+
+          <div class="history-page-nav">
+            <button type="button" class="history-page-btn" id="historyPrevPage" disabled>Previous</button>
+            <span id="historyPageInfo">Page 1 of 1</span>
+            <button type="button" class="history-page-btn" id="historyNextPage" disabled>Next</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
