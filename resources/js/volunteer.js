@@ -126,6 +126,8 @@ const modalBody = document.getElementById("modalBody");
 let allVolunteers = [];
 let allMissions = [];
 let currentUser = null;
+let volunteerPageSize = 10;
+let volunteerCurrentPage = 1;
 
 let rejectModalContext = { applicationId: null, missionId: null };
 
@@ -424,6 +426,7 @@ async function loadVolunteers() {
         console.log("[SUCCESS] Total volunteers loaded:", allVolunteers.length);
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
+        initVolunteerPaginationControls();
     } catch (error) {
         console.error("Error loading volunteers:", error);
     }
@@ -444,7 +447,7 @@ function updateVolunteerCounts(volunteers) {
     const totalElement = document.getElementById("totalVolunteers");
     const pendingElement = document.getElementById("pendingVolunteers");
     const approvedElement = document.getElementById("approvedVolunteers");
-    
+
     if (totalElement) {
         totalElement.textContent = totalVolunteers;
         console.log("[SUCCESS] Updated total volunteers:", totalVolunteers);
@@ -464,6 +467,85 @@ function updateVolunteerCounts(volunteers) {
         console.log("[SUCCESS] Updated approved volunteers:", approvedVolunteers);
     } else {
         console.log("[ERROR] Could not find approvedVolunteers element");
+    }
+}
+
+function getVisibleVolunteerRows() {
+    if (!volunteerTable) return [];
+    return Array.from(volunteerTable.querySelectorAll("tr.volunteer-application-row"));
+}
+
+function applyVolunteerPagination() {
+    const allVisible = getVisibleVolunteerRows();
+    const total = allVisible.length;
+    const totalPages = Math.max(1, Math.ceil(total / volunteerPageSize));
+
+    if (volunteerCurrentPage > totalPages) volunteerCurrentPage = totalPages;
+    if (volunteerCurrentPage < 1) volunteerCurrentPage = 1;
+
+    const start = (volunteerCurrentPage - 1) * volunteerPageSize;
+    const end = start + volunteerPageSize;
+
+    allVisible.forEach((tr) => tr.classList.remove("volunteer-row-paged-out"));
+    allVisible.forEach((tr, index) => {
+        if (index < start || index >= end) {
+            tr.classList.add("volunteer-row-paged-out");
+        }
+    });
+
+    const prevBtn = document.getElementById("volunteerPrevPage");
+    const nextBtn = document.getElementById("volunteerNextPage");
+    const pageInfo = document.getElementById("volunteerPageInfo");
+
+    if (prevBtn) prevBtn.disabled = volunteerCurrentPage <= 1 || total === 0;
+    if (nextBtn) nextBtn.disabled = volunteerCurrentPage >= totalPages || total === 0;
+    if (pageInfo) pageInfo.textContent = `Page ${volunteerCurrentPage} of ${totalPages}`;
+
+    const countEl = document.getElementById("volunteerCountText");
+    if (countEl) {
+        if (total === 0) {
+            countEl.textContent = "Showing 0 applications";
+        } else {
+            const from = start + 1;
+            const to = Math.min(end, total);
+            countEl.textContent =
+                total === 1
+                    ? "Showing 1 application"
+                    : `Showing ${from}–${to} of ${total} applications`;
+        }
+    }
+}
+
+function initVolunteerPaginationControls() {
+    const sizeSelect = document.getElementById("volunteerPageSize");
+    const prevBtn = document.getElementById("volunteerPrevPage");
+    const nextBtn = document.getElementById("volunteerNextPage");
+
+    if (sizeSelect && !sizeSelect.dataset.bound) {
+        sizeSelect.dataset.bound = "1";
+        sizeSelect.addEventListener("change", () => {
+            volunteerPageSize = parseInt(sizeSelect.value, 10) || 10;
+            volunteerCurrentPage = 1;
+            applyVolunteerPagination();
+        });
+    }
+
+    if (prevBtn && !prevBtn.dataset.bound) {
+        prevBtn.dataset.bound = "1";
+        prevBtn.addEventListener("click", () => {
+            if (volunteerCurrentPage > 1) {
+                volunteerCurrentPage--;
+                applyVolunteerPagination();
+            }
+        });
+    }
+
+    if (nextBtn && !nextBtn.dataset.bound) {
+        nextBtn.dataset.bound = "1";
+        nextBtn.addEventListener("click", () => {
+            volunteerCurrentPage++;
+            applyVolunteerPagination();
+        });
     }
 }
 
@@ -501,6 +583,7 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
             }
         }
 
+        volunteerCurrentPage = 1;
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
 
@@ -513,14 +596,20 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
 
 // Fixed displayVolunteers function with better styling
 function displayVolunteers(volunteers) {
+    if (!volunteerTable) return;
+
     volunteerTable.innerHTML = "";
+
     if (volunteers.length === 0) {
         volunteerTable.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No volunteers found</td></tr>`;
+        volunteerCurrentPage = 1;
+        applyVolunteerPagination();
         return;
     }
 
     volunteers.forEach((v) => {
         const row = document.createElement("tr");
+        row.classList.add("volunteer-application-row");
         
         // Create action buttons with better styling
         let actionButtons = '';
@@ -589,6 +678,8 @@ function displayVolunteers(volunteers) {
             openRejectModal(el.dataset.id, el.dataset.missionId);
         });
     });
+
+    applyVolunteerPagination();
 }
 
 // Status badge class function with better styling
@@ -598,6 +689,7 @@ function getStatusBadgeClass(status) {
         case 'pending': return 'pending-badge';
         case 'approved': return 'approved-badge';
         case 'rejected': return 'rejected-badge';
+        case 'closed': return 'closed-badge';
         default: return 'unknown-badge';
     }
 }
@@ -609,6 +701,7 @@ function getStatusIcon(status) {
         case 'pending': return '<i class="fas fa-clock"></i>';
         case 'approved': return '<i class="fas fa-check-circle"></i>';
         case 'rejected': return '<i class="fas fa-times-circle"></i>';
+        case 'closed': return '<i class="fas fa-ban"></i>';
         default: return '<i class="fas fa-question-circle"></i>';
     }
 }
@@ -627,7 +720,6 @@ function showDetails(v) {
         <p><strong>Status:</strong> ${escapeHtml(v.status || "N/A")}</p>
         <p><strong>Applied At:</strong> ${v.appliedAt || "N/A"}</p>
         ${rejectedBlock}
-        closeReason: application.closeReason || "",
     `;
     detailsModal.show();
 }
@@ -640,6 +732,7 @@ searchInput.addEventListener("input", () => {
             (v.name && v.name.toLowerCase().includes(term)) ||
             (v.email && v.email.toLowerCase().includes(term))
     );
+    volunteerCurrentPage = 1;
     displayVolunteers(filtered);
     updateVolunteerCounts(filtered);
 });
@@ -647,17 +740,16 @@ searchInput.addEventListener("input", () => {
 // Mission filter functionality
 filterSelect.addEventListener("change", () => {
     const selectedMissionId = filterSelect.value;
-    
+    volunteerCurrentPage = 1;
+
     if (!selectedMissionId) {
-        // Show all volunteers
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
     } else {
-        // Filter volunteers by selected mission
-        const filteredVolunteers = allVolunteers.filter(volunteer => volunteer.missionId === selectedMissionId);
+        const filteredVolunteers = allVolunteers.filter(
+            (v) => v.missionId === selectedMissionId
+        );
         displayVolunteers(filteredVolunteers);
         updateVolunteerCounts(filteredVolunteers);
-        console.log("Selected mission:", selectedMissionId);
-        console.log("Filtered volunteers:", filteredVolunteers.length);
     }
 });

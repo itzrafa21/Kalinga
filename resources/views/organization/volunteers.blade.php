@@ -423,6 +423,64 @@ input, select {
   font-weight: 700;
 }
 .volunteers-table tbody tr:hover { background: #f9fbfd; }
+.volunteers-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+.volunteers-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+.volunteers-page-size-label {
+  font-size: 0.85rem;
+  color: #555;
+  margin-right: 0.35rem;
+}
+.volunteers-page-size {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fff;
+}
+.volunteers-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.volunteers-page-btn {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.volunteers-page-btn:hover:not(:disabled) {
+  background: #f0f4f0;
+  border-color: #2d6a4f;
+}
+.volunteers-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#volunteerPageInfo {
+  font-size: 0.85rem;
+  color: #555;
+  min-width: 6rem;
+  text-align: center;
+}
+tr.volunteer-application-row.volunteer-row-paged-out {
+  display: none !important;
+}
 
 .status-badge {
   display: inline-flex;
@@ -754,6 +812,25 @@ input, select {
         <!-- Filled dynamically -->
       </tbody>
     </table>
+    <div class="volunteers-footer">
+      <span id="volunteerCountText">Showing 0 applications</span>
+
+      <div class="volunteers-pagination">
+        <label class="volunteers-page-size-label" for="volunteerPageSize">Rows per page</label>
+        <select id="volunteerPageSize" class="volunteers-page-size" aria-label="Rows per page">
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="30">30</option>
+          <option value="50">50</option>
+        </select>
+
+        <div class="volunteers-page-nav">
+          <button type="button" class="volunteers-page-btn" id="volunteerPrevPage" disabled>Previous</button>
+          <span id="volunteerPageInfo">Page 1 of 1</span>
+          <button type="button" class="volunteers-page-btn" id="volunteerNextPage" disabled>Next</button>
+        </div>
+      </div>
+    </div>
   </section>
 </main>
 
