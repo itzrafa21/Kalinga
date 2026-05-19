@@ -129,6 +129,63 @@ let currentUser = null;
 
 let rejectModalContext = { applicationId: null, missionId: null };
 
+function getVolunteerStatusSuccessCopy(status) {
+    const s = (status || "").toLowerCase();
+    if (s === "approved") {
+        return {
+            title: "Application approved",
+            message: "The volunteer application was approved successfully.",
+        };
+    }
+    if (s === "rejected") {
+        return {
+            title: "Application rejected",
+            message: "The volunteer application was rejected.",
+        };
+    }
+    return {
+        title: "Status updated",
+        message: `Volunteer application ${s} successfully.`,
+    };
+}
+
+function openVolunteerStatusSuccessModal(status) {
+    const overlay = document.getElementById("volunteerStatusSuccessModal");
+    const titleEl = document.getElementById("volunteerStatusSuccessTitle");
+    const messageEl = document.getElementById("volunteerStatusSuccessMessage");
+    if (!overlay || !titleEl || !messageEl) return;
+
+    const copy = getVolunteerStatusSuccessCopy(status);
+    titleEl.textContent = copy.title;
+    messageEl.textContent = copy.message;
+
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    document.getElementById("volunteerStatusSuccessOk")?.focus();
+}
+
+function closeVolunteerStatusSuccessModal() {
+    const overlay = document.getElementById("volunteerStatusSuccessModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+}
+
+(function initVolunteerStatusSuccessModal() {
+    const overlay = document.getElementById("volunteerStatusSuccessModal");
+    if (!overlay) return;
+
+    const close = () => closeVolunteerStatusSuccessModal();
+
+    document.getElementById("volunteerStatusSuccessOk")?.addEventListener("click", close);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) close();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("is-open")) close();
+    });
+})();
+
 function openRejectModal(applicationId, missionId) {
     rejectModalContext = { applicationId, missionId };
     const overlay = document.getElementById("rejectReasonModal");
@@ -447,7 +504,7 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
         displayVolunteers(allVolunteers);
         updateVolunteerCounts(allVolunteers);
 
-        alert(`[SUCCESS] Volunteer application ${newStatus} successfully!`);
+        openVolunteerStatusSuccessModal(newStatus);
     } catch (error) {
         console.error("[ERROR] Error updating application status:", error);
         alert(`[ERROR] Failed to ${newStatus} application. Please try again.`);
@@ -511,7 +568,7 @@ function displayVolunteers(volunteers) {
             <td>${v.phone || "N/A"}</td>
             <td>${v.occupation || "N/A"}</td>
             <td>${v.missionName || "N/A"}</td>
-                        <td><span class="status-badge ${getStatusBadgeClass(v.status)}">${getStatusIcon(v.status)} ${v.status || "N/A"}</span></td>
+            <td><span class="status-badge ${getStatusBadgeClass(v.status)}">${getStatusIcon(v.status)} ${v.status || "N/A"}</span></td>
             <td>${actionButtons}</td>
         `;
         volunteerTable.appendChild(row);

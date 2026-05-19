@@ -575,6 +575,67 @@ input, select {
 .reject-modal-confirm:hover {
   background: #dc2626;
 }
+/* Volunteer status success modal */
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 36, 25, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3100;
+  padding: 1rem;
+}
+.success-modal-overlay.is-open {
+  display: flex !important;
+}
+.success-modal-overlay[hidden] {
+  display: none !important;
+}
+.success-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.75rem 1.5rem 1.25rem;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+.success-modal-icon {
+  font-size: 3rem;
+  color: #2d6a4f;
+  margin-bottom: 0.75rem;
+  line-height: 1;
+}
+.success-modal h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  color: #0f2419;
+}
+.success-modal-message {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+.success-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+.success-modal-confirm {
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #2d6a4f;
+  color: #fff;
+}
+.success-modal-confirm:hover {
+  background: #245a42;
+}
+
   </style>
 </head>
 <body>
@@ -721,6 +782,27 @@ input, select {
       </div>
     </div>
   </div>
+
+  <div
+  id="volunteerStatusSuccessModal"
+  class="success-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="volunteerStatusSuccessTitle"
+>
+  <div class="success-modal" role="document">
+    <div class="success-modal-icon" aria-hidden="true">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <h2 id="volunteerStatusSuccessTitle">Success</h2>
+    <p class="success-modal-message" id="volunteerStatusSuccessMessage"></p>
+    <div class="success-modal-actions">
+      <button type="button" class="success-modal-confirm" id="volunteerStatusSuccessOk">OK</button>
+    </div>
+  </div>
+</div>
+  
 
   <script>
     // Optional: if you add a mobile hamburger later, toggle sidebar.open here
