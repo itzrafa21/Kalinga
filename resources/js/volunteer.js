@@ -32,6 +32,58 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;");
 }
 
+function getAppliedDate(volunteer) {
+    const raw = volunteer.appliedAt;
+    if (!raw) return null;
+    if (typeof raw.toDate === "function") return raw.toDate();
+    if (raw.seconds != null) return new Date(raw.seconds * 1000);
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function filterVolunteersByPeriod(volunteers, period) {
+    if (!period || period === "all") return volunteers;
+
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    return volunteers.filter((v) => {
+        const applied = getAppliedDate(v);
+        if (!applied) return period === "older";
+
+        if (period === "this_month") {
+            return applied >= thisMonthStart;
+        }
+        if (period === "last_month") {
+            return applied >= lastMonthStart && applied < thisMonthStart;
+        }
+        if (period === "older") {
+            return applied < lastMonthStart;
+        }
+        return true;
+    });
+}
+
+function applyVolunteerFilters() {
+    const period = filterSelect.value;
+    const term = searchInput.value.toLowerCase().trim();
+
+    let list = filterVolunteersByPeriod(allVolunteers, period);
+
+    if (term) {
+        list = list.filter(
+            (v) =>
+                (v.name && v.name.toLowerCase().includes(term)) ||
+                (v.email && v.email.toLowerCase().includes(term))
+        );
+    }
+
+    volunteerCurrentPage = 1;
+    displayVolunteers(list);
+    updateVolunteerCounts(list);
+}
+
 const AUTO_CLOSE_REASON =
     "Mission has ended. This application was closed automatically.";
 
@@ -295,48 +347,14 @@ onAuthStateChanged(auth, async (user) => {
     await loadVolunteers();
 });
 
-// Function to load missions for the dropdown
 async function loadMissions(user) {
-    console.log("[INFO] Loading missions for user:", user);
-    
     try {
-        // Clear existing options
-        filterSelect.innerHTML = '<option value="">All Missions</option>';
-        
-        // Load missions from main missions collection, filtered by orgId
         const missionsRef = collection(db, "missions");
-        const missionsQuery = query(missionsRef);
-        const snapshot = await getDocs(missionsQuery);
-        
-        console.log("[INFO] Total missions found:", snapshot.size);
-        
-        if (snapshot.empty) {
-            console.log("[WARNING] No missions found!");
-            return;
-        }
-        
-        snapshot.forEach((docSnap) => {
-            const mission = docSnap.data();
-            console.log("[INFO] Mission data:", mission);
-            
-            // Only show missions that belong to this organization
-            if (mission.orgId === user.uid) {
-                const option = document.createElement("option");
-                option.value = docSnap.id;
-                option.textContent = mission.missionName || mission.name || "Untitled Mission";
-                filterSelect.appendChild(option);
-                
-                console.log("[SUCCESS] Added mission to dropdown:", option.textContent);
-            } else {
-                console.log("[WARNING] Mission doesn't belong to this org:", mission.orgId, "vs", user.uid);
-            }
-        });
-        
-        // Store ALL missions for volunteer loading
-        allMissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        console.log("[SUCCESS] Loaded missions:", allMissions.length);
-        
+        const snapshot = await getDocs(missionsRef);
+        allMissions = snapshot.docs
+            .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+            .filter((m) => m.orgId === user);
+        console.log("[SUCCESS] Org missions cached:", allMissions.length);
     } catch (error) {
         console.error("[ERROR] Error loading missions:", error);
     }
@@ -424,8 +442,7 @@ async function loadVolunteers() {
         await autoClosePendingApplications(orgMissionById);
 
         console.log("[SUCCESS] Total volunteers loaded:", allVolunteers.length);
-        displayVolunteers(allVolunteers);
-        updateVolunteerCounts(allVolunteers);
+        applyVolunteerFilters();
         initVolunteerPaginationControls();
     } catch (error) {
         console.error("Error loading volunteers:", error);
@@ -724,32 +741,10 @@ function showDetails(v) {
     detailsModal.show();
 }
 
-// Search functionality
 searchInput.addEventListener("input", () => {
-    const term = searchInput.value.toLowerCase();
-    const filtered = allVolunteers.filter(
-        (v) =>
-            (v.name && v.name.toLowerCase().includes(term)) ||
-            (v.email && v.email.toLowerCase().includes(term))
-    );
-    volunteerCurrentPage = 1;
-    displayVolunteers(filtered);
-    updateVolunteerCounts(filtered);
+    applyVolunteerFilters();
 });
 
-// Mission filter functionality
 filterSelect.addEventListener("change", () => {
-    const selectedMissionId = filterSelect.value;
-    volunteerCurrentPage = 1;
-
-    if (!selectedMissionId) {
-        displayVolunteers(allVolunteers);
-        updateVolunteerCounts(allVolunteers);
-    } else {
-        const filteredVolunteers = allVolunteers.filter(
-            (v) => v.missionId === selectedMissionId
-        );
-        displayVolunteers(filteredVolunteers);
-        updateVolunteerCounts(filteredVolunteers);
-    }
+    applyVolunteerFilters();
 });

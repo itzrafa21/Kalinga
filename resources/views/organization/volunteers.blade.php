@@ -777,14 +777,17 @@ tr.volunteer-application-row.volunteer-row-paged-out {
     <div class="controls-header">
       <h3><i class="bi bi-search"></i> Filter & Search</h3>
     </div>
-    <div class="controls-row">
+    <motion.div class="controls-row">
       <div class="control-group">
-        <label for="filterSelect">Mission</label>
+        <label for="filterSelect">Period</label>
         <select id="filterSelect">
-          <option value="">All Missions</option>
+          <option value="this_month" selected>This month</option>
+          <option value="last_month">Last month</option>
+          <option value="older">Older</option>
+          <option value="all">All time</option>
         </select>
       </div>
-      <div class="control-group">
+      <div class="control-group control-group--search">
         <label for="searchInput">Search</label>
         <input type="text" id="searchInput" placeholder="Search by name or email...">
       </div>
