@@ -334,6 +334,41 @@
       border-color: #28a745;
       box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.15);
     }
+
+    .history-controls-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      min-width: 280px;
+    }
+    .history-control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .history-control-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+    .history-period-select {
+      height: 38px;
+      padding: 0 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      background: #fff;
+      min-width: 130px;
+    }
+    .history-controls-row .history-search {
+      flex: 1;
+      min-width: 180px;
+      max-width: 320px;
+    }
     .history-footer {
       display: flex;
       flex-wrap: wrap;
@@ -524,10 +559,20 @@
     </div>
 
         <!-- History table -->
-        <section class="history-section">
-      <div class="history-head">
+        <div class="history-head">
         <h3><i class="bi bi-clipboard-check"></i> Completed Missions</h3>
-        <input type="search" id="historySearch" class="history-search" placeholder="Search missions..." autocomplete="off">
+        <div class="history-controls-row">
+          <div class="history-control-group">
+            <label for="historyPeriodFilter">Period</label>
+            <select id="historyPeriodFilter" class="history-period-select">
+              <option value="this_month" selected>This month</option>
+              <option value="last_month">Last month</option>
+              <option value="older">Older</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          <input type="search" id="historySearch" class="history-search" placeholder="Search missions..." autocomplete="off">
+        </div>
       </div>
       <div class="missions">
         <table id="missionsTable">

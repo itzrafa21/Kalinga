@@ -72,14 +72,20 @@ function filterHistoryMissionsTable() {
     if (!tbody) return;
 
     const q = (document.getElementById("historySearch")?.value || "").trim().toLowerCase();
+    const period = document.getElementById("historyPeriodFilter")?.value || "all";
     const rows = tbody.querySelectorAll("tr.history-mission-row");
 
     rows.forEach((tr) => {
+        const rowPeriod = tr.dataset.period || "older";
+        const periodMatch = period === "all" || rowPeriod === period;
+
         const name = (tr.cells[0]?.textContent || "").toLowerCase();
         const date = (tr.cells[1]?.textContent || "").toLowerCase();
         const loc = (tr.cells[2]?.textContent || "").toLowerCase();
         const haystack = `${name} ${date} ${loc}`;
-        const match = !q || haystack.includes(q);
+        const searchMatch = !q || haystack.includes(q);
+
+        const match = periodMatch && searchMatch;
         tr.style.display = match ? "" : "none";
         tr.classList.remove("history-row-paged-out");
     });
@@ -180,18 +186,22 @@ function filterHistoryMissionsTable() {
     }
 
 
-function ensureHistorySearchListener() {
-    const input = document.getElementById("historySearch");
-    if (!input) return;
-
-    if (!historySearchListenerAttached) {
-        historySearchListenerAttached = true;
-        input.addEventListener("input", filterHistoryMissionsTable);
+    function ensureHistorySearchListener() {
+        const input = document.getElementById("historySearch");
+        const periodSelect = document.getElementById("historyPeriodFilter");
+    
+        if (input && !historySearchListenerAttached) {
+            historySearchListenerAttached = true;
+            input.addEventListener("input", filterHistoryMissionsTable);
+        }
+    
+        if (periodSelect && !periodSelect.dataset.bound) {
+            periodSelect.dataset.bound = "1";
+            periodSelect.addEventListener("change", filterHistoryMissionsTable);
+        }
+    
+        filterHistoryMissionsTable();
     }
-
-    filterHistoryMissionsTable();
-}
-
 function toJsDate(value) {
     if (!value) return null;
     if (typeof value.toDate === "function") return value.toDate();
@@ -219,6 +229,15 @@ function isInCurrentMonth(date) {
         date.getFullYear() === now.getFullYear() &&
         date.getMonth() === now.getMonth()
     );
+}function getPeriodBucket(date) {
+    if (!date) return "older";
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    if (date >= thisMonthStart) return "this_month";
+    if (date >= lastMonthStart) return "last_month";
+    return "older";
 }
 
 // Function to fetch and render completed missions
@@ -308,15 +327,18 @@ async function loadHistoryMissions(user) {
                 const statusClass =
                     status === "rejected" ? "status-rejected" : "status-completed";
 
-                const row = `
-                    <tr class="history-mission-row">
-                        <td>${mission.missionName || mission.name || "Untitled"}</td>
-                        <td>${mission.date || "N/A"}</td>
-                        <td>${mission.location || "N/A"}</td>
-                        <td>${volunteerDisplay}</td>
-                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                    </tr>
-                `;
+                    const completedOn = getMissionCompletionDate(mission);
+                    const periodBucket = getPeriodBucket(completedOn);
+    
+                    const row = `
+                        <tr class="history-mission-row" data-period="${periodBucket}">
+                            <td>${mission.missionName || mission.name || "Untitled"}</td>
+                            <td>${mission.date || "N/A"}</td>
+                            <td>${mission.location || "N/A"}</td>
+                            <td>${volunteerDisplay}</td>
+                            <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                        </tr>
+                    `;
                 historyTableBody.insertAdjacentHTML("beforeend", row);
             } catch (checkError) {
                 console.error(`[ERROR] Error checking mission ${missionId}:`, checkError);
