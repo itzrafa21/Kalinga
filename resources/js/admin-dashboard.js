@@ -318,10 +318,9 @@ async function loadDashboardStats() {
         const orgsSnapshot = await getDocs(orgsQuery);
         document.getElementById('totalOrganizations').textContent = orgsSnapshot.size;
 
-        // Get total missions count (only approved missions)
-        const approvedMissionsQuery = query(collection(db, "missions"), where("status", "==", "approved"));
-        const approvedMissionsSnapshot = await getDocs(approvedMissionsQuery);
-        document.getElementById('totalMissions').textContent = approvedMissionsSnapshot.size;
+         // Total missions = all submissions from all organizations
+         const submissionsSnapshot = await getDocs(collection(db, "mission_submissions"));
+        document.getElementById('totalMissions').textContent = submissionsSnapshot.size;
 
         // Get total volunteers count (users with volunteer role)
         const volunteersQuery = query(collection(db, "users"), where("role", "==", "volunteer"));
@@ -331,7 +330,7 @@ async function loadDashboardStats() {
         console.log("[SUCCESS] Dashboard stats loaded from Firebase:", {
             users: usersSnapshot.size,
             organizations: orgsSnapshot.size,
-            missions: approvedMissionsSnapshot.size,
+            missions: submissionsSnapshot.size,
             volunteers: volunteersSnapshot.size
         });
     } catch (error) {

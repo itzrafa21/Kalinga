@@ -477,7 +477,7 @@
         <div class="stat-card">
           <div class="stat-icon"><i class="ti ti-target"></i></div>
           <div class="stat-val" id="totalMissions">-</div>
-          <div class="stat-label">Active missions</div>
+          <div class="stat-label">Total Missions</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon"><i class="ti ti-award"></i></div>
