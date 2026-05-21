@@ -45,6 +45,9 @@ Route::get('/admin/login', function () {
 Route::get('/admin/dashboard', function () {
     return view('admin.dashboard');
 });
+Route::get('/admin/config', function () {
+    return view('admin.config');
+});
 Route::get('/establishments/manage', function () {
     return view('establishments.manage');
 })->middleware('auth');

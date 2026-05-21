@@ -480,6 +480,10 @@
       <a class="nav-item" href="#volunteers" data-tab="volunteers">
         <i class="ti ti-users"></i> Volunteers
       </a>
+      <div class="sb-section">Admin</div>
+      <a class="nav-item" href="/admin/config">
+        <i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards
+      </a>
       <div class="sb-section">System</div>
       <a class="nav-item" href="#analytics" data-tab="analytics">
         <i class="ti ti-chart-bar"></i> Analytics
