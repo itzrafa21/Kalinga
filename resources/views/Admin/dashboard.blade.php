@@ -400,6 +400,12 @@
     .search-box, .filter-dropdown {
       border-radius: 8px; border: 1px solid #e5e7eb; padding: 7px 12px; font-size: 12px;
     }
+    /* Keep mission dates on one line */
+#missions-tab .table th:nth-child(4),
+#missions-tab .table td:nth-child(4) {
+  white-space: nowrap;
+  min-width: 6.5rem;
+}
     .search-box:focus, .filter-dropdown:focus {
       border-color: #16a34a; box-shadow: 0 0 0 2px #dcfce7;
     }
