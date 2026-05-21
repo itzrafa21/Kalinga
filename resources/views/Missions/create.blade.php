@@ -8,9 +8,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/mission-create.js'])
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Mapbox CSS -->
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
-    <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" rel="stylesheet" />
+        <!-- Mapbox CSS -->
+        <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
 
     <style>
         body {
@@ -135,6 +134,11 @@
             -webkit-transform: translateZ(0);
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
+        }
+
+        #locationDisplay {
+            font-size: 0.95rem;
+            min-height: 1.5rem;
         }
 
         #suggestions {
@@ -311,18 +315,15 @@
 </div>
 
                             <div class="form-group">
-                                <label for="locationInput">Location</label>
-                                <input type="text" id="locationInput" class="form-control" placeholder="Search for a location..." value="">                                <ul id="suggestions" class="list-group mt-1"></ul>
+                                <label>Mission location</label>
+                                <p class="text-muted small mb-2">Click the map to place a pin. Drag the pin to adjust.</p>
+                                <p id="locationDisplay" class="text-secondary mb-2">No location pinned yet</p>
 
                                 <input type="hidden" id="location" name="location">
                                 <input type="hidden" id="latitude" name="latitude">
                                 <input type="hidden" id="longitude" name="longitude">
 
-                                <!-- Add proper map container with data attributes -->
-                                <div id="map" 
-                                     data-mapbox-token="pk.eyJ1Ijoia2FuZWVlY3Jhc2giLCJhIjoiY21nd2c4amVqMGMwMDJrc2R0ZXhxcTA2ZiJ9._ihHfQRKW2oW9wGup1yTNw"
-                                     style="position: relative; overflow: hidden;">
-                                </div>
+                                <div id="map" style="position: relative; overflow: hidden;"></div>
                             </div>
 
                             <div class="form-group">
@@ -375,7 +376,7 @@
   <div class="success-modal" role="document">
   <div class="success-modal-icon" aria-hidden="true">
       <i class="bi bi-check-circle-fill"></i>
-    </motion.div>
+    </div>
     <h2 id="missionSuccessModalTitle">Mission submitted</h2>
     <p class="success-modal-message" id="missionSuccessModalMessage">
       Your mission was submitted successfully. It is now pending admin approval and will be visible to volunteers once approved.
@@ -386,295 +387,145 @@
   </div>
 </div>
 
-    <!-- Mapbox JS -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
-    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
+        <!-- Mapbox JS -->
+        <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 
-    <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        mapboxgl.accessToken = "pk.eyJ1Ijoia2FuZWVlY3Jhc2giLCJhIjoiY21nd2c4amVqMGMwMDJrc2R0ZXhxcTA2ZiJ9._ihHfQRKW2oW9wGup1yTNw";
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    mapboxgl.accessToken = "pk.eyJ1Ijoia2FuZWVlY3Jhc2giLCJhIjoiY21nd2c4amVqMGMwMDJrc2R0ZXhxcTA2ZiJ9._ihHfQRKW2oW9wGup1yTNw";
 
-        const mapContainer = document.getElementById("map");
-        if (!mapContainer) return;
+    const mapContainer = document.getElementById("map");
+    if (!mapContainer) return;
 
-        // Initialize Mapbox
-        const map = new mapboxgl.Map({
-            container: "map",
-            style: "mapbox://styles/mapbox/streets-v11",
-            center: [123.9024, 10.2943], // Better center for Cebu
-            zoom: 12, // Increased zoom for better detail
-            // Add these properties to prevent blurriness
-            pixelRatio: window.devicePixelRatio || 1, // Handle high-DPI displays
-            antialias: true, // Enable antialiasing
-            preserveDrawingBuffer: true, // Prevent canvas clearing issues
-            // Add render world copies for better performance
-            renderWorldCopies: false,
-            // Optimize for performance
-            optimizeForTerrain: false,
-            // Better projection
-            projection: 'mercator'
-        });
-
-        // Add map load event to ensure proper rendering
-        map.on('load', function() {
-            console.log('[SUCCESS] Map loaded successfully');
-            // Force a resize to ensure proper rendering
-            map.resize();
-            
-            // Add event listener for window resize
-            window.addEventListener('resize', function() {
-                map.resize();
-            });
-        });
-
-        // Add error handling
-        map.on('error', function(e) {
-            console.error('[ERROR] Map error:', e);
-        });
-
-        // Add style load event
-        map.on('style.load', function() {
-            console.log('[SUCCESS] Map style loaded');
-            map.resize(); // Force resize after style load
-        });
-
-        let marker = null;
-
-        const MAP_LOCATION_FALLBACK = "Selected map location";
-
-        function featureHasPlaceType(feature, typeId) {
-            return Array.isArray(feature.place_type) && feature.place_type.indexOf(typeId) !== -1;
-        }
-
-        function pickBestReverseLabel(features) {
-            if (!features || !features.length) return null;
-            const priority = ["poi", "address", "place", "locality", "neighborhood", "district", "postcode"];
-            for (let i = 0; i < priority.length; i++) {
-                const t = priority[i];
-                const match = features.find((f) => featureHasPlaceType(f, t) && f.place_name);
-                if (match) return match.place_name;
-            }
-            return features[0].place_name || null;
-        }
-
-        async function reverseGeocode(lng, lat) {
-            const path = encodeURIComponent(lng + "," + lat);
-            const url =
-                "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
-                path +
-                ".json?access_token=" +
-                encodeURIComponent(mapboxgl.accessToken) +
-                "&limit=10&types=poi,address,place,locality,neighborhood,district,postcode";
-            const res = await fetch(url);
-            const data = await res.json();
-            return pickBestReverseLabel(data.features);
-        }
-
-        function resolveMapLocationLabel(geocodeResult) {
-            if (geocodeResult && String(geocodeResult).trim()) return geocodeResult;
-            const prev = document.getElementById("locationInput").value.trim();
-            if (prev) return document.getElementById("locationInput").value;
-            return MAP_LOCATION_FALLBACK;
-        }
-
-        function bindMarkerDrag(m) {
-            m.on("dragend", async () => {
-                const { lng, lat } = m.getLngLat();
-                document.getElementById("latitude").value = Number(lat).toFixed(6);
-                document.getElementById("longitude").value = Number(lng).toFixed(6);
-                try {
-                    const picked = await reverseGeocode(lng, lat);
-                    const label = resolveMapLocationLabel(picked);
-                    document.getElementById("location").value = label;
-                    document.getElementById("locationInput").value = label;
-                } catch (err) {
-                    console.error("[ERROR] reverseGeocode (drag):", err);
-                    const label = resolveMapLocationLabel(null);
-                    document.getElementById("location").value = label;
-                    document.getElementById("locationInput").value = label;
-                }
-            });
-        }
-
-        async function applyMapPoint(lng, lat, displayLabel) {
-            document.getElementById("latitude").value = Number(lat).toFixed(6);
-            document.getElementById("longitude").value = Number(lng).toFixed(6);
-            if (marker) marker.remove();
-            marker = new mapboxgl.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(map);
-            bindMarkerDrag(marker);
-            let label = displayLabel;
-            if (label == null) {
-                try {
-                    label = await reverseGeocode(lng, lat);
-                } catch (err) {
-                    console.error("[ERROR] reverseGeocode:", err);
-                    label = null;
-                }
-                label = resolveMapLocationLabel(label);
-            }
-            document.getElementById("location").value = label;
-            document.getElementById("locationInput").value = label;
-        }
-
-        map.on("click", (e) => {
-            applyMapPoint(e.lngLat.lng, e.lngLat.lat, null);
-        });
-
-        const locationInput = document.getElementById("locationInput");
-        const suggestionsBox = document.getElementById("suggestions");
-
-        const GEOCODE_TYPES = "poi,address,place,locality,neighborhood,district,postcode";
-        const CEBU_BBOX = "123.12,9.50,124.22,11.38";
-        const CEBU_PROXIMITY = "123.9024,10.2943";
-
-        function buildCebuGeocodeUrl(q) {
-            const params = new URLSearchParams({
-                access_token: mapboxgl.accessToken,
-                autocomplete: "true",
-                limit: "15",
-                country: "ph",
-                types: GEOCODE_TYPES,
-                proximity: CEBU_PROXIMITY,
-                bbox: CEBU_BBOX,
-            });
-            return (
-                "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
-                encodeURIComponent(q) +
-                ".json?" +
-                params.toString()
-            );
-        }
-
-        let locationSearchDebounce = null;
-        let locationSearchAbort = null;
-
-        locationInput.addEventListener("blur", function() {
-            if (this.value.trim()) {
-                document.getElementById("location").value = this.value;
-            }
-        });
-
-        locationInput.addEventListener("input", function() {
-            const trimmed = this.value.trim();
-            if (trimmed.length < 3) {
-                if (locationSearchAbort) {
-                    locationSearchAbort.abort();
-                    locationSearchAbort = null;
-                }
-                clearTimeout(locationSearchDebounce);
-                suggestionsBox.style.display = "none";
-                return;
-            }
-            clearTimeout(locationSearchDebounce);
-            locationSearchDebounce = setTimeout(function() {
-                void runLocationSearch();
-            }, 280);
-        });
-
-        async function runLocationSearch() {
-            const query = locationInput.value.trim();
-            if (query.length < 3) return;
-
-            if (locationSearchAbort) locationSearchAbort.abort();
-            const ac = new AbortController();
-            locationSearchAbort = ac;
-
-            console.log("[INFO] Searching for:", query);
-
-            try {
-                const searchStrategies = [
-                    buildCebuGeocodeUrl(query),
-                    buildCebuGeocodeUrl(query + ", Cebu, Philippines"),
-                ];
-
-                let allResults = [];
-
-                for (const url of searchStrategies) {
-                    try {
-                        console.log("[INFO] Trying search strategy:", url);
-                        const res = await fetch(url, { signal: ac.signal });
-                        const data = await res.json();
-                        if (data.features) {
-                            allResults = allResults.concat(data.features);
-                            console.log("[SUCCESS] Found", data.features.length, "results from strategy");
-                        }
-                    } catch (error) {
-                        if (error.name === "AbortError") return;
-                        console.log("[ERROR] Search strategy failed:", error);
-                    }
-                }
-
-                const uniqueResults = allResults
-                    .filter(
-                        (place, index, self) =>
-                            index === self.findIndex((p) => p.place_name === place.place_name)
-                    )
-                    .slice(0, 15);
-
-                console.log("[INFO] Total unique results:", uniqueResults.length);
-
-                suggestionsBox.innerHTML = "";
-
-                if (uniqueResults.length > 0) {
-                    console.log("[INFO] Showing API results");
-                    uniqueResults.forEach((place) => {
-                        const li = document.createElement("li");
-                        const categoryIcon = getCategoryIcon(place.properties?.category);
-                        li.innerHTML = `${categoryIcon} <strong>${place.text}</strong><br><small>${place.place_name}</small>`;
-                        li.classList.add("list-group-item");
-
-                        li.addEventListener("click", () => {
-                            const lng = place.center[0];
-                            const lat = place.center[1];
-                            map.flyTo({ center: place.center, zoom: 15 });
-                            applyMapPoint(lng, lat, place.place_name);
-                            suggestionsBox.style.display = "none";
-                        });
-                        suggestionsBox.appendChild(li);
-                    });
-                }
-
-                if (uniqueResults.length === 0) {
-                    const li = document.createElement("li");
-                    li.innerHTML = "No locations found. Try a different search term.";
-                    li.classList.add("list-group-item", "text-muted");
-                    suggestionsBox.appendChild(li);
-                }
-
-                suggestionsBox.style.display = "block";
-            } catch (err) {
-                if (err.name === "AbortError") return;
-                console.error("Geocoding error:", err);
-                suggestionsBox.innerHTML =
-                    '<li class="list-group-item text-danger">Error searching locations. Please try again.</li>';
-                suggestionsBox.style.display = "block";
-            }
-        }
-
-        // Helper function to get category icons
-        function getCategoryIcon(category) {
-            const icons = {
-                'school': '<i class="bi bi-mortarboard"></i>',
-                'hospital': '<i class="bi bi-hospital"></i>',
-                'restaurant': '<i class="bi bi-cup-straw"></i>',
-                'shopping': '<i class="bi bi-bag"></i>',
-                'government': '<i class="bi bi-bank"></i>',
-                'religious': '<i class="bi bi-building"></i>',
-                'tourism': '<i class="bi bi-bank"></i>',
-                'business': '<i class="bi bi-building"></i>',
-                'default': '<i class="bi bi-geo-alt"></i>'
-            };
-            return icons[category] || icons.default;
-        }
-
-        // Hide suggestions when clicking outside
-        document.addEventListener("click", function(e) {
-            if (!locationInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-                suggestionsBox.style.display = "none";
-            }
-        });
+    const map = new mapboxgl.Map({
+        container: "map",
+        style: "mapbox://styles/mapbox/streets-v11",
+        center: [123.9024, 10.2943],
+        zoom: 12,
+        pixelRatio: window.devicePixelRatio || 1,
+        antialias: true,
     });
+
+    map.on("load", () => {
+        map.resize();
+        window.addEventListener("resize", () => map.resize());
+    });
+
+    map.on("error", (e) => console.error("[ERROR] Map error:", e));
+
+    let marker = null;
+
+    function formatPinnedLabel(lat, lng, name) {
+        if (name && String(name).trim()) return String(name).trim();
+        return `Pinned location (${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)})`;
+    }
+
+    function setLocationUI(label, lat, lng) {
+        document.getElementById("location").value = label;
+        document.getElementById("latitude").value = Number(lat).toFixed(6);
+        document.getElementById("longitude").value = Number(lng).toFixed(6);
+        const display = document.getElementById("locationDisplay");
+        if (display) display.textContent = label;
+    }
+
+    function featureHasPlaceType(feature, typeId) {
+        return Array.isArray(feature.place_type) && feature.place_type.indexOf(typeId) !== -1;
+    }
+
+    function pickBestReverseLabel(features) {
+        if (!features || !features.length) return null;
+        const priority = ["poi", "address", "place", "locality", "neighborhood", "district", "postcode"];
+        for (let i = 0; i < priority.length; i++) {
+            const t = priority[i];
+            const match = features.find((f) => featureHasPlaceType(f, t) && f.place_name);
+            if (match) return match.place_name;
+        }
+        return features[0].place_name || null;
+    }
+
+    async function reverseGeocode(lng, lat) {
+        const params = new URLSearchParams({
+            access_token: mapboxgl.accessToken,
+            language: "en",
+            types: "address",
+            limit: "5",
+        });
+
+        const url =
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?` +
+            params.toString();
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        console.log("[DEBUG] Geocode status:", res.status, data);
+
+        if (!res.ok) {
+            console.error("[ERROR] Mapbox geocoding:", data.message || res.status);
+            return null;
+        }
+
+        if (!data.features?.length) {
+            // Fallback: try broader "place" if street address not found
+            const params2 = new URLSearchParams({
+                access_token: mapboxgl.accessToken,
+                language: "en",
+                types: "place",
+                limit: "1",
+            });
+            const url2 =
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?` +
+                params2.toString();
+            const res2 = await fetch(url2);
+            const data2 = await res2.json();
+            if (res2.ok && data2.features?.length) {
+                return data2.features[0].place_name || data2.features[0].text;
+            }
+            console.warn("[WARN] No features for", lng, lat);
+            return null;
+        }
+
+        const f = data.features[0];
+        const named = f.place_name || f.text || null;
+        console.log("[INFO] Address:", named);
+        return named;
+    }
+
+    function bindMarkerDrag(m) {
+        m.on("dragend", async () => {
+            const { lng, lat } = m.getLngLat();
+            try {
+                const picked = await reverseGeocode(lng, lat);
+                setLocationUI(formatPinnedLabel(lat, lng, picked), lat, lng);
+            } catch (err) {
+                console.error("[ERROR] reverseGeocode (drag):", err);
+                setLocationUI(formatPinnedLabel(lat, lng, null), lat, lng);
+            }
+        });
+    }
+
+    async function applyMapPoint(lng, lat, displayLabel) {
+        if (marker) marker.remove();
+        marker = new mapboxgl.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(map);
+        bindMarkerDrag(marker);
+
+        let label = displayLabel;
+        if (label == null) {
+            try {
+                label = await reverseGeocode(lng, lat);
+            } catch (err) {
+                console.error("[ERROR] reverseGeocode:", err);
+                label = null;
+            }
+        }
+        setLocationUI(formatPinnedLabel(lat, lng, label), lat, lng);
+    }
+
+    map.on("click", (e) => {
+        applyMapPoint(e.lngLat.lng, e.lngLat.lat, null);
+    });
+});
+</script>
     </script>
 </body>
 </html>
