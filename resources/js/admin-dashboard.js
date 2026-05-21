@@ -19,6 +19,10 @@ import {
     serverTimestamp
 } from "firebase/firestore";
 
+let allAdminMissions = [];
+let adminMissionsPageSize = 10;
+let adminMissionsCurrentPage = 1;
+
 document.addEventListener("DOMContentLoaded", () => {
     console.log("[INFO] DOM Content Loaded - Initializing admin dashboard...");
     checkAdminAuth();
@@ -188,65 +192,161 @@ async function loadOrganizationsData() {
         }
     }
 }
-async function loadMissionsData() {
-    try {
-        console.log("[INFO] Loading missions data from Firebase...");
-        
-        // Get missions from Firebase, prioritizing pending missions
-        const missionsQuery = query(collection(db, "mission_submissions"), orderBy("submittedAt", "desc"), limit(50));
-        const missionsSnapshot = await getDocs(missionsQuery);
-        
-        const tbody = document.getElementById('missionsTableBody');
-        
-        if (missionsSnapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No missions found</td></tr>';
-            return;
-        }
-        
-        // Sort missions to show pending first
-        const missions = missionsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        
-        // Sort by status: pending first, then by submittedAt
-        missions.sort((a, b) => {
-            //  FIXED: Use normalized status comparison
-            const aStatus = (a.status || '').toLowerCase();
-            const bStatus = (b.status || '').toLowerCase();
-            
-            if (aStatus === 'Pending' && bStatus !== 'Pending') return -1;
-            if (aStatus !== 'Pending' && bStatus === 'Pending') return 1;
-            return 0;
+
+function getVisibleAdminMissionRows() {
+    const tbody = document.getElementById("missionsTableBody");
+    if (!tbody) return [];
+    return Array.from(tbody.querySelectorAll("tr.admin-mission-row")).filter(
+        (tr) => tr.style.display !== "none"
+    );
+}
+
+function applyAdminMissionsPagination() {
+    const allVisible = getVisibleAdminMissionRows();
+    const total = allVisible.length;
+    const totalPages = Math.max(1, Math.ceil(total / adminMissionsPageSize));
+
+    if (adminMissionsCurrentPage > totalPages) adminMissionsCurrentPage = totalPages;
+    if (adminMissionsCurrentPage < 1) adminMissionsCurrentPage = 1;
+
+    const start = (adminMissionsCurrentPage - 1) * adminMissionsPageSize;
+    const end = start + adminMissionsPageSize;
+
+    const tbody = document.getElementById("missionsTableBody");
+    if (tbody) {
+        tbody.querySelectorAll("tr.admin-mission-row").forEach((tr) => {
+            tr.classList.remove("admin-row-paged-out");
         });
-        
-        // Generate table rows
-        tbody.innerHTML = missions.map(mission => {
+        allVisible.forEach((tr, index) => {
+            if (index < start || index >= end) {
+                tr.classList.add("admin-row-paged-out");
+            }
+        });
+    }
+
+    const prevBtn = document.getElementById("adminMissionsPrevPage");
+    const nextBtn = document.getElementById("adminMissionsNextPage");
+    const pageInfo = document.getElementById("adminMissionsPageInfo");
+    const countEl = document.getElementById("adminMissionsCountText");
+
+    if (prevBtn) prevBtn.disabled = adminMissionsCurrentPage <= 1 || total === 0;
+    if (nextBtn) nextBtn.disabled = adminMissionsCurrentPage >= totalPages || total === 0;
+    if (pageInfo) pageInfo.textContent = `Page ${adminMissionsCurrentPage} of ${totalPages}`;
+
+    if (countEl) {
+        if (total === 0) {
+            countEl.textContent = "Showing 0 missions";
+        } else {
+            const from = start + 1;
+            const to = Math.min(end, total);
+            countEl.textContent =
+                total === 1
+                    ? "Showing 1 mission"
+                    : `Showing ${from}–${to} of ${total} missions`;
+        }
+    }
+}
+
+function initAdminMissionsPaginationControls() {
+    const sizeSelect = document.getElementById("adminMissionsPageSize");
+    const prevBtn = document.getElementById("adminMissionsPrevPage");
+    const nextBtn = document.getElementById("adminMissionsNextPage");
+
+    if (sizeSelect && !sizeSelect.dataset.bound) {
+        sizeSelect.dataset.bound = "1";
+        sizeSelect.addEventListener("change", () => {
+            adminMissionsPageSize = parseInt(sizeSelect.value, 10) || 10;
+            adminMissionsCurrentPage = 1;
+            applyAdminMissionsPagination();
+        });
+    }
+
+    if (prevBtn && !prevBtn.dataset.bound) {
+        prevBtn.dataset.bound = "1";
+        prevBtn.addEventListener("click", () => {
+            if (adminMissionsCurrentPage > 1) {
+                adminMissionsCurrentPage--;
+                applyAdminMissionsPagination();
+            }
+        });
+    }
+
+    if (nextBtn && !nextBtn.dataset.bound) {
+        nextBtn.dataset.bound = "1";
+        nextBtn.addEventListener("click", () => {
+            adminMissionsCurrentPage++;
+            applyAdminMissionsPagination();
+        });
+    }
+}
+
+function filterAdminMissionsTable() {
+    const tbody = document.getElementById("missionsTableBody");
+    if (!tbody) return;
+
+    const q = (document.getElementById("missionSearch")?.value || "").trim().toLowerCase();
+    const filterType = (document.getElementById("missionFilter")?.value || "all").toLowerCase();
+
+    tbody.querySelectorAll("tr.admin-mission-row").forEach((tr) => {
+        const status = (tr.dataset.status || "").toLowerCase();
+        const haystack = (tr.textContent || "").toLowerCase();
+
+        let statusMatch = true;
+        if (filterType === "pending") {
+            statusMatch = status === "pending";
+        } else if (filterType === "approved") {
+            statusMatch = status === "open" || status === "approved";
+        } else if (filterType === "rejected") {
+            statusMatch = status === "rejected";
+        } else if (filterType === "active") {
+            statusMatch = status === "open" || status === "ongoing";
+        } else if (filterType === "completed") {
+            statusMatch = status === "completed";
+        }
+
+        const searchMatch = !q || haystack.includes(q);
+        tr.style.display = statusMatch && searchMatch ? "" : "none";
+        tr.classList.remove("admin-row-paged-out");
+    });
+
+    adminMissionsCurrentPage = 1;
+    applyAdminMissionsPagination();
+}
+
+function renderAdminMissionsTable(missions) {
+    const tbody = document.getElementById("missionsTableBody");
+    if (!tbody) return;
+
+    if (!missions.length) {
+        tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">No missions found</td></tr>';
+        applyAdminMissionsPagination();
+        return;
+    }
+
+    tbody.innerHTML = missions
+        .map((mission) => {
             const statusBadge = getStatusBadgeClass(mission.status);
-            
-            //  FIXED: Normalize status for comparison
-            const normalizedStatus = (mission.status || '').toLowerCase();
-            
-            // Debug logging
-            console.log(`Mission: ${mission.missionName || mission.name}, Status: ${mission.status}, Normalized: ${normalizedStatus}, ID: ${mission.id}`);
-            
+            const normalizedStatus = (mission.status || "").toLowerCase();
+
             return `
-                <tr class="${normalizedStatus === 'pending' ? 'table-warning' : ''}">
+                <tr class="admin-mission-row ${normalizedStatus === "pending" ? "table-warning" : ""}"
+                    data-status="${normalizedStatus}">
                     <td>
                         <strong>${mission.missionName || mission.name}</strong>
-                        ${normalizedStatus === 'pending' ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ''}
+                        ${normalizedStatus === "pending" ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ""}
                     </td>
-                    <td>${mission.orgName || 'Unknown'}</td>
-                    <td><span class="badge bg-info">${mission.type || 'General'}</span></td>
-                    <td>${mission.date || 'Not set'}</td>
-                    <td>${mission.location || 'Not specified'}</td>
-                    <td><span class="badge ${statusBadge}">${mission.status || 'pending'}</span></td>
+                    <td>${mission.orgName || "Unknown"}</td>
+                    <td><span class="badge bg-info">${mission.type || "General"}</span></td>
+                    <td>${mission.date || "Not set"}</td>
+                    <td>${mission.location || "Not specified"}</td>
+                    <td><span class="badge ${statusBadge}">${mission.status || "pending"}</span></td>
                     <td>
-                        ${normalizedStatus === 'pending' ? `
-                            <button class="btn btn-sm btn-success me-1" onclick="console.log('Approve clicked:', '${mission.id}'); approveMission('${mission.id}')" title="Approve Mission">
+                        ${normalizedStatus === "pending" ? `
+                            <button class="btn btn-sm btn-success me-1" onclick="approveMission('${mission.id}')" title="Approve Mission">
                                 <i class="fas fa-check"></i> Approve
                             </button>
-                            <button class="btn btn-sm btn-danger me-1" onclick="console.log('Reject clicked:', '${mission.id}'); rejectMission('${mission.id}')" title="Reject Mission">
+                            <button class="btn btn-sm btn-danger me-1" onclick="rejectMission('${mission.id}')" title="Reject Mission">
                                 <i class="fas fa-times"></i> Reject
                             </button>
                         ` : `
@@ -254,31 +354,59 @@ async function loadMissionsData() {
                                 <i class="fas fa-check-circle"></i>
                             </button>
                         `}
-                        <button class="btn btn-sm btn-outline-info" onclick="console.log('View clicked:', '${mission.id}'); viewMissionDetails('${mission.id}')" title="View Details">
+                        <button class="btn btn-sm btn-outline-info" onclick="viewMissionDetails('${mission.id}')" title="View Details">
                             <i class="fas fa-eye"></i> View
                         </button>
                     </td>
                 </tr>
             `;
-        }).join('');
-        
-        console.log("[SUCCESS] Missions data loaded from Firebase");
-        console.log("Total missions loaded:", missions.length);
-        console.log("Pending missions:", missions.filter(m => (m.status || '').toLowerCase() === 'pending').length);        console.log("Generated HTML:", tbody.innerHTML.substring(0, 200) + "...");
-        
-        // Test if buttons are clickable
-        setTimeout(() => {
-            const testButtons = document.querySelectorAll('button[onclick*="Test clicked"]');
-            console.log("[INFO] Found test buttons:", testButtons.length);
-            testButtons.forEach((btn, index) => {
-                console.log(`Button ${index}:`, btn.outerHTML.substring(0, 100) + "...");
-            });
-        }, 1000);
+        })
+        .join("");
+
+    adminMissionsCurrentPage = 1;
+    initAdminMissionsPaginationControls();
+    filterAdminMissionsTable();
+}
+async function loadMissionsData() {
+    try {
+        console.log("[INFO] Loading missions data from Firebase...");
+
+        const missionsQuery = query(
+            collection(db, "mission_submissions"),
+            orderBy("submittedAt", "desc"),
+            limit(100)
+        );
+        const missionsSnapshot = await getDocs(missionsQuery);
+
+        if (missionsSnapshot.empty) {
+            allAdminMissions = [];
+            renderAdminMissionsTable([]);
+            return;
+        }
+
+        allAdminMissions = missionsSnapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+        }));
+
+        allAdminMissions.sort((a, b) => {
+            const aStatus = (a.status || "").toLowerCase();
+            const bStatus = (b.status || "").toLowerCase();
+            if (aStatus === "pending" && bStatus !== "pending") return -1;
+            if (aStatus !== "pending" && bStatus === "pending") return 1;
+            return 0;
+        });
+
+        renderAdminMissionsTable(allAdminMissions);
+
+        console.log("[SUCCESS] Missions data loaded:", allAdminMissions.length);
     } catch (error) {
         console.error("Error loading missions data:", error);
-        // Fallback to mock data
-        const tbody = document.getElementById('missionsTableBody');
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading missions data</td></tr>';
+        const tbody = document.getElementById("missionsTableBody");
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="7" class="text-center text-danger">Error loading missions data</td></tr>';
+        }
     }
 }
 
@@ -448,7 +576,11 @@ function setupEventListeners() {
         console.log("[SUCCESS] Organization search listener added");
     }
     if (missionSearch) {
-        missionSearch.addEventListener('input', filterMissions);
+        missionSearch.addEventListener("input", filterMissions);
+        const missionFilter = document.getElementById("missionFilter");
+        if (missionFilter) {
+            missionFilter.addEventListener("change", filterMissions);
+        }
         console.log("[SUCCESS] Mission search listener added");
     }
     if (volunteerSearch) {
@@ -812,11 +944,7 @@ function filterOrganizations() {
 }
 
 function filterMissions() {
-    const searchTerm = document.getElementById('missionSearch').value.toLowerCase();
-    const filterType = document.getElementById('missionFilter').value;
-    
-    // Implement filtering logic here
-    console.log(`Filtering missions: ${searchTerm}, type: ${filterType}`);
+    filterAdminMissionsTable();
 }
 
 function filterVolunteers() {

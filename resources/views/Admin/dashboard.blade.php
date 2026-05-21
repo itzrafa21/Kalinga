@@ -406,6 +406,44 @@
   white-space: nowrap;
   min-width: 6.5rem;
 }
+.admin-missions-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .admin-missions-pagination {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+    }
+    .admin-missions-page-size {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #fff;
+    }
+    .admin-missions-page-btn {
+      padding: 0.4rem 0.85rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .admin-missions-page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    tr.admin-mission-row.admin-row-paged-out {
+      display: none;
+    }
     .search-box:focus, .filter-dropdown:focus {
       border-color: #16a34a; box-shadow: 0 0 0 2px #dcfce7;
     }
@@ -554,6 +592,23 @@
               <tbody id="missionsTableBody">
               </tbody>
             </table>
+            <div class="admin-missions-footer">
+            <span id="adminMissionsCountText">Showing 0 missions</span>
+            <div class="admin-missions-pagination">
+              <label for="adminMissionsPageSize" class="me-1">Rows per page</label>
+              <select id="adminMissionsPageSize" class="admin-missions-page-size" aria-label="Rows per page">
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+              </select>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="admin-missions-page-btn" id="adminMissionsPrevPage" disabled>Previous</button>
+                <span id="adminMissionsPageInfo">Page 1 of 1</span>
+                <button type="button" class="admin-missions-page-btn" id="adminMissionsNextPage" disabled>Next</button>
+              </div>
+            </div>
+          </div>
           </div>
         </div>
       </div>
