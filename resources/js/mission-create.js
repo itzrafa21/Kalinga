@@ -92,22 +92,19 @@ function initializeFormSubmission() {
             const orgName = currentUser.displayName || currentUser.email || "Unknown Organization";
             console.log("[INFO] Organization name:", orgName);
             
-            // Keep hidden #location in sync with visible field (typed addresses, commas, spaces)
-            const locationInputEl = document.getElementById("locationInput");
-            const locationHidden = document.getElementById("location");
-            if (locationInputEl && locationHidden) {
-                const typed = locationInputEl.value;
-                if (typed.trim()) {
-                    locationHidden.value = typed;
-                }
-            }
-
-            // Get location data
-            const location = document.getElementById("location")?.value || "N/A";
             const latVal = parseFloat(document.getElementById("latitude")?.value);
             const lngVal = parseFloat(document.getElementById("longitude")?.value);
-            const latitude = Number.isFinite(latVal) ? latVal : "N/A";
-            const longitude = Number.isFinite(lngVal) ? lngVal : "N/A";
+
+            if (!Number.isFinite(latVal) || !Number.isFinite(lngVal)) {
+                alert("Please pin a location on the map before submitting.");
+                return;
+            }
+
+            const location =
+                document.getElementById("location")?.value?.trim() ||
+                `Pinned location (${latVal.toFixed(5)}, ${lngVal.toFixed(5)})`;
+            const latitude = latVal;
+            const longitude = lngVal;
             
             console.log("[INFO] Location data from form:");
             console.log("  - Location:", location);

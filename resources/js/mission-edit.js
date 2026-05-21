@@ -41,7 +41,16 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("latitude").value = mission.latitude || "";
     document.getElementById("longitude").value = mission.longitude || "";
     document.getElementById("volunteers").value = mission.volunteers || 0;
-    
+
+    const locationDisplay = document.getElementById("locationDisplay");
+    if (locationDisplay && mission.location) {
+      locationDisplay.textContent = mission.location;
+    }
+
+    if (typeof window.restoreMissionMapPin === "function") {
+      window.restoreMissionMapPin();
+    }
+
     //  Removed status field access since it was removed from HTML
     // document.getElementById("status").value = mission.status || "Open";
     
@@ -56,17 +65,17 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("editMissionForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const locationInputEl = document.getElementById("locationInput");
-    const locationHidden = document.getElementById("location");
-    if (locationInputEl && locationHidden) {
-      const typed = locationInputEl.value;
-      if (typed.trim()) {
-        locationHidden.value = typed;
-      }
-    }
-
     const latVal = parseFloat(document.getElementById("latitude").value);
     const lngVal = parseFloat(document.getElementById("longitude").value);
+
+    if (!Number.isFinite(latVal) || !Number.isFinite(lngVal)) {
+      alert("Please pin a location on the map before saving.");
+      return;
+    }
+
+    const locationLabel =
+      document.getElementById("location").value?.trim() ||
+      `Pinned location (${latVal.toFixed(5)}, ${lngVal.toFixed(5)})`;
 
     const updatedData = {
       missionName: document.getElementById("name").value,
@@ -76,24 +85,38 @@ onAuthStateChanged(auth, async (user) => {
       endDate: document.getElementById("endDate").value,
       startTime: document.getElementById("startTime").value,
       endTime: document.getElementById("endTime").value,
-      location: document.getElementById("location").value,
-      latitude: Number.isFinite(latVal) ? latVal : document.getElementById("latitude").value,
-      longitude: Number.isFinite(lngVal) ? lngVal : document.getElementById("longitude").value,
+      location: locationLabel,
+      latitude: latVal,
+      longitude: lngVal,
       volunteers: document.getElementById("volunteers").value,
     };
     
     console.log("[INFO] Updating mission with data:", updatedData); //  Debug logging
     
     try {
-      // Update both collections (organization subcollection and global missions)
       await updateDoc(docRef, updatedData);
-      await updateDoc(doc(db, "missions", missionId), updatedData);
+
+      const submissionRef = doc(db, "mission_submissions", missionId);
+      const submissionSnap = await getDoc(submissionRef);
+      if (submissionSnap.exists()) {
+        await updateDoc(submissionRef, updatedData);
+      }
+
+      const globalRef = doc(db, "missions", missionId);
+      const globalSnap = await getDoc(globalRef);
+      if (globalSnap.exists()) {
+        await updateDoc(globalRef, updatedData);
+      }
 
       alert("[SUCCESS] Mission updated successfully!");
       window.location.href = "/organization/dashboard";
     } catch (error) {
-      console.error("[ERROR] Error updating mission:", error);
-      alert("[ERROR] Failed to update mission. Please try again.");
+      console.error("[ERROR] Error updating mission:", error?.code, error?.message, error);
+      alert(
+        error?.code === "permission-denied"
+          ? "You do not have permission to update this mission."
+          : "[ERROR] Failed to update mission. Please try again."
+      );
     }
   });
 });
