@@ -48,6 +48,11 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("longitude").value = mission.longitude || "";
     document.getElementById("volunteers").value = mission.volunteers || 0;
 
+    const autoAcceptEl = document.getElementById("autoAcceptVolunteers");
+    if (autoAcceptEl) {
+        autoAcceptEl.checked = mission.autoAcceptVolunteers === true;
+    }
+
     const locationDisplay = document.getElementById("locationDisplay");
     if (locationDisplay && mission.location) {
       locationDisplay.textContent = mission.location;
@@ -95,6 +100,8 @@ onAuthStateChanged(auth, async (user) => {
       latitude: latVal,
       longitude: lngVal,
       volunteers: document.getElementById("volunteers").value,
+      autoAcceptVolunteers:
+        document.getElementById("autoAcceptVolunteers")?.checked === true,
     };
     
     console.log("[INFO] Updating mission with data:", updatedData); //  Debug logging

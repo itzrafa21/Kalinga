@@ -108,7 +108,7 @@ async function countUniqueSignups(missionId) {
   return keys.size;
 }
 
-async function submitVolunteerApplication(missionId, user) {
+async function submitVolunteerApplication(missionId, user, mission = null) {
   const extras = await fetchApplicantProfileExtras(user.uid);
   const applicationsCol = collection(db, "missions", missionId, "applications");
   const dupQ = query(applicationsCol, where("userId", "==", user.uid));
@@ -117,16 +117,35 @@ async function submitVolunteerApplication(missionId, user) {
     alert("You have already applied to this mission.");
     return;
   }
-  await addDoc(applicationsCol, {
+
+  let missionData = mission;
+  if (!missionData) {
+    const loaded = await loadMissionDocument(missionId, user);
+    missionData = loaded?.mission || null;
+  }
+
+  const autoAccept = missionData?.autoAcceptVolunteers === true;
+  const applicationPayload = {
     displayName: user.displayName || user.email?.split("@")[0] || "Applicant",
     email: user.email || "",
     mobileNumber: extras.phone || "",
     occupation: "N/A",
-    status: "pending",
+    status: autoAccept ? "approved" : "pending",
     appliedAt: serverTimestamp(),
     userId: user.uid,
-  });
-  alert("Your volunteer application was submitted.");
+  };
+
+  if (autoAccept) {
+    applicationPayload.approvedAt = serverTimestamp();
+  }
+
+  await addDoc(applicationsCol, applicationPayload);
+
+  alert(
+    autoAccept
+      ? "You have been accepted for this mission."
+      : "Your volunteer application was submitted."
+  );
 }
 
 async function loadMissionDocument(missionId, user) {
@@ -291,7 +310,7 @@ function renderMissionPage(container, mission, missionId, user, signedUp) {
     volBtn.addEventListener("click", async () => {
       volBtn.disabled = true;
       try {
-        await submitVolunteerApplication(missionId, user);
+        await submitVolunteerApplication(missionId, user, mission);
       } catch (err) {
         console.error(err);
         alert(err?.message || "Could not submit application.");

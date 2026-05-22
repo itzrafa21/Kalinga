@@ -165,6 +165,14 @@
               <input type="number" id="volunteers" class="form-control" required>
             </div>
 
+            <div class="form-group">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="autoAcceptVolunteers" role="switch" />
+                <label class="form-check-label" for="autoAcceptVolunteers">Auto-accept volunteers</label>
+              </div>
+              <p class="text-muted small mb-0 mt-1">When enabled, new volunteer applications are approved automatically.</p>
+            </div>
+
             <div class="d-flex justify-content-end gap-3 mt-4">
               <button type="button" class="btn btn-secondary" onclick="window.location.href='/organization/dashboard'">Cancel</button>
               <button type="submit" class="btn btn-primary">Save Changes</button>

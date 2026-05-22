@@ -122,6 +122,8 @@ function initializeFormSubmission() {
                 latitude: latitude || "N/A",
                 longitude: longitude || "N/A",
                 volunteers: document.getElementById("volunteers")?.value || "1",
+                autoAcceptVolunteers:
+                    document.getElementById("autoAcceptVolunteers")?.checked === true,
                 orgId: currentUser.uid,
                 orgName: orgName,
                 createdAt: new Date(),

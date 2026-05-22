@@ -327,6 +327,14 @@
                             </div>
 
                             <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="autoAcceptVolunteers" role="switch" />
+                                    <label class="form-check-label" for="autoAcceptVolunteers">Auto-accept volunteers</label>
+                                </div>
+                                <p class="text-muted small mb-0 mt-1">When enabled, new volunteer applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="missionImage">Mission Image (Optional)</label>
                                 <div class="mission-image-container">
                                     <div class="mission-image-preview" id="missionImagePreview">
