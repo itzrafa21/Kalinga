@@ -781,10 +781,10 @@ tr.volunteer-application-row.volunteer-row-paged-out {
       <div class="control-group">
         <label for="filterSelect">Period</label>
         <select id="filterSelect">
-          <option value="this_month" selected>This month</option>
+          <option value="this_month">This month</option>
           <option value="last_month">Last month</option>
           <option value="older">Older</option>
-          <option value="all">All time</option>
+          <option value="all" selected>All time</option>
         </select>
       </div>
       <div class="control-group control-group--search">
