@@ -93,47 +93,165 @@ window.addType = function () {
     row.id = "mt-" + key;
     row.dataset.basePts = String(pts);
     row.innerHTML = `
-      <div><div class="cfg-label">${escapeHtml(name)}</div><div class="cfg-sub">${escapeHtml(desc || "Custom type")}</div></div>
-      <div class="cfg-right">
-        <span class="badge-pill bp-blue">${pts} pts</span>
-        <span class="badge-pill bp-green status-pill">Active</span>
-        <div class="toggle on" role="switch" aria-checked="true" tabindex="0"></div>
-        <button type="button" class="btn btn-r btn-sm" data-remove-type="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
-      </div>`;
+    <div><div class="cfg-label">${escapeHtml(name)}</div><div class="cfg-sub">${escapeHtml(desc || "Custom type")}</div></div>
+    <div class="cfg-right">
+      <span class="type-pts-display">${pts}</span>
+      <input type="number" class="pts-in type-pts-in" value="${pts}" min="0" disabled aria-label="Base points for ${escapeHtml(name)}" />
+      <span class="pts-unit">pts</span>
+      <span class="badge-pill bp-green status-pill">Active</span>
+      <div class="toggle on" role="switch" aria-checked="true" tabindex="0"></div>
+      <button type="button" class="btn btn-edit btn-sm" data-edit-type="${escapeHtml(key)}" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+      <button type="button" class="btn btn-r btn-sm" data-remove-type="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
+    </div>`;
     bindTypeRow(row, key);
     document.getElementById("type-list").insertBefore(row, document.getElementById("add-type-form"));
-
-    const xr = document.createElement("div");
-    xr.className = "cfg-row base-pts-row";
-    xr.id = "xpts-" + key;
-    xr.dataset.typeKey = key;
-    xr.innerHTML = `
-      <div><div class="cfg-label">${escapeHtml(name)}</div><div class="cfg-sub">per mission</div></div>
-      <div class="cfg-right">
-        <input type="number" class="pts-in" value="${pts}" min="0" data-sync-key="${escapeHtml(key)}" />
-        <span class="pts-unit">pts</span>
-      </div>`;
-    xr.querySelector(".pts-in").addEventListener("change", (e) => {
-        syncBasePtsBadge(key, e.target.value);
-        flashSaved();
-    });
-    document.getElementById("extra-base-pts").appendChild(xr);
-    xr.querySelector(".pts-in")?.addEventListener("change", (e) => {
-        syncBasePtsBadge(key, e.target.value);
-        flashSaved();
-    });
-
-    const opt = document.createElement("option");
-    opt.value = String(pts);
-    opt.dataset.typeKey = key;
-    opt.textContent = `${name} (${pts} pts)`;
-    document.getElementById("calc-type").appendChild(opt);
+    rebuildCalcTypeOptions();
 
     document.getElementById("nt-name").value = "";
     document.getElementById("nt-desc").value = "";
     document.getElementById("nt-pts").value = "";
     document.getElementById("add-type-form").style.display = "none";
 };
+
+function getTypeRowBasePts(row) {
+    const input = row.querySelector(".type-pts-in");
+    if (input) return parseInt(input.value, 10) || 0;
+    return parseInt(row.dataset.basePts || row.getAttribute("data-base-pts") || "5", 10);
+}
+
+function getTypeRowDescription(row) {
+    const input = row.querySelector(".type-desc-in");
+    if (input) return input.value.trim();
+    return row.querySelector(".cfg-sub")?.textContent?.trim() || "";
+}
+
+function setTypePtsDisplay(row, pts) {
+    const display = row.querySelector(".type-pts-display");
+    if (display) display.textContent = String(pts);
+}
+
+function startTypeEdit(key) {
+    const row = document.getElementById("mt-" + key);
+    if (!row || row.classList.contains("is-editing")) return;
+
+    const sub = row.querySelector(".cfg-sub");
+    const desc = sub?.textContent?.trim() || "";
+    const pts = getTypeRowBasePts(row);
+
+    row.dataset.editDesc = desc;
+    row.dataset.editPts = String(pts);
+
+    if (sub) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "type-desc-in";
+        input.value = desc;
+        input.setAttribute("aria-label", "Mission type description");
+        sub.replaceWith(input);
+    }
+
+    const ptsInput = row.querySelector(".type-pts-in");
+    if (ptsInput) {
+        ptsInput.disabled = false;
+        ptsInput.value = String(pts);
+    }
+
+    row.classList.add("is-editing");
+
+    const btn = row.querySelector("[data-edit-type]");
+    if (btn) {
+        btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i>';
+        btn.setAttribute("aria-label", "Save mission type");
+    }
+
+    (row.querySelector(".type-desc-in") || ptsInput)?.focus();
+}
+
+function saveTypeEdit(key) {
+    const row = document.getElementById("mt-" + key);
+    if (!row) return;
+
+    const descInput = row.querySelector(".type-desc-in");
+    const desc = descInput?.value.trim() || row.dataset.editDesc || "";
+    const pts = getTypeRowBasePts(row);
+
+    if (descInput) {
+        const sub = document.createElement("div");
+        sub.className = "cfg-sub";
+        sub.textContent = desc;
+        descInput.replaceWith(sub);
+    }
+
+    const ptsInput = row.querySelector(".type-pts-in");
+    if (ptsInput) ptsInput.disabled = true;
+
+    syncTypeBasePts(key, pts);
+    setTypePtsDisplay(row, pts);
+    row.classList.remove("is-editing");
+
+    const btn = row.querySelector("[data-edit-type]");
+    if (btn) {
+        btn.innerHTML = '<i class="ti ti-pencil" style="font-size:12px"></i>';
+        btn.setAttribute("aria-label", "Edit mission type");
+    }
+
+    flashSaved();
+}
+
+function cancelTypeEdit(key) {
+    const row = document.getElementById("mt-" + key);
+    if (!row || !row.classList.contains("is-editing")) return;
+
+    const desc = row.dataset.editDesc || "";
+    const pts = row.dataset.editPts || "5";
+    const descInput = row.querySelector(".type-desc-in");
+
+    if (descInput) {
+        const sub = document.createElement("div");
+        sub.className = "cfg-sub";
+        sub.textContent = desc;
+        descInput.replaceWith(sub);
+    }
+
+    const ptsInput = row.querySelector(".type-pts-in");
+    if (ptsInput) {
+        ptsInput.value = pts;
+        ptsInput.disabled = true;
+    }
+
+    setTypePtsDisplay(row, pts);
+    row.classList.remove("is-editing");
+
+    const btn = row.querySelector("[data-edit-type]");
+    if (btn) {
+        btn.innerHTML = '<i class="ti ti-pencil" style="font-size:12px"></i>';
+        btn.setAttribute("aria-label", "Edit mission type");
+    }
+}
+
+window.toggleTypeEdit = function (key) {
+    const row = document.getElementById("mt-" + key);
+    if (!row) return;
+    if (row.classList.contains("is-editing")) saveTypeEdit(key);
+    else startTypeEdit(key);
+};
+
+function rebuildCalcTypeOptions() {
+    const sel = document.getElementById("calc-type");
+    if (!sel) return;
+    sel.innerHTML = "";
+    document.querySelectorAll("#type-list .cfg-row[id^='mt-']").forEach((row) => {
+        const key = row.id.replace(/^mt-/, "");
+        const label = row.querySelector(".cfg-label")?.textContent?.trim() || key;
+        const pts = getTypeRowBasePts(row);
+        const opt = document.createElement("option");
+        opt.value = String(pts);
+        opt.dataset.typeKey = key;
+        opt.textContent = `${label} (${pts} pts)`;
+        sel.appendChild(opt);
+    });
+    calcPoints();
+}
 
 function bindTypeRow(row, key) {
     const toggle = row.querySelector(".toggle");
@@ -148,29 +266,31 @@ function bindTypeRow(row, key) {
             pill.classList.toggle("bp-gray", !on);
         }
     });
+    row.querySelector("[data-edit-type]")?.addEventListener("click", () => toggleTypeEdit(key));
     row.querySelector("[data-remove-type]")?.addEventListener("click", () => removeType(key));
 }
 
-function syncBasePtsBadge(key, pts) {
+function syncTypeBasePts(key, pts) {
     const row = document.getElementById("mt-" + key);
     if (!row) return;
-    const badge = row.querySelector(".bp-blue");
-    if (badge) badge.textContent = `${pts} pts`;
-    row.dataset.basePts = String(pts);
+    const value = String(parseInt(pts, 10) || 0);
+    row.dataset.basePts = value;
+    const input = row.querySelector(".type-pts-in");
+    if (input) input.value = value;
+    setTypePtsDisplay(row, value);
     const opt = document.querySelector(`#calc-type option[data-type-key="${key}"]`);
     if (opt) {
-        opt.value = String(pts);
+        opt.value = value;
         const label = row.querySelector(".cfg-label")?.textContent || key;
-        opt.textContent = `${label} (${pts} pts)`;
+        opt.textContent = `${label} (${value} pts)`;
     }
+    calcPoints();
 }
 
 window.removeType = function (k) {
     const e = document.getElementById("mt-" + k);
     if (e) e.remove();
-    const x = document.getElementById("xpts-" + k);
-    if (x) x.remove();
-    document.querySelector(`#calc-type option[data-type-key="${k}"]`)?.remove();
+    rebuildCalcTypeOptions();
 };
 
 window.showAddLevel = function () {
@@ -266,23 +386,10 @@ function collectConfigFromDom() {
         missionTypes.push({
             id,
             name: row.querySelector(".cfg-label")?.textContent?.trim() || id,
-            description: row.querySelector(".cfg-sub")?.textContent?.trim() || "",
-            basePoints: parseInt(row.dataset.basePts || "5", 10),
+            description: getTypeRowDescription(row),
+            basePoints: getTypeRowBasePts(row),
             active: row.querySelector(".toggle")?.classList.contains("on") ?? true,
         });
-    });
-
-    const basePointsByType = {};
-    document
-        .querySelectorAll("#mission-points-panel .cfg-row .pts-in[data-sync-key]")
-        .forEach((input) => {
-            const label = input.closest(".cfg-row")?.querySelector(".cfg-label")?.textContent?.trim();
-            if (label) basePointsByType[label] = parseFloat(input.value) || 0;
-        });
-    document.querySelectorAll("#extra-base-pts .cfg-row").forEach((row) => {
-        const label = row.querySelector(".cfg-label")?.textContent?.trim();
-        const input = row.querySelector(".pts-in");
-        if (label && input) basePointsByType[label] = parseFloat(input.value) || 0;
     });
 
     const durationMultipliers = [];
@@ -319,7 +426,7 @@ function collectConfigFromDom() {
         });
     });
 
-    return { missionTypes, basePointsByType, durationMultipliers, levels, badges };
+    return { missionTypes, durationMultipliers, levels, badges };
 }
 
 async function saveConfigToFirestore() {
@@ -366,12 +473,7 @@ function bindExistingTypeRows() {
         const key = row.id.replace(/^mt-/, "");
         bindTypeRow(row, key);
     });
-    document.querySelectorAll("#mission-points-panel .pts-in[data-sync-key]").forEach((input) => {
-        input.addEventListener("change", () => {
-            syncBasePtsBadge(input.dataset.syncKey, input.value);
-            flashSaved();
-        });
-    });
+    rebuildCalcTypeOptions();
     document.querySelectorAll("#badge-list .badge-row .toggle").forEach((toggle) => {
         toggle.addEventListener("click", () => toggle.classList.toggle("on"));
     });
@@ -384,5 +486,4 @@ function bindExistingTypeRows() {
     document.querySelectorAll("[data-remove-badge]").forEach((btn) => {
         btn.addEventListener("click", () => removeBadge(btn.dataset.removeBadge));
     });
-    calcPoints();
 }

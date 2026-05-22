@@ -157,6 +157,21 @@
     .btn-r:hover { background: #fef2f2; }
     .btn-sm { padding: 4px 8px; font-size: 11px; }
 
+    .btn-edit { color: #2563eb; border-color: #bfdbfe; }
+    .btn-edit:hover { background: #eff6ff; }
+    .type-desc-in {
+      width: 100%; max-width: 220px; height: 28px; padding: 0 8px;
+      border: 1px solid var(--color-border); border-radius: 6px;
+      font-size: 12px; outline: none; margin-top: 2px;
+    }
+    .type-desc-in:focus { border-color: var(--color-accent); }
+    .cfg-row.is-editing .type-pts-in { display: inline-block; }
+    .cfg-row:not(.is-editing) .type-pts-in { display: none; }
+    .cfg-row.is-editing .type-pts-display { display: none; }
+    .cfg-row:not(.is-editing) .type-pts-display {
+      font-size: 12px; font-weight: 600; color: #334155; min-width: 20px; text-align: center;
+    }
+
     .toggle {
       width: 34px; height: 18px; background: #d1d5db; border-radius: 20px;
       cursor: pointer; position: relative; flex-shrink: 0;
@@ -292,48 +307,63 @@
             </div>
             <div class="section-body">
               <div id="type-list">
-                <div class="cfg-row" id="mt-General" data-base-pts="5">
+              <div class="cfg-row" id="mt-General" data-base-pts="5">
                   <div><div class="cfg-label">General</div><div class="cfg-sub">General volunteer missions</div></div>
                   <div class="cfg-right">
-                    <span class="badge-pill bp-blue">5 pts</span>
+                    <span class="type-pts-display">5</span>
+                    <input type="number" class="pts-in type-pts-in" value="5" min="0" disabled aria-label="Base points for General" />
+                    <span class="pts-unit">pts</span>
                     <span class="badge-pill bp-green status-pill">Active</span>
                     <div class="toggle on" role="switch" aria-checked="true"></div>
+                    <button type="button" class="btn btn-edit btn-sm" data-edit-type="General" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
                     <button type="button" class="btn btn-r btn-sm" data-remove-type="General"><i class="ti ti-trash" style="font-size:12px"></i></button>
                   </div>
                 </div>
                 <div class="cfg-row" id="mt-HealthMedical" data-base-pts="10">
                   <div><div class="cfg-label">Health / Medical</div><div class="cfg-sub">Health and medical missions</div></div>
                   <div class="cfg-right">
-                    <span class="badge-pill bp-blue">10 pts</span>
+                    <span class="type-pts-display">10</span>
+                    <input type="number" class="pts-in type-pts-in" value="10" min="0" disabled aria-label="Base points for Health / Medical" />
+                    <span class="pts-unit">pts</span>
                     <span class="badge-pill bp-green status-pill">Active</span>
                     <div class="toggle on" role="switch" aria-checked="true"></div>
+                    <button type="button" class="btn btn-edit btn-sm" data-edit-type="HealthMedical" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
                     <button type="button" class="btn btn-r btn-sm" data-remove-type="HealthMedical"><i class="ti ti-trash" style="font-size:12px"></i></button>
                   </div>
                 </div>
                 <div class="cfg-row" id="mt-Environment" data-base-pts="5">
                   <div><div class="cfg-label">Environment</div><div class="cfg-sub">Environmental programs</div></div>
                   <div class="cfg-right">
-                    <span class="badge-pill bp-blue">5 pts</span>
+                    <span class="type-pts-display">5</span>
+                    <input type="number" class="pts-in type-pts-in" value="5" min="0" disabled aria-label="Base points for Environment" />
+                    <span class="pts-unit">pts</span>
                     <span class="badge-pill bp-green status-pill">Active</span>
                     <div class="toggle on" role="switch" aria-checked="true"></div>
+                    <button type="button" class="btn btn-edit btn-sm" data-edit-type="Environment" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
                     <button type="button" class="btn btn-r btn-sm" data-remove-type="Environment"><i class="ti ti-trash" style="font-size:12px"></i></button>
                   </div>
                 </div>
                 <div class="cfg-row" id="mt-Education" data-base-pts="5">
                   <div><div class="cfg-label">Education</div><div class="cfg-sub">Educational outreach</div></div>
                   <div class="cfg-right">
-                    <span class="badge-pill bp-blue">5 pts</span>
+                    <span class="type-pts-display">5</span>
+                    <input type="number" class="pts-in type-pts-in" value="5" min="0" disabled aria-label="Base points for Education" />
+                    <span class="pts-unit">pts</span>
                     <span class="badge-pill bp-green status-pill">Active</span>
                     <div class="toggle on" role="switch" aria-checked="true"></div>
+                    <button type="button" class="btn btn-edit btn-sm" data-edit-type="Education" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
                     <button type="button" class="btn btn-r btn-sm" data-remove-type="Education"><i class="ti ti-trash" style="font-size:12px"></i></button>
                   </div>
                 </div>
                 <div class="cfg-row" id="mt-DisasterRelief" data-base-pts="10">
                   <div><div class="cfg-label">Disaster relief</div><div class="cfg-sub">Emergency response</div></div>
                   <div class="cfg-right">
-                    <span class="badge-pill bp-blue">10 pts</span>
+                    <span class="type-pts-display">10</span>
+                    <input type="number" class="pts-in type-pts-in" value="10" min="0" disabled aria-label="Base points for Disaster relief" />
+                    <span class="pts-unit">pts</span>
                     <span class="badge-pill bp-green status-pill">Active</span>
                     <div class="toggle on" role="switch" aria-checked="true"></div>
+                    <button type="button" class="btn btn-edit btn-sm" data-edit-type="DisasterRelief" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
                     <button type="button" class="btn btn-r btn-sm" data-remove-type="DisasterRelief"><i class="ti ti-trash" style="font-size:12px"></i></button>
                   </div>
                 </div>
@@ -362,14 +392,6 @@
               <span id="pts-saved" class="saved-flash"><i class="ti ti-check"></i> Saved</span>
             </div>
             <div class="section-body">
-              <div class="block-label">Base points per type</div>
-              <div class="cfg-row"><div><div class="cfg-label">General</div></div><div class="cfg-right"><input type="number" class="pts-in" value="5" min="0" data-sync-key="General" onchange="flashSaved()" /><span class="pts-unit">pts</span></div></div>
-              <div class="cfg-row"><div><div class="cfg-label">Health / Medical</div></div><div class="cfg-right"><input type="number" class="pts-in" value="10" min="0" data-sync-key="HealthMedical" onchange="flashSaved()" /><span class="pts-unit">pts</span></div></div>
-              <div class="cfg-row"><div><div class="cfg-label">Environment</div></div><div class="cfg-right"><input type="number" class="pts-in" value="5" min="0" data-sync-key="Environment" onchange="flashSaved()" /><span class="pts-unit">pts</span></div></div>
-              <div class="cfg-row"><div><div class="cfg-label">Education</div></div><div class="cfg-right"><input type="number" class="pts-in" value="5" min="0" data-sync-key="Education" onchange="flashSaved()" /><span class="pts-unit">pts</span></div></div>
-              <div class="cfg-row"><div><div class="cfg-label">Disaster relief</div></div><div class="cfg-right"><input type="number" class="pts-in" value="10" min="0" data-sync-key="DisasterRelief" onchange="flashSaved()" /><span class="pts-unit">pts</span></div></div>
-              <div id="extra-base-pts"></div>
-
               <div class="block-label">Duration multipliers</div>
               <div class="mult-row">
                 <div><div class="mult-label">Short shift</div><div class="mult-sub">1 – 3 hours</div></div>
@@ -387,13 +409,7 @@
               <div class="calc-box">
                 <label>Preview earned points</label>
                 <div class="calc-row">
-                  <select id="calc-type" class="calc-select" onchange="calcPoints()">
-                    <option value="5">General (5)</option>
-                    <option value="10">Health / Medical (10)</option>
-                    <option value="5">Environment (5)</option>
-                    <option value="5">Education (5)</option>
-                    <option value="10">Disaster relief (10)</option>
-                  </select>
+                  <select id="calc-type" class="calc-select" onchange="calcPoints()"></select>
                   <select id="calc-mult" class="calc-select" onchange="calcPoints()">
                     <option value="1">1–3 hrs (×1)</option>
                     <option value="2">4–6 hrs (×2)</option>

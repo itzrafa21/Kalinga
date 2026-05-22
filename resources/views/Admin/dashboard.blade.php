@@ -775,7 +775,7 @@
   <div class="success-modal" role="document">
     <div class="success-modal-icon" aria-hidden="true">
       <i class="fas fa-check-circle"></i>
-    </motion.div>
+  </div>
     <h2 id="missionApproveSuccessTitle">Mission approved</h2>
     <p class="success-modal-message">
       The mission was approved and published. It is now visible to volunteers.
