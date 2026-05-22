@@ -10,6 +10,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { userHasApplicationForMission } from "./application-storage.js";
 
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -110,21 +111,19 @@ async function countUniqueSignups(missionId) {
 
 async function submitVolunteerApplication(missionId, user, mission = null) {
   const extras = await fetchApplicantProfileExtras(user.uid);
-  const applicationsCol = collection(db, "missions", missionId, "applications");
-  const dupQ = query(applicationsCol, where("userId", "==", user.uid));
-  const dupSnap = await getDocs(dupQ);
-  if (!dupSnap.empty) {
+  if (await userHasApplicationForMission(missionId, user.uid)) {
     alert("You have already applied to this mission.");
     return;
   }
-
   let missionData = mission;
   if (!missionData) {
     const loaded = await loadMissionDocument(missionId, user);
     missionData = loaded?.mission || null;
   }
-
   const autoAccept = missionData?.autoAcceptVolunteers === true;
+  const missionName =
+    missionData?.missionName || missionData?.name || missionData?.title || "";
+  const orgId = missionData?.orgId || missionData?.organizationId || "";
   const applicationPayload = {
     displayName: user.displayName || user.email?.split("@")[0] || "Applicant",
     email: user.email || "",
@@ -133,14 +132,23 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
     status: autoAccept ? "approved" : "pending",
     appliedAt: serverTimestamp(),
     userId: user.uid,
+    missionId,
+    missionName,
+    orgId,
   };
-
   if (autoAccept) {
     applicationPayload.approvedAt = serverTimestamp();
   }
-
+  const applicationsCol = collection(db, "missions", missionId, "applications");
   await addDoc(applicationsCol, applicationPayload);
-
+  try {
+    await addDoc(
+      collection(db, "users", user.uid, "applications"),
+      { ...applicationPayload }
+    );
+  } catch (userWriteErr) {
+    console.warn("[WARN] mirror application to users/", user.uid, userWriteErr);
+  }
   alert(
     autoAccept
       ? "You have been accepted for this mission."
@@ -150,26 +158,33 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
 
 async function loadMissionDocument(missionId, user) {
   const globalSnap = await getDoc(doc(db, "missions", missionId));
-  if (globalSnap.exists()) {
-    return { mission: globalSnap.data() };
-  }
-
-  if (user?.uid) {
+  const globalData = globalSnap.exists() ? globalSnap.data() : null;
+  let orgData = null;
+  const orgId = globalData?.orgId || globalData?.organizationId;
+  if (orgId) {
     const orgSnap = await getDoc(
+      doc(db, "organizations", orgId, "missions", missionId)
+    );
+    if (orgSnap.exists()) orgData = orgSnap.data();
+  }
+  if (globalData || orgData) {
+    return { mission: { ...orgData, ...globalData } };
+  }
+  if (user?.uid) {
+    const volunteerOrgSnap = await getDoc(
       doc(db, "organizations", user.uid, "missions", missionId)
     );
-    if (orgSnap.exists()) {
-      return { mission: orgSnap.data() };
+    if (volunteerOrgSnap.exists()) {
+      return { mission: volunteerOrgSnap.data() };
     }
   }
-
   const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
   if (subSnap.exists()) {
     return { mission: subSnap.data() };
   }
-
   return null;
 }
+
 
 function renderRejectedMissionPage(container, mission, missionId, user) {
   const reason =

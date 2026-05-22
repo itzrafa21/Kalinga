@@ -165,6 +165,83 @@ async function autoClosePendingApplications(orgMissionById) {
     }
 }
 
+function missionHasAutoAccept(mission) {
+    return mission?.autoAcceptVolunteers === true;
+}
+
+async function syncApplicationStatusToCopies(volunteer, missionId, payload) {
+    if (!volunteer.userId) return;
+
+    try {
+        if (volunteer.storage === STORAGE_USERS_SUB) {
+            const missionSnap = await getDocs(
+                query(
+                    collection(db, "missions", missionId, "applications"),
+                    where("userId", "==", volunteer.userId)
+                )
+            );
+            for (const mDoc of missionSnap.docs) {
+                await updateDoc(mDoc.ref, payload);
+            }
+        } else {
+            const userSnap = await getDocs(
+                query(
+                    collection(db, "users", volunteer.userId, "applications"),
+                    where("missionId", "==", missionId)
+                )
+            );
+            for (const uDoc of userSnap.docs) {
+                await updateDoc(uDoc.ref, payload);
+            }
+        }
+    } catch (syncErr) {
+        console.warn("[WARN] sync application status:", syncErr);
+    }
+}
+
+async function autoAcceptPendingApplications(orgMissionById) {
+    let acceptedCount = 0;
+
+    for (const [missionId, mission] of orgMissionById) {
+        if (!missionHasAutoAccept(mission)) continue;
+        if (isMissionCompleted(mission)) continue;
+
+        const pending = allVolunteers.filter(
+            (v) =>
+                v.missionId === missionId &&
+                (v.status || "").toLowerCase() === "pending"
+        );
+
+        for (const volunteer of pending) {
+            try {
+                const payload = {
+                    status: "approved",
+                    approvedAt: new Date(),
+                    updatedAt: new Date(),
+                };
+
+                await updateDoc(getApplicationDocRef(volunteer), payload);
+                await syncApplicationStatusToCopies(volunteer, missionId, payload);
+
+                volunteer.status = "approved";
+                acceptedCount++;
+            } catch (err) {
+                console.error(
+                    "[ERROR] auto-accept application",
+                    volunteer.id,
+                    err
+                );
+            }
+        }
+    }
+
+    if (acceptedCount > 0) {
+        console.log(
+            `[INFO] Auto-accepted ${acceptedCount} pending application(s) for auto-accept missions`
+        );
+    }
+}
+
 // Elements
 const volunteerTable = document.getElementById("volunteerTableBody");
 const searchInput = document.getElementById("searchInput");
@@ -526,6 +603,7 @@ async function loadVolunteers() {
         );
         console.log("[INFO] Application load stats:", loadStats);
 
+        await autoAcceptPendingApplications(orgMissionById);
         await autoClosePendingApplications(orgMissionById);
 
         console.log("[SUCCESS] Total volunteers loaded:", allVolunteers.length);
