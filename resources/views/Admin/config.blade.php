@@ -320,7 +320,7 @@
                   </div>
                 </div>
                 <div class="cfg-row" id="mt-HealthMedical" data-base-pts="10">
-                  <div><div class="cfg-label">Health / Medical</div><div class="cfg-sub">Health and medical missions</div></div>
+                  <div><div class="cfg-label">Health/Medical</div><div class="cfg-sub">Health and medical missions</div></div>
                   <div class="cfg-right">
                     <span class="type-pts-display">10</span>
                     <input type="number" class="pts-in type-pts-in" value="10" min="0" disabled aria-label="Base points for Health / Medical" />
@@ -356,7 +356,7 @@
                   </div>
                 </div>
                 <div class="cfg-row" id="mt-DisasterRelief" data-base-pts="10">
-                  <div><div class="cfg-label">Disaster relief</div><div class="cfg-sub">Emergency response</div></div>
+                  <div><div class="cfg-label">Disaster Relief</div><div class="cfg-sub">Emergency response</div></div>
                   <div class="cfg-right">
                     <span class="type-pts-display">10</span>
                     <input type="number" class="pts-in type-pts-in" value="10" min="0" disabled aria-label="Base points for Disaster relief" />

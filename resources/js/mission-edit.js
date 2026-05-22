@@ -1,12 +1,15 @@
 import { auth, db } from "./firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { loadPlatformConfig, populateMissionTypeSelect } from "./mission-type-points.js";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "/organization/login";
     return;
   }
+
+  await loadPlatformConfig();
 
   // Get missionId from query param
   const urlParams = new URLSearchParams(window.location.search);
@@ -29,10 +32,13 @@ onAuthStateChanged(auth, async (user) => {
   if (docSnap.exists()) {
     const mission = docSnap.data();
     console.log("[INFO] Mission data loaded:", mission);
-    
+
+    populateMissionTypeSelect(document.getElementById("type"), {
+      selectedValue: mission.type || "",
+    });
+
     document.getElementById("name").value = mission.missionName || mission.name || "";
     document.getElementById("description").value = mission.description || "";
-    document.getElementById("type").value = mission.type || "";
     document.getElementById("date").value = mission.date || "";
     document.getElementById("startTime").value = mission.startTime || "";
     document.getElementById("endTime").value = mission.endTime || "";

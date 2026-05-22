@@ -1,7 +1,11 @@
 import { auth, db } from "./firebase";
 import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { getBasePointsForType, updateBasePointsDisplay } from "./mission-type-points.js";
+import {
+    loadPlatformConfig,
+    getBasePointsForType,
+    populateMissionTypeSelect,
+} from "./mission-type-points.js";
 
 let currentUser = null;
 let selectedMissionImageFile = null;
@@ -54,23 +58,14 @@ onAuthStateChanged(auth, async (user) => {
     
     currentUser = user;
     console.log("[SUCCESS] User authenticated:", user.uid);
-    
-    // Initialize form submission
+
+    await loadPlatformConfig();
+    populateMissionTypeSelect(document.getElementById("type"));
+
     initializeFormSubmission();
-    initializeMissionTypePoints();
     initializeImageUpload();
     initMissionSuccessModal();
 });
-
-function initializeMissionTypePoints() {
-    const typeSelect = document.getElementById("type");
-    const display = document.getElementById("basePointsDisplay");
-    if (!typeSelect) return;
-
-    const sync = () => updateBasePointsDisplay(typeSelect, display);
-    typeSelect.addEventListener("change", sync);
-    sync();
-}
 
 // Initialize form submission
 function initializeFormSubmission() {

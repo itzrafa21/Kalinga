@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { DEFAULT_MISSION_TYPES } from "./platform-config.js";
 
 const CONFIG_DOC = ["platform_config", "settings"];
 
@@ -82,27 +83,56 @@ window.showAddType = function () {
     document.getElementById("nt-name").focus();
 };
 
+function createTypeRowElement({ id, name, description, basePoints, active }) {
+    const key = id || String(name).replace(/\s+/g, "");
+    const pts = parseInt(basePoints, 10) || 5;
+    const isActive = active !== false;
+    const row = document.createElement("div");
+    row.className = "cfg-row";
+    row.id = "mt-" + key;
+    row.dataset.basePts = String(pts);
+    row.innerHTML = `
+    <div><div class="cfg-label">${escapeHtml(name)}</div><div class="cfg-sub">${escapeHtml(description || "Custom type")}</div></div>
+    <div class="cfg-right">
+      <span class="type-pts-display">${pts}</span>
+      <input type="number" class="pts-in type-pts-in" value="${pts}" min="0" disabled aria-label="Base points for ${escapeHtml(name)}" />
+      <span class="pts-unit">pts</span>
+      <span class="badge-pill ${isActive ? "bp-green" : "bp-gray"} status-pill">${isActive ? "Active" : "Inactive"}</span>
+      <div class="toggle ${isActive ? "on" : ""}" role="switch" aria-checked="${isActive}" tabindex="0"></div>
+      <button type="button" class="btn btn-edit btn-sm" data-edit-type="${escapeHtml(key)}" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+      <button type="button" class="btn btn-r btn-sm" data-remove-type="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
+    </div>`;
+    return row;
+}
+
+function renderMissionTypesList(types) {
+    const list = document.getElementById("type-list");
+    const form = document.getElementById("add-type-form");
+    if (!list || !form) return;
+
+    list.querySelectorAll(".cfg-row[id^='mt-']").forEach((row) => row.remove());
+
+    types.forEach((t) => {
+        const row = createTypeRowElement(t);
+        list.insertBefore(row, form);
+    });
+
+    rebuildCalcTypeOptions();
+}
+
 window.addType = function () {
     const name = document.getElementById("nt-name").value.trim();
     const desc = document.getElementById("nt-desc").value.trim();
     const pts = parseInt(document.getElementById("nt-pts").value, 10) || 5;
     if (!name) return;
     const key = name.replace(/\s+/g, "");
-    const row = document.createElement("div");
-    row.className = "cfg-row";
-    row.id = "mt-" + key;
-    row.dataset.basePts = String(pts);
-    row.innerHTML = `
-    <div><div class="cfg-label">${escapeHtml(name)}</div><div class="cfg-sub">${escapeHtml(desc || "Custom type")}</div></div>
-    <div class="cfg-right">
-      <span class="type-pts-display">${pts}</span>
-      <input type="number" class="pts-in type-pts-in" value="${pts}" min="0" disabled aria-label="Base points for ${escapeHtml(name)}" />
-      <span class="pts-unit">pts</span>
-      <span class="badge-pill bp-green status-pill">Active</span>
-      <div class="toggle on" role="switch" aria-checked="true" tabindex="0"></div>
-      <button type="button" class="btn btn-edit btn-sm" data-edit-type="${escapeHtml(key)}" aria-label="Edit mission type"><i class="ti ti-pencil" style="font-size:12px"></i></button>
-      <button type="button" class="btn btn-r btn-sm" data-remove-type="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
-    </div>`;
+    const row = createTypeRowElement({
+        id: key,
+        name,
+        description: desc || "Custom type",
+        basePoints: pts,
+        active: true,
+    });
     bindTypeRow(row, key);
     document.getElementById("type-list").insertBefore(row, document.getElementById("add-type-form"));
     rebuildCalcTypeOptions();
@@ -111,6 +141,8 @@ window.addType = function () {
     document.getElementById("nt-desc").value = "";
     document.getElementById("nt-pts").value = "";
     document.getElementById("add-type-form").style.display = "none";
+
+    persistMissionTypes();
 };
 
 function getTypeRowBasePts(row) {
@@ -196,6 +228,7 @@ function saveTypeEdit(key) {
     }
 
     flashSaved();
+    persistMissionTypes();
 }
 
 function cancelTypeEdit(key) {
@@ -265,6 +298,7 @@ function bindTypeRow(row, key) {
             pill.classList.toggle("bp-green", on);
             pill.classList.toggle("bp-gray", !on);
         }
+        persistMissionTypes();
     });
     row.querySelector("[data-edit-type]")?.addEventListener("click", () => toggleTypeEdit(key));
     row.querySelector("[data-remove-type]")?.addEventListener("click", () => removeType(key));
@@ -291,6 +325,7 @@ window.removeType = function (k) {
     const e = document.getElementById("mt-" + k);
     if (e) e.remove();
     rebuildCalcTypeOptions();
+    persistMissionTypes();
 };
 
 window.showAddLevel = function () {
@@ -429,43 +464,49 @@ function collectConfigFromDom() {
     return { missionTypes, durationMultipliers, levels, badges };
 }
 
-async function saveConfigToFirestore() {
+async function saveConfigToFirestore(options = {}) {
+    const { silent = false } = options;
     const payload = {
         ...collectConfigFromDom(),
         updatedAt: serverTimestamp(),
     };
     try {
         await setDoc(doc(db, ...CONFIG_DOC), payload, { merge: true });
-        flashSaved();
-        const toast = document.getElementById("configSaveToast");
-        if (toast) {
-            toast.hidden = false;
-            setTimeout(() => {
-                toast.hidden = true;
-            }, 2500);
+        if (!silent) {
+            flashSaved();
+            const toast = document.getElementById("configSaveToast");
+            if (toast) {
+                toast.hidden = false;
+                setTimeout(() => {
+                    toast.hidden = true;
+                }, 2500);
+            }
         }
     } catch (err) {
         console.error("[ERROR] save config:", err);
-        alert("Could not save config. Check Firestore rules for platform_config/settings.");
+        if (!silent) {
+            alert("Could not save config. Check Firestore rules for platform_config/settings.");
+        }
     }
+}
+
+function persistMissionTypes() {
+    saveConfigToFirestore({ silent: true });
 }
 
 async function loadConfigFromFirestore() {
     try {
         const snap = await getDoc(doc(db, ...CONFIG_DOC));
-        if (!snap.exists()) {
-            bindExistingTypeRows();
-            return;
+        if (snap.exists() && snap.data().missionTypes?.length) {
+            renderMissionTypesList(snap.data().missionTypes);
+        } else {
+            renderMissionTypesList([...DEFAULT_MISSION_TYPES]);
         }
-        const data = snap.data();
-        if (data.missionTypes?.length) {
-            // Future: re-render from JSON; for now keep defaults + bind toggles
-        }
-        bindExistingTypeRows();
     } catch (err) {
         console.warn("[WARN] load config:", err);
-        bindExistingTypeRows();
+        renderMissionTypesList([...DEFAULT_MISSION_TYPES]);
     }
+    bindExistingTypeRows();
 }
 
 function bindExistingTypeRows() {
