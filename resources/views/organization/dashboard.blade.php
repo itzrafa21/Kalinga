@@ -123,33 +123,77 @@
       justify-content: center;
       font-size: 1.25rem;
     }
-    /* Table */
     .table-wrap {
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       border: 1px solid #eee;
-      overflow: hidden;
+      overflow-x: auto;
     }
-    .missions table {
+    #missionsTable {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
     }
-    .missions th, .missions td {
+    #missionsTable th,
+    #missionsTable td {
       padding: 12px 14px;
-      text-align: left;
       border-bottom: 1px solid #eee;
       font-size: 0.9rem;
-      font-weight: 600;
+      vertical-align: middle;
     }
-    .missions th {
-      background:rgb(56, 107, 87);
+    #missionsTable th {
+      background: rgb(56, 107, 87);
       font-weight: 600;
-      color:rgb(255, 255, 255);
+      color: rgb(255, 255, 255);
+      text-align: left;
+      white-space: nowrap;
     }
-    .missions tbody tr:hover { background: #f8f9fa; }
-    .missions tbody tr:nth-child(even) { background: #fafafa; }
-    .missions tbody tr:nth-child(even):hover { background: #f0f4f0; }
+    #missionsTable td {
+      font-weight: 400;
+      color: #333;
+      text-align: left;
+      word-break: break-word;
+    }
+    #missionsTable th.col-volunteers,
+    #missionsTable td.col-volunteers,
+    #missionsTable th.col-status,
+    #missionsTable td.col-status,
+    #missionsTable th.col-actions,
+    #missionsTable td.col-actions {
+      text-align: center;
+    }
+    #missionsTable td.col-description {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 0;
+    }
+    #missionsTable td.col-mission {
+      font-weight: 600;
+      color: #1e3a2f;
+    }
+    #missionsTable tbody tr:hover { background: #f8f9fa; }
+    #missionsTable tbody tr:nth-child(even) { background: #fafafa; }
+    #missionsTable tbody tr:nth-child(even):hover { background: #f0f4f0; }
+    .mission-status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .mission-status--open { background: #dbeafe; color: #1d4ed8; }
+    .mission-status--ongoing { background: #cffafe; color: #0e7490; }
+    .mission-status--completed { background: #dcfce7; color: #15803d; }
+    .mission-status--pending { background: #fef3c7; color: #b45309; }
+    .mission-status--rejected { background: #fee2e2; color: #b91c1c; }
+    .mission-status--default { background: #f3f4f6; color: #4b5563; }
+    .missions td.col-actions {
+      white-space: nowrap;
+    }
 
     .edit-btn {
       display: inline-flex;
@@ -230,14 +274,22 @@
 
       <div class="table-wrap">
         <table id="missionsTable">
+          <colgroup>
+            <col style="width: 18%">
+            <col style="width: 30%">
+            <col style="width: 14%">
+            <col style="width: 10%">
+            <col style="width: 12%">
+            <col style="width: 16%">
+          </colgroup>
           <thead>
             <tr>
               <th>Missions</th>
               <th>Description</th>
               <th>Type</th>
-              <th>Volunteers</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th class="col-volunteers">Volunteers</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody id="missionsBody"></tbody>

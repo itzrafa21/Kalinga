@@ -200,6 +200,33 @@ function parse12HourTime(date, time12hr) {
     return new Date(`${date}T${hour24.toString().padStart(2, '0')}:${minutes}`);
 }
 
+function escapeMissionCell(text) {
+    const s = String(text ?? "");
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function getMissionStatusClass(status) {
+    const normalizedStatus = (status || "").toLowerCase();
+    switch (normalizedStatus) {
+        case "open":
+            return "mission-status--open";
+        case "ongoing":
+            return "mission-status--ongoing";
+        case "completed":
+            return "mission-status--completed";
+        case "pending":
+            return "mission-status--pending";
+        case "rejected":
+            return "mission-status--rejected";
+        default:
+            return "mission-status--default";
+    }
+}
+
 // Function to fetch and render missions
 async function loadMissions(user) {
     const missionsTableBody = document.getElementById("missionsBody");
@@ -212,8 +239,8 @@ async function loadMissions(user) {
 
         if (snapshot.empty) {
             console.log("No missions found!");
-            document.getElementById("totalMissions").innerText = "Total Missions: 0";
-            document.getElementById("ongoingMissions").innerText = "Ongoing Missions: 0";
+            document.getElementById("totalMissions").innerText = "0";
+            document.getElementById("ongoingMissions").innerText = "0";
             return;
         }
 
@@ -251,15 +278,16 @@ async function loadMissions(user) {
                 ongoingCount++;
             }
 
+            const statusLabel = mission.status || "N/A";
             const row = `
                 <tr>
-                    <td>${mission.missionName || "Untitled"}</td>
-                    <td>${mission.description || "N/A"}</td>
-                    <td>${mission.type || "N/A"}</td>
-                    <td>${mission.volunteers || 0}</td>
-                    <td><span class="badge ${getStatusBadgeClass(mission.status)}">${mission.status || "N/A"}</span></td>
-                    <td>
-                    <button class="edit-btn view-details-btn" data-id="${docSnap.id}">View Details</button>
+                    <td class="col-mission">${escapeMissionCell(mission.missionName || "Untitled")}</td>
+                    <td class="col-description" title="${escapeMissionCell(mission.description || "N/A")}">${escapeMissionCell(mission.description || "N/A")}</td>
+                    <td>${escapeMissionCell(mission.type || "N/A")}</td>
+                    <td class="col-volunteers">${escapeMissionCell(mission.volunteers ?? 0)}</td>
+                    <td class="col-status"><span class="mission-status ${getMissionStatusClass(statusLabel)}">${escapeMissionCell(statusLabel)}</span></td>
+                    <td class="col-actions">
+                        <button type="button" class="edit-btn view-details-btn" data-id="${docSnap.id}">View Details</button>
                     </td>
                 </tr>
             `;
@@ -267,8 +295,8 @@ async function loadMissions(user) {
         });
 
         // Update counters
-        document.getElementById("totalMissions").innerText = `Total Missions: ${totalCount}`;
-        document.getElementById("ongoingMissions").innerText = `Ongoing Missions: ${ongoingCount}`;
+        document.getElementById("totalMissions").innerText = String(totalCount);
+        document.getElementById("ongoingMissions").innerText = String(ongoingCount);
         
         console.log(`[SUCCESS] Loaded ${totalCount} missions, ${ongoingCount} ongoing`);
         
@@ -364,19 +392,6 @@ async function moveMissionToHistory(orgId, missionId, mission) {
         console.log(`[SUCCESS] Mission "${mission.missionName}" moved to history`);
     } catch (error) {
         console.error("[ERROR] Error moving mission to history:", error);
-    }
-}
-
-//  Get status badge class
-function getStatusBadgeClass(status) {
-    const normalizedStatus = (status || '').toLowerCase();
-    switch(normalizedStatus) {
-        case 'open': return 'bg-primary';
-        case 'ongoing': return 'bg-info';
-        case 'completed': return 'bg-success';
-        case 'pending': return 'bg-warning';
-        case 'rejected': return 'bg-danger';
-        default: return 'bg-secondary';
     }
 }
 
