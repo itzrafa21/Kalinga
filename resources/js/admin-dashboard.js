@@ -20,10 +20,26 @@ import {
     deleteField,
 } from "firebase/firestore";
 import { computeMissionPointsPayload } from "./mission-type-points.js";
+import { loadPlatformConfig, getMissionTypes } from "./platform-config.js";
 
 let allAdminMissions = [];
 let adminMissionsPageSize = 10;
 let adminMissionsCurrentPage = 1;
+let activityChart = null;
+let missionTypesChart = null;
+
+const MISSION_TYPE_CHART_COLORS = [
+    "#667eea",
+    "#f093fb",
+    "#4facfe",
+    "#43e97b",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#14b8a6",
+    "#64748b",
+    "#ec4899",
+];
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log("[INFO] DOM Content Loaded - Initializing admin dashboard...");
@@ -68,7 +84,192 @@ function checkAdminAuth() {
 }
 
 function initializeDashboard() {
-    initializeCharts();
+    initializeActivityChart();
+    initializeMissionTypesChart();
+}
+
+function normalizeMissionTypeKey(raw) {
+    const value = String(raw ?? "").trim();
+    return value || "";
+}
+
+function missionTypeMatchesConfig(typeKey, configType) {
+    if (!typeKey || !configType) return false;
+    const name = String(configType.name ?? "").trim();
+    const id = String(configType.id ?? "").trim();
+    return typeKey === name || (id && typeKey === id);
+}
+
+async function fetchMissionTypeCounts(configuredTypes) {
+    const counts = new Map();
+    configuredTypes.forEach((type) => {
+        counts.set(type.name, 0);
+    });
+
+    const seenMissionIds = new Set();
+
+    const addMission = (data, docId) => {
+        if (!docId || seenMissionIds.has(docId)) return;
+        seenMissionIds.add(docId);
+
+        const typeKey = normalizeMissionTypeKey(data.type || data.missionType);
+        if (!typeKey) return;
+
+        const matchedType = configuredTypes.find((type) =>
+            missionTypeMatchesConfig(typeKey, type)
+        );
+        if (!matchedType) return;
+
+        counts.set(matchedType.name, (counts.get(matchedType.name) || 0) + 1);
+    };
+
+    try {
+        const submissionsSnap = await getDocs(
+            collection(db, "mission_submissions")
+        );
+        submissionsSnap.docs.forEach((docSnap) =>
+            addMission(docSnap.data(), docSnap.id)
+        );
+    } catch (err) {
+        console.warn("[WARN] mission_submissions for type chart:", err);
+    }
+
+    try {
+        const missionsSnap = await getDocs(collection(db, "missions"));
+        missionsSnap.docs.forEach((docSnap) =>
+            addMission(docSnap.data(), docSnap.id)
+        );
+    } catch (err) {
+        console.warn("[WARN] missions collection for type chart:", err);
+    }
+
+    return counts;
+}
+
+function buildMissionTypeChartData(counts, configuredTypes) {
+    const activeTypes = configuredTypes.filter((type) => type.active !== false);
+
+    if (activeTypes.length === 0) {
+        return {
+            labels: ["No mission types in platform config"],
+            data: [1],
+            colors: ["#e5e7eb"],
+        };
+    }
+
+    const entries = activeTypes.map((type) => ({
+        label: type.name,
+        count: counts.get(type.name) || 0,
+    }));
+
+    const withMissions = entries.filter((entry) => entry.count > 0);
+
+    if (withMissions.length === 0) {
+        return {
+            labels: ["No missions yet"],
+            data: [1],
+            colors: ["#e5e7eb"],
+        };
+    }
+
+    return {
+        labels: withMissions.map((entry) => entry.label),
+        data: withMissions.map((entry) => entry.count),
+        colors: withMissions.map(
+            (_, index) =>
+                MISSION_TYPE_CHART_COLORS[index % MISSION_TYPE_CHART_COLORS.length]
+        ),
+    };
+}
+
+function initializeActivityChart() {
+    const activityEl = document.getElementById("activityChart");
+    if (!activityEl || activityChart) return;
+
+    activityChart = new Chart(activityEl.getContext("2d"), {
+        type: "line",
+        data: {
+            labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+            datasets: [
+                {
+                    label: "Missions",
+                    data: [12, 19, 3, 5, 2, 3],
+                    borderColor: "#667eea",
+                    backgroundColor: "rgba(102, 126, 234, 0.1)",
+                    tension: 0.4,
+                },
+                {
+                    label: "Volunteers",
+                    data: [2, 3, 20, 5, 1, 4],
+                    borderColor: "#f093fb",
+                    backgroundColor: "rgba(240, 147, 251, 0.1)",
+                    tension: 0.4,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: "top",
+                },
+            },
+        },
+    });
+}
+
+function initializeMissionTypesChart(initialData = null) {
+    const missionTypesEl = document.getElementById("missionTypesChart");
+    if (!missionTypesEl) return;
+
+    const chartData =
+        initialData ||
+        buildMissionTypeChartData(new Map(), getMissionTypes(false));
+
+    if (missionTypesChart) {
+        missionTypesChart.data.labels = chartData.labels;
+        missionTypesChart.data.datasets[0].data = chartData.data;
+        missionTypesChart.data.datasets[0].backgroundColor = chartData.colors;
+        missionTypesChart.update();
+        return;
+    }
+
+    missionTypesChart = new Chart(missionTypesEl.getContext("2d"), {
+        type: "doughnut",
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    data: chartData.data,
+                    backgroundColor: chartData.colors,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: "bottom",
+                },
+            },
+        },
+    });
+}
+
+async function refreshMissionTypesChart() {
+    try {
+        await loadPlatformConfig();
+        const configuredTypes = getMissionTypes(false);
+        const counts = await fetchMissionTypeCounts(configuredTypes);
+        const chartData = buildMissionTypeChartData(counts, configuredTypes);
+        initializeMissionTypesChart(chartData);
+        console.log(
+            "[SUCCESS] Mission type chart loaded from platform config:",
+            Object.fromEntries(counts)
+        );
+    } catch (err) {
+        console.error("[ERROR] loading mission type chart:", err);
+    }
 }
 
 function showTab(tabName) {
@@ -413,10 +614,10 @@ async function loadMissionsData() {
 
 async function loadDashboardData() {
     try {
-        // Load dashboard stats from Firebase
         await loadDashboardStats();
-        
-        console.log('[SUCCESS] Dashboard data loaded from Firebase');
+        await refreshMissionTypesChart();
+
+        console.log("[SUCCESS] Dashboard data loaded from Firebase");
     } catch (error) {
         console.error("Error loading dashboard data:", error);
         // Fallback to mock data
@@ -494,62 +695,6 @@ function loadVolunteersData() {
             </td>
         </tr>
     `).join('');
-}
-
-function initializeCharts() {
-    const activityEl = document.getElementById('activityChart');
-    const missionTypesEl = document.getElementById('missionTypesChart');
-    if (!activityEl || !missionTypesEl) return;
-
-    const activityCtx = activityEl.getContext('2d');
-    new Chart(activityCtx, {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [{
-                label: 'Missions',
-                data: [12, 19, 3, 5, 2, 3],
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                tension: 0.4
-            }, {
-                label: 'Volunteers',
-                data: [2, 3, 20, 5, 1, 4],
-                borderColor: '#f093fb',
-                backgroundColor: 'rgba(240, 147, 251, 0.1)',
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                }
-            }
-        }
-    });
-    
-    // Mission Types Chart
-    const missionTypesCtx = missionTypesEl.getContext('2d');
-    new Chart(missionTypesCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Medical', 'Environmental', 'Outreach', 'Education'],
-            datasets: [{
-                data: [30, 25, 20, 25],
-                backgroundColor: ['#667eea', '#f093fb', '#4facfe', '#43e97b']
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                }
-            }
-        }
-    });
 }
 
 function setupEventListeners() {
