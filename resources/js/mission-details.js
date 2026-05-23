@@ -557,11 +557,9 @@ function renderMissionFrame(container, mission, missionId, user, signedUp, volun
   const editUrl = `/missions/edit?id=${encodeURIComponent(missionId)}`;
   const lastUpdated = formatLastUpdated(mission);
 
-  const topEdit = isOwner
-    ? `<a href="${editUrl}" class="md-btn md-btn-g"><i class="ti ti-edit" aria-hidden="true"></i> Edit mission</a>`
-    : canVolunteer
-      ? `<button type="button" class="md-btn md-btn-g" id="volunteerApplyBtn"><i class="ti ti-user-plus" aria-hidden="true"></i> Volunteer</button>`
-      : "";
+  const topEdit = canVolunteer
+  ? `<button type="button" class="md-btn md-btn-g" id="volunteerApplyBtn">...</button>`
+  : "";
 
   const rosterHtml = renderRosterSection(volunteers, mission, isOwner);
 
