@@ -271,14 +271,30 @@ async function countMissionSignups(missionId, orgId = null) {
   return keys.size;
 }
 
-function pickMergedApplicationStatus(a, b) {
+function missionHasAutoAccept(mission) {
+  return mission?.autoAcceptVolunteers === true;
+}
+
+function pickMergedApplicationStatus(a, b, { autoAccept = false } = {}) {
   const statuses = [(a || "").toLowerCase(), (b || "").toLowerCase()];
+  if (autoAccept) {
+    if (statuses.every((s) => s === "rejected")) return "rejected";
+    if (statuses.includes("rejected") && !statuses.includes("pending")) {
+      return "rejected";
+    }
+    if (
+      statuses.some((s) => s === "approved" || s === "accepted") ||
+      statuses.includes("pending")
+    ) {
+      return "approved";
+    }
+  }
   if (statuses.includes("pending")) return "pending";
   if (statuses.includes("rejected")) return "rejected";
   return a || b || "approved";
 }
 
-function mergeVolunteerEntries(existing, incoming) {
+function mergeVolunteerEntries(existing, incoming, options = {}) {
   const missionApp =
     existing.storage === STORAGE_MISSIONS_SUB
       ? existing
@@ -291,7 +307,7 @@ function mergeVolunteerEntries(existing, incoming) {
   return {
     ...other,
     ...base,
-    status: pickMergedApplicationStatus(existing.status, incoming.status),
+    status: pickMergedApplicationStatus(existing.status, incoming.status, options),
     missionPoints: other.missionPoints ?? base.missionPoints,
     userApplicationId:
       base.userApplicationId || other.userApplicationId || "",
@@ -408,14 +424,18 @@ async function loadUserApplicationsForMission(missionId, orgId, upsert) {
   }
 }
 
-async function loadMissionVolunteers(missionId, orgId) {
+async function loadMissionVolunteers(missionId, orgId, mission = null) {
   const byUserId = new Map();
+  const mergeOptions = { autoAccept: missionHasAutoAccept(mission) };
 
   const upsert = (v) => {
     const key = v.userId || v.id;
     if (!key) return;
     const existing = byUserId.get(key);
-    byUserId.set(key, existing ? mergeVolunteerEntries(existing, v) : v);
+    byUserId.set(
+      key,
+      existing ? mergeVolunteerEntries(existing, v, mergeOptions) : v
+    );
   };
 
   try {
@@ -559,6 +579,24 @@ async function updateApplicationStatus(volunteer, missionId, newStatus, options 
     currentMissionContext?.mission?.organizationId ||
     "";
   await syncApplicationStatusToCopies(volunteer, missionId, payload, orgId);
+}
+
+/** Approve pending applications when the mission has auto-accept enabled. */
+async function autoAcceptPendingMissionApplications(missionId, mission, volunteers) {
+  if (!missionHasAutoAccept(mission)) return false;
+
+  let changed = false;
+  for (const volunteer of volunteers) {
+    if ((volunteer.status || "").toLowerCase() !== "pending") continue;
+    try {
+      await updateApplicationStatus(volunteer, missionId, "approved");
+      volunteer.status = "approved";
+      changed = true;
+    } catch (err) {
+      console.error("[ERROR] auto-accept application:", volunteer.userId || volunteer.id, err);
+    }
+  }
+  return changed;
 }
 
 function openRejectModal(volunteer) {
@@ -1019,7 +1057,7 @@ async function loadMissionDocument(missionId, user) {
     if (orgSnap.exists()) orgData = orgSnap.data();
   }
   if (globalData || orgData) {
-    return { mission: { ...orgData, ...globalData } };
+    return { mission: { ...globalData, ...orgData } };
   }
   if (user?.uid) {
     const volunteerOrgSnap = await getDoc(
@@ -1060,9 +1098,19 @@ async function refreshMissionDetails() {
     }
 
     const isOwner = Boolean(user && orgId && orgId === user.uid);
-    const volunteers = isOwner
-      ? await loadMissionVolunteers(missionId, orgId)
+    let volunteers = isOwner
+      ? await loadMissionVolunteers(missionId, orgId, mission)
       : [];
+    if (isOwner && missionHasAutoAccept(mission)) {
+      const accepted = await autoAcceptPendingMissionApplications(
+        missionId,
+        mission,
+        volunteers
+      );
+      if (accepted) {
+        volunteers = await loadMissionVolunteers(missionId, orgId, mission);
+      }
+    }
     const signedUp = isOwner
       ? countApprovedVolunteers(volunteers)
       : await countMissionSignups(missionId, orgId);

@@ -571,11 +571,18 @@ async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
 
     const map = new Map();
 
-    const addMission = (id, data) => {
+    const mergeMission = (id, data) => {
+        const prev = map.get(id);
         map.set(id, {
+            ...(prev || {}),
             ...data,
-            missionName: data.missionName || data.name || data.title || "Mission",
-            orgId: data.orgId || data.organizationId || orgId,
+            missionName:
+                data.missionName ||
+                data.name ||
+                data.title ||
+                prev?.missionName ||
+                "Mission",
+            orgId: data.orgId || data.organizationId || prev?.orgId || orgId,
         });
     };
 
@@ -593,7 +600,7 @@ async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
                 mission.orgId === orgId ||
                 mission.organizationId === orgId
             ) {
-                addMission(missionDoc.id, mission);
+                mergeMission(missionDoc.id, mission);
             }
         });
     } else {
@@ -602,9 +609,7 @@ async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
 
     if (orgMissionsResult.status === "fulfilled") {
         orgMissionsResult.value.docs.forEach((missionDoc) => {
-            if (!map.has(missionDoc.id)) {
-                addMission(missionDoc.id, missionDoc.data());
-            }
+            mergeMission(missionDoc.id, missionDoc.data());
         });
     } else {
         console.warn("[WARN] organizations/missions:", orgMissionsResult.reason);
@@ -612,9 +617,7 @@ async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
 
     if (historyResult.status === "fulfilled") {
         historyResult.value.docs.forEach((missionDoc) => {
-            if (!map.has(missionDoc.id)) {
-                addMission(missionDoc.id, missionDoc.data());
-            }
+            mergeMission(missionDoc.id, missionDoc.data());
         });
     } else {
         console.warn("[WARN] organizations/history:", historyResult.reason);
