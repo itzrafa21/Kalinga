@@ -3,14 +3,19 @@ import {
     collection,
     collectionGroup,
     doc,
+    getDoc,
     getDocs,
     query,
     where,
+    setDoc,
+    deleteDoc,
+    serverTimestamp,
 } from "firebase/firestore";
 
 export const STORAGE_MISSIONS_SUB = "missions_sub";
 export const STORAGE_APPLICATIONS_ROOT = "applications_root";
 export const STORAGE_USERS_SUB = "users_sub";
+export const STORAGE_ORG_ROSTER = "org_roster";
 
 export function applicationDedupeKey(missionId, userId, applicationDocId) {
     if (userId) return `${missionId}_${userId}`;
@@ -103,10 +108,143 @@ export function getApplicationDocRef(volunteer) {
     if (storage === STORAGE_APPLICATIONS_ROOT) {
         return doc(db, "applications", id);
     }
-    if (storage === STORAGE_USERS_SUB && userId) {
-        return doc(db, "users", userId, "applications", id);
+    if ((storage === STORAGE_USERS_SUB || storage === STORAGE_ORG_ROSTER) && userId) {
+        const appId = volunteer.userApplicationId || id;
+        return doc(db, "users", userId, "applications", appId);
     }
     return doc(db, "missions", missionId, "applications", id);
+}
+
+/** Primary source for roster copy: users/{userId}/applications for this mission. */
+export async function fetchUserApplicationForMission(userId, missionId) {
+    if (!userId || !missionId) return null;
+
+    try {
+        const snap = await getDocs(
+            query(
+                collection(db, "users", userId, "applications"),
+                where("missionId", "==", missionId)
+            )
+        );
+        if (!snap.empty) {
+            const docSnap = snap.docs[0];
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+    } catch (err) {
+        console.warn("[WARN] fetchUserApplicationForMission:", err);
+    }
+
+    return null;
+}
+
+export async function enrichApplicationFromUserProfile(userId, application) {
+    const merged = { ...application };
+    if (!userId) return merged;
+
+    try {
+        const profileSnap = await getDoc(doc(db, "users", userId));
+        if (profileSnap.exists()) {
+            const p = profileSnap.data();
+            merged.displayName =
+                merged.displayName || merged.name || p.name || p.displayName || "";
+            merged.email = merged.email || p.email || "";
+            merged.mobileNumber =
+                merged.mobileNumber ||
+                merged.phone ||
+                merged.mobile ||
+                p.phone ||
+                p.mobileNumber ||
+                p.mobile ||
+                "";
+            merged.occupation = merged.occupation || p.occupation || "";
+        }
+    } catch {
+        /* ignore */
+    }
+
+    return merged;
+}
+
+export function getMissionVolunteerRef(orgId, missionId, userId) {
+    return doc(db, "organizations", orgId, "missions", missionId, "volunteers", userId);
+}
+
+export function buildMissionVolunteerRecord(application, extras = {}) {
+    const status = (application.status || "approved").toLowerCase();
+    return {
+        userId: application.userId || extras.userId || "",
+        applicationId: extras.applicationId || application.applicationId || "",
+        userApplicationId:
+            extras.userApplicationId || application.userApplicationId || "",
+        missionId: application.missionId || extras.missionId || "",
+        orgId: application.orgId || application.organizationId || extras.orgId || "",
+        missionName: application.missionName || extras.missionName || "",
+        displayName: application.displayName || application.name || "",
+        email: application.email || "",
+        mobileNumber:
+            application.mobileNumber ||
+            application.phone ||
+            application.mobile ||
+            "",
+        occupation: application.occupation || "",
+        status,
+        appliedAt: application.appliedAt || extras.appliedAt || null,
+        approvedAt: application.approvedAt || extras.approvedAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+}
+
+export async function upsertMissionVolunteer(orgId, missionId, userId, application, extras = {}) {
+    if (!orgId || !missionId || !userId) return;
+
+    const fromUser = await fetchUserApplicationForMission(userId, missionId);
+    const merged = await enrichApplicationFromUserProfile(userId, {
+        ...(fromUser || {}),
+        ...application,
+        userId,
+        missionId,
+        orgId,
+    });
+
+    const record = buildMissionVolunteerRecord(merged, {
+        ...extras,
+        applicationId:
+            extras.applicationId ||
+            extras.missionApplicationId ||
+            fromUser?.id ||
+            merged.applicationId ||
+            "",
+        userApplicationId: extras.userApplicationId || fromUser?.id || "",
+    });
+
+    await setDoc(getMissionVolunteerRef(orgId, missionId, userId), record, { merge: true });
+}
+
+export async function removeMissionVolunteer(orgId, missionId, userId) {
+    if (!orgId || !missionId || !userId) return;
+    try {
+        await deleteDoc(getMissionVolunteerRef(orgId, missionId, userId));
+    } catch (err) {
+        console.warn("[WARN] remove mission volunteer:", err);
+    }
+}
+
+/** Call after application status changes (approved / rejected). */
+export async function syncMissionVolunteerRoster(
+    orgId,
+    missionId,
+    userId,
+    newStatus,
+    application = {},
+    extras = {}
+) {
+    if (!orgId || !missionId || !userId) return;
+    const st = (newStatus || "").toLowerCase();
+    if (st === "approved" || st === "accepted") {
+        await upsertMissionVolunteer(orgId, missionId, userId, application, extras);
+    } else if (st === "rejected" || st === "removed" || st === "closed") {
+        await removeMissionVolunteer(orgId, missionId, userId);
+    }
 }
 
 export async function userHasApplicationForMission(missionId, userId) {

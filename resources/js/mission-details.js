@@ -10,7 +10,10 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { userHasApplicationForMission } from "./application-storage.js";
+import {
+  userHasApplicationForMission,
+  upsertMissionVolunteer,
+} from "./application-storage.js";
 
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -140,14 +143,28 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
     applicationPayload.approvedAt = serverTimestamp();
   }
   const applicationsCol = collection(db, "missions", missionId, "applications");
-  await addDoc(applicationsCol, applicationPayload);
+  const missionAppRef = await addDoc(applicationsCol, applicationPayload);
+
+  let userAppId = null;
   try {
-    await addDoc(
+    const userAppRef = await addDoc(
       collection(db, "users", user.uid, "applications"),
       { ...applicationPayload }
     );
+    userAppId = userAppRef.id;
   } catch (userWriteErr) {
     console.warn("[WARN] mirror application to users/", user.uid, userWriteErr);
+  }
+
+  if (autoAccept && orgId) {
+    try {
+      await upsertMissionVolunteer(orgId, missionId, user.uid, applicationPayload, {
+        applicationId: missionAppRef.id,
+        userApplicationId: userAppId,
+      });
+    } catch (rosterErr) {
+      console.warn("[WARN] mission volunteer roster:", rosterErr);
+    }
   }
   alert(
     autoAccept

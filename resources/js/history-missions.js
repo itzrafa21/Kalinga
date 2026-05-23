@@ -306,7 +306,10 @@ async function loadHistoryMissions(user) {
                 const actualVolunteers =
                     status === "rejected"
                         ? 0
-                        : await getActualVolunteerCount(missionId);
+                        : await getActualVolunteerCount(
+                            missionId,
+                            mission.orgId || mission.organizationId || user.uid
+                        );
                 const totalNeeded = parseInt(mission.volunteers, 10) || 0;
                 const volunteerDisplay =
                     status === "rejected"
@@ -395,9 +398,21 @@ async function loadHistoryMissions(user) {
 
 // Function to get actual volunteer count from mission applications
 // (subcollection + root "applications", same sources as volunteer.js / mission-details.js)
-async function getActualVolunteerCount(missionId) {
-    const approvedKeys = new Set();
+async function getActualVolunteerCount(missionId, orgId = null) {
+    if (orgId) {
+        try {
+            const rosterSnap = await getDocs(
+                collection(db, "organizations", orgId, "missions", missionId, "volunteers")
+            );
+            if (!rosterSnap.empty) {
+                return rosterSnap.size;
+            }
+        } catch (err) {
+            console.warn("[WARN] volunteers subcollection count:", err);
+        }
+    }
 
+    const approvedKeys = new Set();
     const addIfApproved = (data, docId) => {
         const st = (data.status || "").toLowerCase();
         if (st !== "approved" && st !== "accepted") return;
@@ -406,57 +421,19 @@ async function getActualVolunteerCount(missionId) {
     };
 
     try {
-        console.log(`[INFO] Getting volunteer count for mission: ${missionId}`);
-
         const applicationsSnapshot = await getDocs(
             collection(db, "missions", missionId, "applications")
         );
         applicationsSnapshot.forEach((docSnap) => {
             addIfApproved(docSnap.data(), docSnap.id);
         });
-
-        let pendingCount = 0;
-        applicationsSnapshot.forEach((docSnap) => {
-            const st = (docSnap.data().status || "").toLowerCase();
-            if (st === "pending") pendingCount++;
-        });
-
-        try {
-            const rootQ = query(
-                collection(db, "applications"),
-                where("missionId", "==", missionId)
-            );
-            const rootSnap = await getDocs(rootQ);
-            rootSnap.forEach((docSnap) => {
-                addIfApproved(docSnap.data(), docSnap.id);
-                const st = (docSnap.data().status || "").toLowerCase();
-                if (st === "pending") pendingCount++;
-            });
-        } catch {
-            try {
-                const allRoot = await getDocs(collection(db, "applications"));
-                allRoot.forEach((docSnap) => {
-                    if (docSnap.data().missionId !== missionId) return;
-                    addIfApproved(docSnap.data(), docSnap.id);
-                    const st = (docSnap.data().status || "").toLowerCase();
-                    if (st === "pending") pendingCount++;
-                });
-            } catch {
-                /* ignore */
-            }
-        }
-
-        const approvedCount = approvedKeys.size;
-        console.log(
-            `[INFO] Mission ${missionId} - Approved (unique): ${approvedCount}, Pending (partial): ${pendingCount}`
-        );
-
-        return approvedCount;
+        return approvedKeys.size;
     } catch (error) {
         console.error(`[ERROR] Error getting volunteer count for mission ${missionId}:`, error);
         return 0;
     }
 }
+
 
 // Function to update stats cards
 function updateStats(totalCompleted, thisMonth, totalVolunteers) {
