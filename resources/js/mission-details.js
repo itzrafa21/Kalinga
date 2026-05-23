@@ -14,9 +14,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   userHasApplicationForMission,
   upsertMissionVolunteer,
-  getApplicationDocRef,
   syncMissionVolunteerRoster,
-  applicationDedupeKey,
   STORAGE_MISSIONS_SUB,
   STORAGE_ORG_ROSTER,
 } from "./application-storage.js";
@@ -213,33 +211,136 @@ async function fetchApplicantProfileExtras(uid) {
   return { phone: "" };
 }
 
-async function countUniqueSignups(missionId) {
+function isApprovedSignupStatus(status) {
+  const st = (status || "").toLowerCase();
+  return st === "approved" || st === "accepted";
+}
+
+function countApprovedVolunteers(volunteers) {
   const keys = new Set();
-  try {
-    const sub = await getDocs(collection(db, "missions", missionId, "applications"));
-    sub.forEach((d) => {
-      const data = d.data();
-      const u = data.userId;
-      const st = (data.status || "").toLowerCase();
-      if (st === "rejected") return;
-      keys.add(u ? `u:${u}` : `d:${d.id}`);
-    });
-  } catch {
-    /* ignore */
+  for (const v of volunteers) {
+    if (!isApprovedSignupStatus(v.status)) continue;
+    const key = v.userId ? `u:${v.userId}` : `d:${v.id}`;
+    keys.add(key);
   }
   return keys.size;
 }
 
-async function loadMissionVolunteers(missionId, orgId) {
-  const list = [];
-  const seen = new Set();
+/** Confirmed sign-ups: approved/accepted in applications and org roster. */
+async function countMissionSignups(missionId, orgId = null) {
+  const keys = new Set();
 
-  const push = (v) => {
-    const key = applicationDedupeKey(missionId, v.userId, v.id);
-    if (seen.has(key)) return;
-    seen.add(key);
-    list.push(v);
+  const addIfApproved = (data, docId) => {
+    if (!isApprovedSignupStatus(data.status)) return;
+    const u = data.userId;
+    keys.add(u ? `u:${u}` : `d:${docId}`);
   };
+
+  try {
+    const sub = await getDocs(
+      collection(db, "missions", missionId, "applications")
+    );
+    sub.forEach((d) => addIfApproved(d.data(), d.id));
+  } catch {
+    /* ignore */
+  }
+
+  if (orgId) {
+    try {
+      const rosterSnap = await getDocs(
+        collection(
+          db,
+          "organizations",
+          orgId,
+          "missions",
+          missionId,
+          "volunteers"
+        )
+      );
+      rosterSnap.forEach((d) => {
+        const data = d.data();
+        addIfApproved({ ...data, userId: data.userId || d.id }, d.id);
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return keys.size;
+}
+
+function pickMergedApplicationStatus(a, b) {
+  const statuses = [(a || "").toLowerCase(), (b || "").toLowerCase()];
+  if (statuses.includes("pending")) return "pending";
+  if (statuses.includes("rejected")) return "rejected";
+  return a || b || "approved";
+}
+
+function mergeVolunteerEntries(existing, incoming) {
+  const missionApp =
+    existing.storage === STORAGE_MISSIONS_SUB
+      ? existing
+      : incoming.storage === STORAGE_MISSIONS_SUB
+        ? incoming
+        : null;
+  const base = missionApp || existing;
+  const other = base === existing ? incoming : existing;
+
+  return {
+    ...other,
+    ...base,
+    status: pickMergedApplicationStatus(existing.status, incoming.status),
+    missionPoints: other.missionPoints ?? base.missionPoints,
+    userApplicationId:
+      base.userApplicationId || other.userApplicationId || "",
+    id: missionApp ? missionApp.id : base.id,
+    storage: missionApp ? STORAGE_MISSIONS_SUB : base.storage,
+    appliedAt: base.appliedAt || other.appliedAt || null,
+    name: base.name || other.name,
+    email: base.email || other.email,
+  };
+}
+
+async function loadMissionVolunteers(missionId, orgId) {
+  const byUserId = new Map();
+
+  const upsert = (v) => {
+    const key = v.userId || v.id;
+    if (!key) return;
+    const existing = byUserId.get(key);
+    byUserId.set(key, existing ? mergeVolunteerEntries(existing, v) : v);
+  };
+
+  try {
+    const appSnap = await getDocs(
+      collection(db, "missions", missionId, "applications")
+    );
+    for (const docSnap of appSnap.docs) {
+      const data = docSnap.data();
+      const userId = data.userId || "";
+      let name = data.displayName || data.name || "";
+      let email = data.email || "";
+      if ((!name || !email) && userId) {
+        const profile = await fetchUserFieldsForVolunteer(userId);
+        name = name || profile.name;
+        email = email || profile.email;
+      }
+      upsert({
+        id: docSnap.id,
+        storage: STORAGE_MISSIONS_SUB,
+        userId,
+        name: name || (userId ? `User ${userId.slice(0, 8)}…` : "N/A"),
+        email: email || "N/A",
+        status: data.status || "pending",
+        appliedAt: data.appliedAt || data.createdAt || null,
+        orgId: data.orgId || orgId || "",
+        missionId,
+        userApplicationId: data.userApplicationId || "",
+      });
+    }
+  } catch (err) {
+    console.warn("[WARN] mission applications:", err);
+  }
 
   if (orgId) {
     try {
@@ -256,7 +357,7 @@ async function loadMissionVolunteers(missionId, orgId) {
           name = name || profile.name;
           email = email || profile.email;
         }
-        push({
+        upsert({
           id: data.applicationId || data.userApplicationId || docSnap.id,
           userApplicationId: data.userApplicationId || "",
           storage: STORAGE_ORG_ROSTER,
@@ -275,72 +376,54 @@ async function loadMissionVolunteers(missionId, orgId) {
     }
   }
 
-  try {
-    const appSnap = await getDocs(
-      collection(db, "missions", missionId, "applications")
-    );
-    for (const docSnap of appSnap.docs) {
-      const data = docSnap.data();
-      const userId = data.userId || "";
-      const key = applicationDedupeKey(missionId, userId, docSnap.id);
-      if (seen.has(key)) continue;
-      let name = data.displayName || data.name || "";
-      let email = data.email || "";
-      if ((!name || !email) && userId) {
-        const profile = await fetchUserFieldsForVolunteer(userId);
-        name = name || profile.name;
-        email = email || profile.email;
-      }
-      push({
-        id: docSnap.id,
-        storage: STORAGE_MISSIONS_SUB,
-        userId,
-        name: name || (userId ? `User ${userId.slice(0, 8)}…` : "N/A"),
-        email: email || "N/A",
-        status: data.status || "pending",
-        appliedAt: data.appliedAt || data.createdAt || null,
-        orgId: data.orgId || orgId || "",
-        missionId,
-        userApplicationId: data.userApplicationId || "",
-      });
-    }
-  } catch (err) {
-    console.warn("[WARN] mission applications:", err);
-  }
-
-  return list;
+  return Array.from(byUserId.values());
 }
 
-async function syncApplicationStatusToCopies(volunteer, missionId, payload, orgId) {
-  if (!volunteer.userId) return;
+async function resolveApplicationDocRefs(volunteer, missionId) {
+  const refs = [];
+  const seen = new Set();
 
-  try {
-    if (
-      volunteer.storage === STORAGE_ORG_ROSTER
-    ) {
+  const addRef = (ref) => {
+    if (!ref?.path || seen.has(ref.path)) return;
+    seen.add(ref.path);
+    refs.push(ref);
+  };
+
+  if (volunteer.storage === STORAGE_MISSIONS_SUB && volunteer.id) {
+    addRef(doc(db, "missions", missionId, "applications", volunteer.id));
+  }
+
+  if (volunteer.userId) {
+    try {
       const missionSnap = await getDocs(
         query(
           collection(db, "missions", missionId, "applications"),
           where("userId", "==", volunteer.userId)
         )
       );
-      for (const mDoc of missionSnap.docs) {
-        await updateDoc(mDoc.ref, payload);
-      }
-    } else {
+      missionSnap.docs.forEach((d) => addRef(d.ref));
+    } catch (err) {
+      console.warn("[WARN] resolve mission applications:", err);
+    }
+
+    try {
       const userSnap = await getDocs(
         query(
           collection(db, "users", volunteer.userId, "applications"),
           where("missionId", "==", missionId)
         )
       );
-      for (const uDoc of userSnap.docs) {
-        await updateDoc(uDoc.ref, payload);
-      }
+      userSnap.docs.forEach((d) => addRef(d.ref));
+    } catch (err) {
+      console.warn("[WARN] resolve user applications:", err);
     }
-  } catch (syncErr) {
-    console.warn("[WARN] sync application status:", syncErr);
   }
+
+  return refs;
+}
+
+async function syncApplicationStatusToCopies(volunteer, missionId, payload, orgId) {
+  if (!volunteer.userId) return;
 
   const resolvedOrgId = orgId || volunteer.orgId || "";
   await syncMissionVolunteerRoster(
@@ -367,7 +450,14 @@ async function updateApplicationStatus(volunteer, missionId, newStatus, options 
     payload.approvedAt = new Date();
   }
 
-  await updateDoc(getApplicationDocRef(volunteer), payload);
+  const refs = await resolveApplicationDocRefs(volunteer, missionId);
+  if (refs.length === 0) {
+    throw new Error("Application record not found");
+  }
+  for (const ref of refs) {
+    await updateDoc(ref, payload);
+  }
+
   const orgId =
     volunteer.orgId ||
     currentMissionContext?.mission?.orgId ||
@@ -481,11 +571,6 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner) {
       <td class="md-muted">${hoursLabel}</td>
       <td>${pts}</td>
       <td>${statusActionsCell}</td>
-      <td>
-        <button type="button" class="md-btn md-btn-xs md-view-volunteer" data-name="${escapeHtml(v.name)}" data-email="${escapeHtml(v.email)}" title="View volunteer">
-          <i class="ti ti-eye" aria-hidden="true"></i> View
-        </button>
-      </td>
     </tr>`;
 }
 
@@ -505,7 +590,7 @@ function renderRosterSection(volunteers, mission, isOwner) {
 
   const tableBody = volunteers.length
     ? rows
-    : `<tr><td colspan="7"><div class="md-empty-roster">No volunteer applications yet.</div></td></tr>`;
+    : `<tr><td colspan="6"><div class="md-empty-roster">No volunteer applications yet.</div></td></tr>`;
 
   return `
     <section class="md-card md-card--table">
@@ -522,8 +607,7 @@ function renderRosterSection(volunteers, mission, isOwner) {
               <th style="width:11%">Date joined</th>
               <th style="width:8%">Hours</th>
               <th style="width:8%">Points</th>
-              <th style="width:22%">Status / Actions</th>
-              <th style="width:0%"></th>
+              <th style="width:24%">Status / Actions</th>
             </tr>
           </thead>
           <tbody>${tableBody}</tbody>
@@ -659,7 +743,10 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
   container.querySelectorAll(".md-approve-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const appId = btn.getAttribute("data-app-id");
-      const volunteer = volunteers.find((v) => v.id === appId);
+      const userId = btn.getAttribute("data-user-id");
+      const volunteer =
+        volunteers.find((v) => v.id === appId) ||
+        volunteers.find((v) => v.userId && v.userId === userId);
       if (!volunteer) return;
       btn.disabled = true;
       try {
@@ -677,18 +764,14 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
   container.querySelectorAll(".md-reject-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const appId = btn.getAttribute("data-app-id");
-      const volunteer = volunteers.find((v) => v.id === appId);
+      const userId = btn.getAttribute("data-user-id");
+      const volunteer =
+        volunteers.find((v) => v.id === appId) ||
+        volunteers.find((v) => v.userId && v.userId === userId);
       if (volunteer) openRejectModal(volunteer);
     });
   });
 
-  container.querySelectorAll(".md-view-volunteer").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const name = btn.getAttribute("data-name") || "Volunteer";
-      const email = btn.getAttribute("data-email") || "";
-      alert(`${name}\n${email}`);
-    });
-  });
 }
 
 function renderRejectedMissionPage(container, mission, missionId, user) {
@@ -811,7 +894,7 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
     console.warn("[WARN] mirror application to users/", user.uid, userWriteErr);
   }
 
-  if (autoAccept && orgId) {
+  if (orgId) {
     try {
       await upsertMissionVolunteer(orgId, missionId, user.uid, applicationPayload, {
         applicationId: missionAppRef.id,
@@ -880,11 +963,13 @@ async function refreshMissionDetails() {
       return;
     }
 
-    const signedUp = await countUniqueSignups(missionId);
     const isOwner = Boolean(user && orgId && orgId === user.uid);
     const volunteers = isOwner
       ? await loadMissionVolunteers(missionId, orgId)
       : [];
+    const signedUp = isOwner
+      ? countApprovedVolunteers(volunteers)
+      : await countMissionSignups(missionId, orgId);
 
     renderMissionFrame(
       container,
