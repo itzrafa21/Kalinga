@@ -7,20 +7,24 @@
   @vite([
     'resources/css/app.css',
     'resources/js/app.js',
+    'resources/js/auth-guard.js',
+    'resources/js/organization-sidebar.js',
+    'resources/js/organization-logout.js',
     'resources/js/firebase.js',
     'resources/js/mission-edit.js'
   ])
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.css">
+  @include('partials.org-layout-styles')
   <style>
-  body {
+  body.org-app {
     background-color: #f8f9fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
-  .main-container {
-    min-height: 100vh;
-    padding: 2rem 1rem;
+  .org-main-content .main-container {
+    min-height: auto;
+    padding: 1.5rem 1rem 2rem;
   }
 
   .mission-card {
@@ -93,7 +97,9 @@
   </style>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
 </head>
-<body>
+<body class="org-app">
+@include('partials.org-sidebar', ['activeNav' => 'missions'])
+<main class="org-main-content">
 <div class="container-fluid main-container">
   <div class="row">
     <div class="col-12">
@@ -183,6 +189,7 @@
     </div>
   </div>
 </div>
+</main>
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <script>
   document.addEventListener("DOMContentLoaded", function() {

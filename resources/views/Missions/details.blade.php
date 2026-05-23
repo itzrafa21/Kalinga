@@ -9,96 +9,15 @@
     'resources/css/app.css',
     'resources/js/app.js',
     'resources/js/auth-guard.js',
+    'resources/js/organization-sidebar.js',
     'resources/js/mission-details.js',
     'resources/js/organization-logout.js'
   ])
+  @include('partials.org-layout-styles')
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Poppins', Arial, sans-serif;
-      margin: 0;
-      background: #f0f2f5;
-      color: #333;
-    }
-    .topbar {
-      background: #fff;
-      color: #333;
-      padding: 0.75rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      margin-left: 0px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .topbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-weight: 700;
-      font-size: 1.25rem;
-      color: #1e3a2f;
-    }
-    .topbar-user { display: flex; align-items: center; gap: 0.5rem; }
-    .logout-btn {
-      background: transparent;
-      color: #28a745;
-      font-weight: 600;
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: 1px solid #28a745;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .logout-btn:hover { background: #28a745; color: #fff; }
-    .sidebar {
-      width: 260px;
-      background: #1e3a2f;
-      height: 100vh;
-      position: fixed;
-      left: 0;
-      top: 0;
-      padding: 1.5rem 0;
-      z-index: 200;
-      overflow-y: auto;
-    }
-    .sidebar-logo {
-      padding: 0 1.25rem 1.25rem;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      margin-bottom: 1rem;
-    }
-    .sidebar-logo span { font-weight: 700; font-size: 1.25rem; color: #fff; }
-    .sidebar-nav { padding: 0 0.75rem; }
-    .sidebar-section {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: rgba(255,255,255,0.5);
-      padding: 1rem 0.75rem 0.5rem;
-    }
-    .sidebar a {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      padding: 10px 14px;
-      margin-bottom: 2px;
-      border-radius: 8px;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    .sidebar a:hover { background: rgba(255,255,255,0.1); color: #fff; }
-    .sidebar a.active { background: #28a745; color: #fff; }
-    .sidebar a i { font-size: 1.1rem; width: 24px; text-align: center; }
-    .main-content {
-      margin-left: 0;
+    .org-main-content.main-content {
       padding: 0;
-      min-height: 100vh;
-      background:rgb(255, 255, 255);
+      max-width: none;
     }
     .mission-details-wrap {
       width: 100%;
@@ -326,24 +245,12 @@
       color: #6b7280;
       margin: 0;
     }
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); }
-      .topbar, .main-content { margin-left: 0; }
-    }
   </style>
 </head>
-<body>
-  <header class="topbar">
-    <div class="topbar-brand">
-      <img src="{{ asset('images/kalinga-logo.jpg') }}" alt="Kalinga Logo" style="height: 28px; width: auto;">
-      <span>Kalinga</span>
-    </div>
-    <div class="topbar-user">
-      <button id="logoutBtn" class="logout-btn">Logout</button>
-    </div>
-  </header>
+<body class="org-app">
+  @include('partials.org-sidebar', ['activeNav' => 'missions'])
 
-  <main class="main-content">
+  <main class="org-main-content main-content">
     <div class="mission-details-wrap">
       <div id="detailsContainer">
         <p style="color:#9ca3af;padding:2rem;text-align:center;">Loading mission…</p>

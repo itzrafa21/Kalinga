@@ -5,129 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Donation - Kalinga</title>
   
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite([
     'resources/css/app.css',
     'resources/js/app.js',
     'resources/js/auth-guard.js',
+    'resources/js/organization-sidebar.js',
     'resources/js/organization-logout.js'
   ])
-  
+  @include('partials.org-layout-styles')
+
   <style>
-    /* General Reset */
-    body {
-      font-family: 'Poppins', Arial, sans-serif;
-      margin: 0;
-      background: #f5f7fa;
-      color: #333;
-      transition: margin-left 0.3s ease-in-out;
-    }
-
-    /* Topbar */
-    .topbar {
-      background: linear-gradient(90deg, #28a745, #00c853);
-      color: #fff;
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      transition: margin-left 0.3s ease-in-out;
-    }
-
-    .topbar h1 {
-      font-weight: 700;
-      font-size: 1.8rem;
-      letter-spacing: 1px;
-    }
-
-    .logout-btn {
-      background: #fff;
-      color: #28a745;
-      font-weight: 600;
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-      transition: all 0.2s ease-in-out;
-    }
-
-    .logout-btn:hover {
-      background: #f1f1f1;
-      transform: translateY(-2px);
-    }
-
-    /* Sub Header */
-    .sub-header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem 2rem;
-      transition: margin-left 0.3s ease-in-out;
-    }
-
-    .hamburger {
-      font-size: 24px;
-      cursor: pointer;
-      background: #28a745;
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 8px;
-      transition: all 0.2s ease-in-out;
-    }
-
-    .hamburger:hover {
-      background: #00c853;
-    }
-
-    /* Sidebar */
-    .sidebar {
-      width: 240px;
-      background: #fff;
-      border-right: 1px solid #ddd;
-      height: 100vh;
-      position: fixed;
-      left: -240px;
-      top: 0;
-      padding: 2rem 1rem;
-      transition: left 0.3s ease-in-out;
-      z-index: 1000;
-      box-shadow: 2px 0 8px rgba(0,0,0,0.05);
-    }
-
-    .sidebar.active {
-      left: 0;
-    }
-
-    .sidebar a {
-      display: block;
-      color: #333;
-      text-decoration: none;
-      padding: 12px 16px;
-      margin: 10px 0;
-      border-radius: 12px;
-      font-weight: 500;
-      transition: all 0.2s ease-in-out;
-    }
-
-    .sidebar a:hover {
-      background: #28a745;
-      color: #fff;
-      transform: translateX(4px);
-    }
-
-    /* Shift Effect */
-    .shift {
-      margin-left: 240px;
-    }
-
-    /* Main Content */
-    .main-content {
-      padding: 2rem;
-      transition: margin-left 0.3s ease-in-out;
+    .org-main-content.main-content {
       max-width: 1200px;
-      margin: 0 auto;
     }
+    .page-title-donation {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e3a2f;
+      margin: 0 0 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .page-title-donation i { color: #28a745; }
 
     /* Stats Cards */
     .stats {
@@ -430,30 +331,11 @@
     }
   </style>
 </head>
-<body>
-  <!-- Topbar -->
-  <div class="topbar" id="topbar">
-    <h1>Kalinga</h1>
-    <button id="logoutBtn" class="logout-btn">Logout</button>
-  </div>
+<body class="org-app">
+  @include('partials.org-sidebar', ['activeNav' => 'donation'])
 
-  <!-- Sub Header -->
-  <div class="sub-header" id="subHeader">
-    <span class="hamburger" id="hamburger"><i class="bi bi-list"></i></span>
-    <h2><i class="bi bi-heart"></i> Donation Center</h2>
-  </div>
-
-  <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <a href="/organization/dashboard">Dashboard</a>
-    <a href="/missions/history">History of Missions</a>
-    <a href="/organization/volunteers">Volunteers</a>
-    <a href="/donation" style="background:#28a745;color:#fff;">Donation</a>
-    <a href="/organization/profile">Profiles</a>
-  </div>
-
-  <!-- Main Content -->
-  <div class="main-content" id="mainContent">
+  <main class="org-main-content main-content" id="mainContent">
+    <h1 class="page-title-donation"><i class="bi bi-heart"></i> Donation Center</h1>
     <!-- Stats Cards -->
     <div class="stats">
       <div class="card">
@@ -597,22 +479,9 @@
         <div class="donation-amount">₱3,000</div>
       </div>
     </div>
-  </div>
+  </main>
 
   <script>
-    const sidebar = document.getElementById("sidebar");
-    const hamburger = document.getElementById("hamburger");
-    const topbar = document.getElementById("topbar");
-    const subHeader = document.getElementById("subHeader");
-    const mainContent = document.getElementById("mainContent");
-
-    hamburger.addEventListener("click", () => {
-      sidebar.classList.toggle("active");
-      topbar.classList.toggle("shift");
-      subHeader.classList.toggle("shift");
-      mainContent.classList.toggle("shift");
-    });
-
     // Donation Form Functionality
     let selectedAmount = 0;
     let selectedPaymentMethod = 'gcash';

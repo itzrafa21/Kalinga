@@ -1,0 +1,176 @@
+<style>
+  * { box-sizing: border-box; }
+  body.org-app {
+    font-family: 'Poppins', Arial, sans-serif;
+    margin: 0;
+    background: #f0f2f5;
+    color: #333;
+  }
+  .org-sidebar {
+    width: 260px;
+    background: #ffffff;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    padding: 1.25rem 0 1rem;
+    z-index: 200;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
+  }
+  .org-sidebar-logo {
+    padding: 0 1rem 1rem 1.25rem;
+    border-bottom: 1px solid rgba(31, 31, 31, 0.08);
+    margin-bottom: 1rem;
+  }
+  .org-sidebar-logo span {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.12em;
+    color: #000000;
+  }
+  .org-sidebar-user-card {
+    margin: 0 0.85rem 1.25rem;
+    padding: 1rem;
+    border-radius: 14px;
+    background: rgba(39, 39, 39, 0.06);
+    border: 1px solid rgba(39, 39, 39, 0.06);
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .org-sidebar-user-avatar-wrap { position: relative; flex-shrink: 0; }
+  .org-sidebar-user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #2d6a4f;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.15rem;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .org-sidebar-user-avatar .org-sidebar-user-avatar-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: none;
+  }
+  .org-sidebar-user-avatar.has-photo .org-sidebar-user-avatar-img { display: block; }
+  .org-sidebar-user-avatar.has-photo #sidebarUserInitial { display: none; }
+  .org-sidebar-user-status-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    background: #2ee59d;
+    border-radius: 50%;
+    border: 2px solid #0f2419;
+  }
+  .org-sidebar-user-info { min-width: 0; flex: 1; }
+  .org-sidebar-user-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #000000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .org-sidebar-user-role { font-size: 0.78rem; color: #8fb3a0; margin-top: 2px; }
+  .org-sidebar-user-active-label {
+    font-size: 0.72rem;
+    color: #2ee59d;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+  .org-sidebar-nav {
+    padding: 0 0.75rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 2px;
+  }
+  .org-sidebar-section {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: #000000;
+    padding: 1rem 0.75rem 0.45rem;
+  }
+  .org-sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: #000000;
+    text-decoration: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.92rem;
+    transition: background 0.2s, color 0.2s;
+  }
+  .org-sidebar a:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: #000000;
+  }
+  .org-sidebar a.active {
+    background: #28a745;
+    color: #000000;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.35);
+  }
+  .org-sidebar a i {
+    font-size: 1.05rem;
+    width: 22px;
+    text-align: center;
+    color: #000000;
+  }
+  #logoutBtn.org-sidebar-logout-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 2px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #000000;
+    font-weight: 500;
+    font-size: 0.92rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background 0.2s;
+  }
+  #logoutBtn.org-sidebar-logout-link:hover { background: rgba(0, 0, 0, 0.04); }
+  #logoutBtn.org-sidebar-logout-link i {
+    font-size: 1.05rem;
+    width: 22px;
+    text-align: center;
+  }
+  .org-main-content {
+    margin-left: 260px;
+    padding: 1.5rem 2rem 2rem;
+    min-height: 100vh;
+  }
+  @media (max-width: 768px) {
+    .org-sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+    }
+    .org-sidebar.open { transform: translateX(0); }
+    .org-main-content { margin-left: 0; }
+  }
+</style>
