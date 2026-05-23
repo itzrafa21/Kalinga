@@ -147,6 +147,74 @@
       font-size: 34px;
     }
   }
+
+  .login-error-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 36, 48, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 1rem;
+  }
+  .login-error-overlay.is-open {
+    display: flex;
+  }
+  .login-error-overlay[hidden] {
+    display: none !important;
+  }
+  .login-error-modal {
+    background: var(--white);
+    border-radius: 16px;
+    max-width: 420px;
+    width: 100%;
+    padding: 1.75rem 1.5rem 1.35rem;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+  }
+  .login-error-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 0.85rem;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+  .login-error-modal h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.35rem;
+    color: var(--text);
+  }
+  .login-error-message {
+    margin: 0 0 1.25rem;
+    font-size: 0.95rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .login-error-actions {
+    display: flex;
+    justify-content: center;
+  }
+  .login-error-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: rgb(110, 40, 167);
+    color: var(--white);
+    transition: background 0.2s ease;
+  }
+  .login-error-btn:hover {
+    background: var(--btn-hover);
+  }
 </style>
 </head>
 <body>
@@ -174,6 +242,25 @@
   </div>
 </div>
 
+<div
+  id="loginErrorModal"
+  class="login-error-overlay"
+  hidden
+  role="alertdialog"
+  aria-modal="true"
+  aria-labelledby="loginErrorTitle"
+>
+  <div class="login-error-modal">
+    <div class="login-error-icon" aria-hidden="true">!</div>
+    <h2 id="loginErrorTitle">Login failed</h2>
+    <p class="login-error-message" id="loginErrorMessage">
+      The email or password you entered is incorrect. Please try again.
+    </p>
+    <div class="login-error-actions">
+      <button type="button" class="login-error-btn" id="loginErrorOk">Try again</button>
+    </div>
+  </div>
+</div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script type="module" src="{{ asset('js/organization-login.js') }}"></script>
 </body>
