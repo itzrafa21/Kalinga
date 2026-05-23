@@ -510,7 +510,7 @@ function renderRosterSection(volunteers, mission, isOwner) {
   return `
     <section class="md-card md-card--table">
       <div class="md-roster-head">
-        <span class="md-sec-label md-sec-label--title">Volunteer roster</span>
+        <span class="md-sec-label md-sec-label--title">Volunteer List</span>
         <span class="md-badge md-b-gray">${volunteers.length} total</span>
       </div>
       <div class="md-table-wrap">
