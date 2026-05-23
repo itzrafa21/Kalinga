@@ -146,6 +146,78 @@
       font-size: 34px;
     }
   }
+
+  .register-success-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 36, 48, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 1rem;
+  }
+  .register-success-overlay.is-open {
+    display: flex;
+  }
+  .register-success-overlay[hidden] {
+    display: none !important;
+  }
+  .register-success-modal {
+    background: var(--white);
+    border-radius: 16px;
+    max-width: 420px;
+    width: 100%;
+    padding: 1.75rem 1.5rem 1.35rem;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+  }
+  .register-success-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 0.85rem;
+    border-radius: 50%;
+    background: rgba(155, 106, 123, 0.14);
+    color: var(--btn);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+  .register-success-modal h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.35rem;
+    color: var(--text);
+  }
+  .register-success-message {
+    margin: 0 0 1.25rem;
+    font-size: 0.95rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .register-success-message strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .register-success-actions {
+    display: flex;
+    justify-content: center;
+  }
+  .register-success-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--btn);
+    color: var(--white);
+    transition: background 0.2s ease;
+  }
+  .register-success-btn:hover {
+    background: var(--btn-hover);
+  }
 </style>
 </head>
 <body>
@@ -176,6 +248,27 @@
     </div>
   </div>
 
+  <div
+    id="registerSuccessModal"
+    class="register-success-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="registerSuccessTitle"
+  >
+    <div class="register-success-modal">
+      <div class="register-success-icon" aria-hidden="true">✓</div>
+      <h2 id="registerSuccessTitle">Registration complete</h2>
+      <p class="register-success-message" id="registerSuccessMessage">
+        Your organization account has been created successfully. You can now sign in.
+      </p>
+      <div class="register-success-actions">
+        <button type="button" class="register-success-btn" id="registerSuccessOk">
+          Go to login
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script type="module" src="{{ asset('js/organization-register-page.js') }}"></script>
 </body>
