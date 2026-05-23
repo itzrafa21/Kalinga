@@ -104,7 +104,6 @@ function showTab(tabName) {
         organizations: 'Organizations',
         missions: 'Missions',
         volunteers: 'Volunteers',
-        analytics: 'Analytics',
     };
     if (topbarTitle) {
         topbarTitle.textContent = pageTitles[tabName] || tabName;
@@ -115,6 +114,9 @@ function showTab(tabName) {
 
 function loadTabData(tabName) {
     switch(tabName) {
+        case 'dashboard':
+            loadDashboardData();
+            break;
         case 'organizations':
             loadOrganizationsData();
             break;
@@ -123,9 +125,6 @@ function loadTabData(tabName) {
             break;
         case 'volunteers':
             loadVolunteersData();
-            break;
-        case 'analytics':
-            loadAnalyticsData();
             break;
         case 'settings':
             loadSettingsData();

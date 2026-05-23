@@ -484,10 +484,6 @@
       <a class="nav-item" href="/admin/config">
         <i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards
       </a>
-      <div class="sb-section">System</div>
-      <a class="nav-item" href="#analytics" data-tab="analytics">
-        <i class="ti ti-chart-bar"></i> Analytics
-      </a>
     </nav>
     <div class="sb-footer">
       <div class="sb-user" id="adminEmailSidebar"></div>
@@ -525,6 +521,75 @@
           <div class="stat-icon"><i class="ti ti-award"></i></div>
           <div class="stat-val" id="totalVolunteers">-</div>
           <div class="stat-label">Volunteers</div>
+        </div>
+      </div>
+
+      <div class="row mt-2">
+        <div class="col-md-6 mb-4">
+          <div class="card admin-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Activity Analytics</h5>
+            </div>
+            <div class="card-body">
+              <canvas id="activityChart" width="400" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 mb-4">
+          <div class="card admin-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Mission Types</h5>
+            </div>
+            <div class="card-body">
+              <canvas id="missionTypesChart" width="400" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <div class="card admin-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0"><i class="fas fa-download"></i> Export Reports</h5>
+              <div class="d-flex gap-2">
+                <button class="btn btn-admin" onclick="exportReport('csv')">
+                  <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+                <button class="btn btn-admin" onclick="exportReport('pdf')">
+                  <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <div class="form-group">
+                    <label>Report Type</label>
+                    <select class="form-select" id="reportType">
+                      <option value="users">Users Report</option>
+                      <option value="missions">Missions Report</option>
+                      <option value="volunteers">Volunteers Report</option>
+                      <option value="donations">Donations Report</option>
+                      <option value="attendance">Attendance Report</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <div class="form-group">
+                    <label>Date From</label>
+                    <input type="date" class="form-control" id="dateFrom">
+                  </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <div class="form-group">
+                    <label>Date To</label>
+                    <input type="date" class="form-control" id="dateTo">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -642,7 +707,7 @@
                   <th>Email</th>
                   <th>Missions Joined</th>
                   <th>Hours Volunteered</th>
-                  <th>Badges</th>
+                  <th>Levels</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -650,78 +715,6 @@
               <tbody id="volunteersTableBody">
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Analytics Tab -->
-    <div id="analytics-tab" class="tab-content" style="display: none;">
-      <div class="row">
-        <div class="col-md-6 mb-4">
-          <div class="card admin-card">
-            <div class="card-header">
-              <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Activity Analytics</h5>
-            </div>
-            <div class="card-body">
-              <canvas id="activityChart" width="400" height="200"></canvas>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-6 mb-4">
-          <div class="card admin-card">
-            <div class="card-header">
-              <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Mission Types</h5>
-            </div>
-            <div class="card-body">
-              <canvas id="missionTypesChart" width="400" height="200"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col-12">
-          <div class="card admin-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <h5 class="mb-0"><i class="fas fa-download"></i> Export Reports</h5>
-              <div class="d-flex gap-2">
-                <button class="btn btn-admin" onclick="exportReport('csv')">
-                  <i class="fas fa-file-csv"></i> Export CSV
-                </button>
-                <button class="btn btn-admin" onclick="exportReport('pdf')">
-                  <i class="fas fa-file-pdf"></i> Export PDF
-                </button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="row">
-                <div class="col-md-4 mb-3">
-                  <div class="form-group">
-                    <label>Report Type</label>
-                    <select class="form-select" id="reportType">
-                      <option value="users">Users Report</option>
-                      <option value="missions">Missions Report</option>
-                      <option value="volunteers">Volunteers Report</option>
-                      <option value="donations">Donations Report</option>
-                      <option value="attendance">Attendance Report</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                  <div class="form-group">
-                    <label>Date From</label>
-                    <input type="date" class="form-control" id="dateFrom">
-                  </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                  <div class="form-group">
-                    <label>Date To</label>
-                    <input type="date" class="form-control" id="dateTo">
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
