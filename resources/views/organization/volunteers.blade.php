@@ -286,6 +286,17 @@ tr.volunteer-application-row.volunteer-row-paged-out {
 .accept-btn:hover { background: #1d923e; transform: none; box-shadow: none; }
 .reject-btn { background: #ef4444; color: #fff; box-shadow: none; }
 .reject-btn:hover { background: #dc2626; transform: none; box-shadow: none; }
+.view-btn {
+  background: #22a447;
+  color: #fff;
+  box-shadow: none;
+}
+.view-btn:hover {
+  background: #1d923e;
+  color: #fff;
+  transform: none;
+  box-shadow: none;
+}
 
 .empty-state {
   text-align: center;
@@ -523,14 +534,11 @@ tr.volunteer-application-row.volunteer-row-paged-out {
     <table class="volunteers-table" id="volunteerTable">
       <thead>
         <tr>
-          <th>Display Name</th>
+          <th>Full Name</th>
           <th>Email</th>
           <th>Mobile Number</th>
-          <th>Occupation</th>
-          <th>Missions</th>
-          <th>Applied At</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th>Details</th>
+        </tr>
       </thead>
       <tbody id="volunteerTableBody">
         <!-- Filled dynamically -->

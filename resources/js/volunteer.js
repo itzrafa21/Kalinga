@@ -969,7 +969,7 @@ function displayVolunteers(applicants) {
     volunteerTable.innerHTML = "";
 
     if (applicants.length === 0) {
-        volunteerTable.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No volunteers found</td></tr>`;
+        volunteerTable.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No volunteers found</td></tr>`;
         volunteerCurrentPage = 1;
         applyVolunteerPagination();
         return;
@@ -979,13 +979,6 @@ function displayVolunteers(applicants) {
         const row = document.createElement("tr");
         row.classList.add("volunteer-application-row");
 
-        const missionLabel =
-            a.missionCount === 1
-                ? a.applications[0].missionName || "1 mission"
-                : `${a.missionCount} missions`;
-
-        const statusHtml = `<span class="status-badge ${getStatusBadgeClass(a.summaryStatus)}">${getStatusIcon(a.summaryStatus)} ${a.summaryStatus}</span>`;
-
         const viewUrl = a.userId
             ? `/organization/volunteers/details?userId=${encodeURIComponent(a.userId)}`
             : "#";
@@ -994,9 +987,6 @@ function displayVolunteers(applicants) {
             <td>${escapeHtml(a.name || "N/A")}</td>
             <td>${escapeHtml(a.email || "N/A")}</td>
             <td>${escapeHtml(a.phone || "N/A")}</td>
-            <td>${escapeHtml(a.occupation || "N/A")}</td>
-            <td>${escapeHtml(missionLabel)}</td>
-            <td>${statusHtml}</td>
             <td>
                 <a href="${viewUrl}" class="action-btn view-btn" style="text-decoration:none;">
                     <i class="fas fa-eye"></i> View details
