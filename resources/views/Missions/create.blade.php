@@ -307,6 +307,7 @@
     <select id="type" class="form-select" required>
         <option value="" disabled selected>Loading mission types…</option>
     </select>
+    <p id="missionPointsPreview" class="text-muted small mt-2 mb-0">Select a type and schedule to see earned points</p>
 </div>
 
                             <div class="form-group">

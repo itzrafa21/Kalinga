@@ -1,8 +1,8 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
-import { clearPlatformConfigCache } from "./platform-config.js";
-import { SEED_MISSION_TYPES, SEED_BADGES, SEED_LEVELS } from "./platform-config-seed.js";
+import { clearPlatformConfigCache, parseDurationBoundsFromSub } from "./platform-config.js";
+import { buildInitialPlatformConfigSeed } from "./platform-config-seed.js";
 
 const CONFIG_DOC = ["platform_config", "settings"];
 
@@ -270,6 +270,66 @@ window.toggleTypeEdit = function (key) {
     else startTypeEdit(key);
 };
 
+function renderDurationMultipliers(multipliers) {
+    const tiers = Array.isArray(multipliers) ? multipliers : [];
+    document.querySelectorAll("#tab-mission .mult-row").forEach((row, i) => {
+        const tier = tiers[i];
+        const labelEl = row.querySelector(".mult-label");
+        const subEl = row.querySelector(".mult-sub");
+        const input = row.querySelector(".mult-in");
+
+        if (!tier) {
+            if (input) input.value = "";
+            delete row.dataset.tierId;
+            delete row.dataset.minHours;
+            delete row.dataset.maxHours;
+            return;
+        }
+
+        if (labelEl && tier.label) labelEl.textContent = tier.label;
+        if (subEl && tier.sub) subEl.textContent = tier.sub;
+        if (input) input.value = tier.multiplier ?? "";
+
+        row.dataset.tierId = tier.id || `tier-${i}`;
+        if (tier.minHours != null && tier.minHours !== "") {
+            row.dataset.minHours = String(tier.minHours);
+        } else {
+            delete row.dataset.minHours;
+        }
+        if (tier.maxHours != null && tier.maxHours !== "") {
+            row.dataset.maxHours = String(tier.maxHours);
+        } else {
+            delete row.dataset.maxHours;
+        }
+    });
+    rebuildCalcMultOptions(tiers);
+}
+
+function rebuildCalcMultOptions(tiers) {
+    const sel = document.getElementById("calc-mult");
+    if (!sel) return;
+    const list = Array.isArray(tiers) ? tiers : [];
+    sel.innerHTML = "";
+    if (list.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.disabled = true;
+        opt.selected = true;
+        opt.textContent = "No duration tiers configured";
+        sel.appendChild(opt);
+        calcPoints();
+        return;
+    }
+    list.forEach((tier) => {
+        const opt = document.createElement("option");
+        opt.value = String(tier.multiplier ?? 1);
+        const label = tier.sub || tier.label || tier.id || "";
+        opt.textContent = label ? `${label} (×${tier.multiplier})` : `×${tier.multiplier}`;
+        sel.appendChild(opt);
+    });
+    calcPoints();
+}
+
 function rebuildCalcTypeOptions() {
     const sel = document.getElementById("calc-type");
     if (!sel) return;
@@ -507,10 +567,27 @@ function collectConfigFromDom() {
 
     const durationMultipliers = [];
     document.querySelectorAll("#tab-mission .mult-row").forEach((row, i) => {
+        const sub = row.querySelector(".mult-sub")?.textContent?.trim() || "";
+        let minHours =
+            row.dataset.minHours !== undefined && row.dataset.minHours !== ""
+                ? parseFloat(row.dataset.minHours)
+                : null;
+        let maxHours =
+            row.dataset.maxHours !== undefined && row.dataset.maxHours !== ""
+                ? parseFloat(row.dataset.maxHours)
+                : null;
+
+        if (minHours == null && maxHours == null && sub) {
+            const parsed = parseDurationBoundsFromSub(sub);
+            minHours = parsed.minHours;
+            maxHours = parsed.maxHours;
+        }
         durationMultipliers.push({
-            id: ["short", "half", "full"][i] || `tier-${i}`,
+            id: row.dataset.tierId || `tier-${i}`,
             label: row.querySelector(".mult-label")?.textContent?.trim() || "",
-            sub: row.querySelector(".mult-sub")?.textContent?.trim() || "",
+            sub,
+            minHours: Number.isFinite(minHours) ? minHours : null,
+            maxHours: Number.isFinite(maxHours) ? maxHours : null,
             multiplier: parseFloat(row.querySelector(".mult-in")?.value) || 1,
         });
     });
@@ -584,37 +661,52 @@ async function loadConfigFromFirestore() {
             Array.isArray(data.missionTypes) && data.missionTypes.length > 0
                 ? data.missionTypes
                 : null;
+        let durationMultipliers =
+            Array.isArray(data.durationMultipliers) &&
+            data.durationMultipliers.length > 0
+                ? data.durationMultipliers
+                : null;
         let badges = Array.isArray(data.badges) && data.badges.length > 0 ? data.badges : null;
         let levels = Array.isArray(data.levels) && data.levels.length > 0 ? data.levels : null;
 
-        const seedPayload = { basePointsByType: deleteField() };
-        if (!missionTypes) {
-            missionTypes = [...SEED_MISSION_TYPES];
-            seedPayload.missionTypes = missionTypes;
-        }
-        if (!badges) {
-            badges = [...SEED_BADGES];
-            seedPayload.badges = badges;
-        }
-        if (!levels) {
-            levels = [...SEED_LEVELS];
-            seedPayload.levels = levels;
-        }
-
-        if (seedPayload.missionTypes || seedPayload.badges || seedPayload.levels) {
-            seedPayload.updatedAt = serverTimestamp();
+        const needsSeed =
+            !missionTypes || !durationMultipliers || !badges || !levels;
+        if (needsSeed) {
+            const initial = buildInitialPlatformConfigSeed();
+            const seedPayload = {
+                basePointsByType: deleteField(),
+                updatedAt: serverTimestamp(),
+            };
+            if (!missionTypes) {
+                missionTypes = initial.missionTypes;
+                seedPayload.missionTypes = missionTypes;
+            }
+            if (!durationMultipliers) {
+                durationMultipliers = initial.durationMultipliers;
+                seedPayload.durationMultipliers = durationMultipliers;
+            }
+            if (!badges) {
+                badges = initial.badges;
+                seedPayload.badges = badges;
+            }
+            if (!levels) {
+                levels = initial.levels;
+                seedPayload.levels = levels;
+            }
             await setDoc(ref, seedPayload, { merge: true });
             clearPlatformConfigCache();
         }
 
-        renderMissionTypesList(missionTypes);
-        renderBadgesList(badges);
-        renderLevelsList(levels);
+        renderMissionTypesList(missionTypes || []);
+        renderDurationMultipliers(durationMultipliers || []);
+        renderBadgesList(badges || []);
+        renderLevelsList(levels || []);
     } catch (err) {
         console.warn("[WARN] load config:", err);
-        renderMissionTypesList([...SEED_MISSION_TYPES]);
-        renderBadgesList([...SEED_BADGES]);
-        renderLevelsList([...SEED_LEVELS]);
+        renderMissionTypesList([]);
+        renderDurationMultipliers([]);
+        renderBadgesList([]);
+        renderLevelsList([]);
     }
     bindAllConfigRows();
 }

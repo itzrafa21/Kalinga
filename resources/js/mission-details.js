@@ -14,6 +14,7 @@ import {
   userHasApplicationForMission,
   upsertMissionVolunteer,
 } from "./application-storage.js";
+import { resolveMissionPoints, loadPlatformConfig } from "./mission-type-points.js";
 
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -27,6 +28,12 @@ function escapeHtml(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function missionPointsChipHtml(mission) {
+  const pts = resolveMissionPoints(mission);
+  if (!pts) return "";
+  return `<span class="mission-chip mission-chip--points"><i class="bi bi-star-fill"></i> ${escapeHtml(String(pts))} pts</span>`;
 }
 
 function formatDisplayDate(dateStr) {
@@ -161,6 +168,7 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
       await upsertMissionVolunteer(orgId, missionId, user.uid, applicationPayload, {
         applicationId: missionAppRef.id,
         userApplicationId: userAppId,
+        missionPoints: missionData ? resolveMissionPoints(missionData) : undefined,
       });
     } catch (rosterErr) {
       console.warn("[WARN] mission volunteer roster:", rosterErr);
@@ -228,6 +236,7 @@ function renderRejectedMissionPage(container, mission, missionId, user) {
         <h1 class="mission-title">${escapeHtml(mission.missionName || "Untitled mission")}</h1>
         <div class="mission-hero__meta">
           <span class="mission-chip">${escapeHtml(mission.type || "General")}</span>
+          ${missionPointsChipHtml(mission)}
           <span class="mission-location"><i class="bi bi-geo-alt-fill"></i> ${escapeHtml(mission.location || "Location TBD")}</span>
         </div>
       </header>
@@ -294,6 +303,7 @@ function renderMissionPage(container, mission, missionId, user, signedUp) {
         <h1 class="mission-title">${escapeHtml(mission.missionName || "Untitled mission")}</h1>
         <div class="mission-hero__meta">
           <span class="mission-chip">${escapeHtml(mission.type || "General")}</span>
+          ${missionPointsChipHtml(mission)}
           <span class="mission-location"><i class="bi bi-geo-alt-fill"></i> ${escapeHtml(mission.location || "Location TBD")}</span>
         </div>
       </header>
@@ -365,6 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   onAuthStateChanged(auth, async (user) => {
     try {
+      await loadPlatformConfig();
       const loaded = await loadMissionDocument(missionId, user);
 
       if (!loaded) {

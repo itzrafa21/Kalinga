@@ -1,6 +1,18 @@
 import { auth, db } from "./firebase";
-import { collection, getDocs, query, doc, deleteDoc, setDoc, updateDoc, getDoc, where } from "firebase/firestore";
+import {
+    collection,
+    getDocs,
+    query,
+    doc,
+    deleteDoc,
+    setDoc,
+    updateDoc,
+    getDoc,
+    where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { computeMissionPointsPayload } from "./mission-type-points.js";
+import { awardMissionPoints } from "./volunteer-recognition.js";
 
 let CURRENT_USER = null;
 
@@ -332,7 +344,20 @@ async function moveMissionToHistory(orgId, missionId, mission) {
             console.warn("[WARNING] Could not read global mission for merge:", missionId, e);
         }
 
+        if (
+            (payload.missionPoints == null || payload.missionPoints === "") &&
+            payload.type
+        ) {
+            const pointsFields = await computeMissionPointsPayload(payload);
+            const { basePoints: _legacyBase, ...withoutBase } = payload;
+            payload = { ...withoutBase, ...pointsFields };
+        } else if (payload.basePoints != null) {
+            const { basePoints: _legacyBase, ...withoutBase } = payload;
+            payload = withoutBase;
+        }
+
         await setDoc(historyRef, payload);
+        await awardMissionPoints(orgId, missionId, payload);
 
         await deleteDoc(doc(db, "organizations", orgId, "missions", missionId));
 

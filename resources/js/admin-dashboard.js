@@ -16,8 +16,10 @@ import {
     getDoc,
     addDoc,
     setDoc,
-    serverTimestamp
+    serverTimestamp,
+    deleteField,
 } from "firebase/firestore";
+import { computeMissionPointsPayload } from "./mission-type-points.js";
 
 let allAdminMissions = [];
 let adminMissionsPageSize = 10;
@@ -696,12 +698,15 @@ window.approveMission = async function(missionId) {
         }
 
         const submissionData = submissionDoc.data();
+        const { basePoints: _legacyBase, ...submissionWithoutBase } = submissionData;
+        const pointsFields = await computeMissionPointsPayload(submissionWithoutBase);
         const approvedMissionData = {
-            ...submissionData,
+            ...submissionWithoutBase,
+            ...pointsFields,
             status: "Open",
             workflowStatus: "approved",
             approvedAt: serverTimestamp(),
-            approvedBy: auth.currentUser.email
+            approvedBy: auth.currentUser.email,
         };
 
         // Publish to live collections
@@ -713,11 +718,12 @@ window.approveMission = async function(missionId) {
 
         // Mark submission as approved
         await updateDoc(submissionRef, {
+            ...pointsFields,
+            basePoints: deleteField(),
             workflowStatus: "approved",
             status: "Open",
             approvedAt: serverTimestamp(),
-            approvedBy: auth.currentUser.email
-            
+            approvedBy: auth.currentUser.email,
         });
 
         openMissionApproveSuccessModal();

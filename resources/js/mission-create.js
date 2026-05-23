@@ -3,8 +3,10 @@ import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/fires
 import { onAuthStateChanged } from "firebase/auth";
 import {
     loadPlatformConfig,
-    getBasePointsForType,
     populateMissionTypeSelect,
+    computeMissionPointsPayload,
+    updateMissionPointsDisplay,
+    isPlatformConfigReady,
 } from "./mission-type-points.js";
 
 let currentUser = null;
@@ -62,10 +64,37 @@ onAuthStateChanged(auth, async (user) => {
     await loadPlatformConfig();
     populateMissionTypeSelect(document.getElementById("type"));
 
+    initializePointsPreview();
     initializeFormSubmission();
     initializeImageUpload();
     initMissionSuccessModal();
 });
+
+function getCreateFormSchedule() {
+    return {
+        type: document.getElementById("type")?.value || "",
+        date: document.getElementById("date")?.value || "",
+        endDate: document.getElementById("end_date")?.value || "",
+        startTime: document.getElementById("start_time")?.value || "",
+        endTime: document.getElementById("end_time")?.value || "",
+    };
+}
+
+function initializePointsPreview() {
+    const displayEl = document.getElementById("missionPointsPreview");
+    const typeEl = document.getElementById("type");
+    if (!displayEl) return;
+
+    const refresh = () =>
+        updateMissionPointsDisplay(typeEl, displayEl, getCreateFormSchedule());
+
+    ["type", "date", "end_date", "start_time", "end_time"].forEach((id) => {
+        document.getElementById(id)?.addEventListener("change", refresh);
+        document.getElementById(id)?.addEventListener("input", refresh);
+    });
+
+    refresh();
+}
 
 // Initialize form submission
 function initializeFormSubmission() {
@@ -106,14 +135,26 @@ function initializeFormSubmission() {
             console.log("  - Latitude:", latitude);
             console.log("  - Longitude:", longitude);
 
-            const missionType = document.getElementById("type")?.value || "General";
-            const basePoints = getBasePointsForType(missionType);
-            
+            const missionType = document.getElementById("type")?.value?.trim() || "";
+            if (!missionType) {
+                alert("Please select a mission type.");
+                return;
+            }
+            if (!isPlatformConfigReady()) {
+                alert(
+                    "Mission types and duration multipliers are not configured yet. Please contact an administrator."
+                );
+                return;
+            }
+            const schedule = getCreateFormSchedule();
+            schedule.type = missionType;
+            const pointsFields = await computeMissionPointsPayload(schedule);
+
             const missionData = {
                 missionName: document.getElementById("name")?.value || "Untitled",
                 description: document.getElementById("description")?.value || "",
-                type: document.getElementById("type")?.value || "General",
-                basePoints: basePoints,
+                type: missionType,
+                ...pointsFields,
                 status: "Pending",
                 date: document.getElementById("date")?.value || "",
                 startTime: document.getElementById("start_time")?.value || "",
@@ -155,7 +196,7 @@ function initializeFormSubmission() {
                 ...missionData,
                 status: "Pending",
                 workflowStatus: "submitted",
-                submittedAt: serverTimestamp()
+                submittedAt: serverTimestamp(),
             };
 
             const submissionRef = await addDoc(collection(db, "mission_submissions"), submissionData);

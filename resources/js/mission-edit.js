@@ -1,7 +1,12 @@
 import { auth, db } from "./firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { loadPlatformConfig, populateMissionTypeSelect } from "./mission-type-points.js";
+import {
+    loadPlatformConfig,
+    populateMissionTypeSelect,
+    computeMissionPointsPayload,
+    isPlatformConfigReady,
+} from "./mission-type-points.js";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -88,14 +93,35 @@ onAuthStateChanged(auth, async (user) => {
       document.getElementById("location").value?.trim() ||
       `Pinned location (${latVal.toFixed(5)}, ${lngVal.toFixed(5)})`;
 
-    const updatedData = {
-      missionName: document.getElementById("name").value,
-      description: document.getElementById("description").value,
-      type: document.getElementById("type").value,
+    const schedule = {
+      type: document.getElementById("type").value?.trim() || "",
       date: document.getElementById("date").value,
       endDate: document.getElementById("endDate").value,
       startTime: document.getElementById("startTime").value,
       endTime: document.getElementById("endTime").value,
+    };
+    if (!schedule.type) {
+      alert("Please select a mission type.");
+      return;
+    }
+    if (!isPlatformConfigReady()) {
+      alert(
+        "Mission types and duration multipliers are not configured yet. Please contact an administrator."
+      );
+      return;
+    }
+    const pointsFields = await computeMissionPointsPayload(schedule);
+
+    const updatedData = {
+      missionName: document.getElementById("name").value,
+      description: document.getElementById("description").value,
+      type: schedule.type,
+      date: schedule.date,
+      endDate: schedule.endDate,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      ...pointsFields,
+      basePoints: deleteField(),
       location: locationLabel,
       latitude: latVal,
       longitude: lngVal,
@@ -103,9 +129,9 @@ onAuthStateChanged(auth, async (user) => {
       autoAcceptVolunteers:
         document.getElementById("autoAcceptVolunteers")?.checked === true,
     };
-    
-    console.log("[INFO] Updating mission with data:", updatedData); //  Debug logging
-    
+
+    console.log("[INFO] Updating mission with data:", updatedData);
+
     try {
       await updateDoc(docRef, updatedData);
 

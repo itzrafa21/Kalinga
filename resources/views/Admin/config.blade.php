@@ -395,26 +395,22 @@
               <div class="block-label">Duration multipliers</div>
               <div class="mult-row">
                 <div><div class="mult-label">Short shift</div><div class="mult-sub">1 – 3 hours</div></div>
-                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" value="1" min="1" step="0.5" onchange="flashSaved()" /></div>
+                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Short shift multiplier" /></div>
               </div>
               <div class="mult-row">
                 <div><div class="mult-label">Half day</div><div class="mult-sub">4 – 6 hours</div></div>
-                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" value="2" min="1" step="0.5" onchange="flashSaved()" /></div>
+                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Half day multiplier" /></div>
               </div>
               <div class="mult-row">
                 <div><div class="mult-label">Full day</div><div class="mult-sub">7+ hours</div></div>
-                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" value="3" min="1" step="0.5" onchange="flashSaved()" /></div>
+                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Full day multiplier" /></div>
               </div>
 
               <div class="calc-box">
                 <label>Preview earned points</label>
                 <div class="calc-row">
                   <select id="calc-type" class="calc-select" onchange="calcPoints()"></select>
-                  <select id="calc-mult" class="calc-select" onchange="calcPoints()">
-                    <option value="1">1–3 hrs (×1)</option>
-                    <option value="2">4–6 hrs (×2)</option>
-                    <option value="3">7+ hrs (×3)</option>
-                  </select>
+                  <select id="calc-mult" class="calc-select" onchange="calcPoints()"></select>
                 </div>
                 <div class="calc-result-row">
                   <span>Earned</span>

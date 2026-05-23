@@ -11,6 +11,7 @@ import {
     deleteDoc,
     serverTimestamp,
 } from "firebase/firestore";
+import { resolveMissionPoints } from "./platform-config.js";
 
 export const STORAGE_MISSIONS_SUB = "missions_sub";
 export const STORAGE_APPLICATIONS_ROOT = "applications_root";
@@ -188,6 +189,12 @@ export function buildMissionVolunteerRecord(application, extras = {}) {
             "",
         occupation: application.occupation || "",
         status,
+        missionPoints:
+            extras.missionPoints != null
+                ? Number(extras.missionPoints)
+                : application.missionPoints != null
+                  ? Number(application.missionPoints)
+                  : null,
         appliedAt: application.appliedAt || extras.appliedAt || null,
         approvedAt: application.approvedAt || extras.approvedAt || serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -206,8 +213,28 @@ export async function upsertMissionVolunteer(orgId, missionId, userId, applicati
         orgId,
     });
 
+    let missionPoints = extras.missionPoints;
+    if (missionPoints == null) {
+        try {
+            const orgSnap = await getDoc(
+                doc(db, "organizations", orgId, "missions", missionId)
+            );
+            if (orgSnap.exists()) {
+                missionPoints = resolveMissionPoints(orgSnap.data());
+            } else {
+                const globalSnap = await getDoc(doc(db, "missions", missionId));
+                if (globalSnap.exists()) {
+                    missionPoints = resolveMissionPoints(globalSnap.data());
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
     const record = buildMissionVolunteerRecord(merged, {
         ...extras,
+        missionPoints,
         applicationId:
             extras.applicationId ||
             extras.missionApplicationId ||
