@@ -173,4 +173,64 @@
     .org-sidebar.open { transform: translateX(0); }
     .org-main-content { margin-left: 0; }
   }
+  .org-logout-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 36, 25, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 4000;
+    padding: 1rem;
+  }
+  .org-logout-modal-overlay.is-open { display: flex; }
+  .org-logout-modal-overlay[hidden] { display: none !important; }
+  .org-logout-modal {
+    background: #fff;
+    border-radius: 14px;
+    max-width: 400px;
+    width: 100%;
+    padding: 1.35rem 1.5rem 1.25rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  }
+  .org-logout-modal h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+    color: #111827;
+  }
+  .org-logout-modal-message {
+    margin: 0 0 1.25rem;
+    font-size: 0.92rem;
+    color: #64748b;
+    line-height: 1.45;
+  }
+  .org-logout-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+  }
+  .org-logout-modal-cancel,
+  .org-logout-modal-confirm {
+    border: none;
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .org-logout-modal-cancel {
+    background: #f1f5f9;
+    color: #334155;
+  }
+  .org-logout-modal-cancel:hover { background: #e2e8f0; }
+  .org-logout-modal-confirm {
+    background: #dc2626;
+    color: #fff;
+  }
+  .org-logout-modal-confirm:hover { background: #b91c1c; }
+  .org-logout-modal-confirm:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
 </style>

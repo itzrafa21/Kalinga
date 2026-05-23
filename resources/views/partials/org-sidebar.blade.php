@@ -54,3 +54,14 @@
     </button>
   </nav>
 </aside>
+
+<div id="orgLogoutModal" class="org-logout-modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="orgLogoutModalTitle">
+  <div class="org-logout-modal" role="document">
+    <h2 id="orgLogoutModalTitle">Log out</h2>
+    <p class="org-logout-modal-message">Are you sure you want to log out?</p>
+    <div class="org-logout-modal-actions">
+      <button type="button" class="org-logout-modal-cancel" id="orgLogoutCancel">Cancel</button>
+      <button type="button" class="org-logout-modal-confirm" id="orgLogoutConfirm">Log out</button>
+    </div>
+  </div>
+</div>
