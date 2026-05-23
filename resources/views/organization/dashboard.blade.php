@@ -194,7 +194,7 @@
     <p class="page-welcome">
       Welcome, <span id="orgNameWelcome">Organization</span>!
     </p>
-    <h1 class="page-title">Dashboard</h1>
+    <h1 class="page-title">Mission Management</h1>
   </div>
 
     <div class="stats">

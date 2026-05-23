@@ -39,7 +39,7 @@
 
   <nav class="org-sidebar-nav sidebar-nav">
     <div class="org-sidebar-section sidebar-section">Main</div>
-    <a href="/organization/dashboard" class="{{ $isActive('dashboard') }}"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+    <a href="/organization/dashboard" class="{{ $isActive('dashboard') }}"><i class="bi bi-grid-1x2"></i> Mission Management</a>
     <a href="/missions/history" class="{{ $isActive('history') }}"><i class="bi bi-journal-text"></i> History of Missions</a>
     <a href="/organization/volunteers" class="{{ $isActive('volunteers') }}"><i class="bi bi-people"></i> Volunteers</a>
     <a href="/donation" class="{{ $isActive('donation') }}"><i class="bi bi-heart"></i> Donation</a>
