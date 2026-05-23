@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   collection,
+  collectionGroup,
   getDocs,
   query,
   where,
@@ -16,6 +17,7 @@ import {
   upsertMissionVolunteer,
   syncMissionVolunteerRoster,
   STORAGE_MISSIONS_SUB,
+  STORAGE_USERS_SUB,
   STORAGE_ORG_ROSTER,
 } from "./application-storage.js";
 import {
@@ -293,12 +295,117 @@ function mergeVolunteerEntries(existing, incoming) {
     missionPoints: other.missionPoints ?? base.missionPoints,
     userApplicationId:
       base.userApplicationId || other.userApplicationId || "",
-    id: missionApp ? missionApp.id : base.id,
-    storage: missionApp ? STORAGE_MISSIONS_SUB : base.storage,
+    id: missionApp ? missionApp.id : base.id || other.id,
+    storage: missionApp ? STORAGE_MISSIONS_SUB : base.storage || incoming.storage,
     appliedAt: base.appliedAt || other.appliedAt || null,
     name: base.name || other.name,
     email: base.email || other.email,
   };
+}
+
+function applicationBelongsToMissionOrg(data, orgId) {
+  if (!orgId) return true;
+  const appOrg = data?.orgId || data?.organizationId || "";
+  return !appOrg || appOrg === orgId;
+}
+
+async function pushApplicationRecord(docSnap, missionId, orgId, storage, upsert) {
+  const data = docSnap.data();
+  if (!applicationBelongsToMissionOrg(data, orgId)) return;
+
+  const resolvedMissionId = String(
+    data.missionId || data.mission_id || data.missionID || missionId
+  );
+  if (resolvedMissionId !== String(missionId)) return;
+
+  const pathParts = docSnap.ref.path.split("/");
+  const userIdFromPath =
+    storage === STORAGE_USERS_SUB && pathParts[0] === "users"
+      ? pathParts[1]
+      : "";
+  const userId = data.userId || userIdFromPath || "";
+
+  let name = data.displayName || data.name || "";
+  let email = data.email || "";
+  if ((!name || !email) && userId) {
+    const profile = await fetchUserFieldsForVolunteer(userId);
+    name = name || profile.name;
+    email = email || profile.email;
+  }
+
+  upsert({
+    id: docSnap.id,
+    storage,
+    userId,
+    userApplicationId:
+      storage === STORAGE_USERS_SUB ? docSnap.id : data.userApplicationId || "",
+    name: name || (userId ? `User ${userId.slice(0, 8)}…` : "N/A"),
+    email: email || "N/A",
+    status: data.status || "pending",
+    appliedAt: data.appliedAt || data.createdAt || data.approvedAt || null,
+    orgId: data.orgId || data.organizationId || orgId || "",
+    missionId,
+  });
+}
+
+/** Mobile apps often write only users/{uid}/applications — load those for this mission. */
+async function loadUserApplicationsForMission(missionId, orgId, upsert) {
+  let loadedFromGroup = false;
+
+  try {
+    const cgSnap = await getDocs(
+      query(
+        collectionGroup(db, "applications"),
+        where("missionId", "==", missionId)
+      )
+    );
+    for (const docSnap of cgSnap.docs) {
+      if (docSnap.ref.path.startsWith("users/")) {
+        await pushApplicationRecord(
+          docSnap,
+          missionId,
+          orgId,
+          STORAGE_USERS_SUB,
+          upsert
+        );
+      } else if (docSnap.ref.path.startsWith("missions/")) {
+        await pushApplicationRecord(
+          docSnap,
+          missionId,
+          orgId,
+          STORAGE_MISSIONS_SUB,
+          upsert
+        );
+      }
+    }
+    loadedFromGroup = !cgSnap.empty;
+    if (loadedFromGroup) return;
+  } catch (err) {
+    console.warn("[WARN] collectionGroup applications for mission:", err);
+  }
+
+  try {
+    const usersSnap = await getDocs(collection(db, "users"));
+    for (const userDoc of usersSnap.docs) {
+      const appsSnap = await getDocs(
+        query(
+          collection(db, "users", userDoc.id, "applications"),
+          where("missionId", "==", missionId)
+        )
+      );
+      for (const appDoc of appsSnap.docs) {
+        await pushApplicationRecord(
+          appDoc,
+          missionId,
+          orgId,
+          STORAGE_USERS_SUB,
+          upsert
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("[WARN] scan users/*/applications for mission:", err);
+  }
 }
 
 async function loadMissionVolunteers(missionId, orgId) {
@@ -316,31 +423,19 @@ async function loadMissionVolunteers(missionId, orgId) {
       collection(db, "missions", missionId, "applications")
     );
     for (const docSnap of appSnap.docs) {
-      const data = docSnap.data();
-      const userId = data.userId || "";
-      let name = data.displayName || data.name || "";
-      let email = data.email || "";
-      if ((!name || !email) && userId) {
-        const profile = await fetchUserFieldsForVolunteer(userId);
-        name = name || profile.name;
-        email = email || profile.email;
-      }
-      upsert({
-        id: docSnap.id,
-        storage: STORAGE_MISSIONS_SUB,
-        userId,
-        name: name || (userId ? `User ${userId.slice(0, 8)}…` : "N/A"),
-        email: email || "N/A",
-        status: data.status || "pending",
-        appliedAt: data.appliedAt || data.createdAt || null,
-        orgId: data.orgId || orgId || "",
+      await pushApplicationRecord(
+        docSnap,
         missionId,
-        userApplicationId: data.userApplicationId || "",
-      });
+        orgId,
+        STORAGE_MISSIONS_SUB,
+        upsert
+      );
     }
   } catch (err) {
     console.warn("[WARN] mission applications:", err);
   }
+
+  await loadUserApplicationsForMission(missionId, orgId, upsert);
 
   if (orgId) {
     try {
@@ -955,7 +1050,8 @@ async function refreshMissionDetails() {
     }
     const mission = loaded.mission;
     currentMissionContext = { mission, missionId, user };
-    const orgId = mission.orgId || mission.organizationId;
+    const orgId =
+      mission.orgId || mission.organizationId || user?.uid || "";
     const status = (mission.status || "").toLowerCase();
 
     if (status === "rejected") {
