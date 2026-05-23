@@ -371,9 +371,7 @@ export async function loadOrgApplications(orgMissionById, onEach, orgId = null) 
 
     try {
         const cgSnap = await getDocs(collectionGroup(db, "applications"));
-        for (const docSnap of cgSnap.docs) {
-            await tryPush(docSnap);
-        }
+        await Promise.all(cgSnap.docs.map((docSnap) => tryPush(docSnap)));
     } catch (err) {
         console.warn(
             "[WARN] collectionGroup(applications) failed, scanning users/*:",
@@ -381,23 +379,25 @@ export async function loadOrgApplications(orgMissionById, onEach, orgId = null) 
         );
         try {
             const usersSnap = await getDocs(collection(db, "users"));
-            for (const userDoc of usersSnap.docs) {
-                try {
-                    const appsSnap = await getDocs(
-                        collection(db, "users", userDoc.id, "applications")
-                    );
-                    for (const appDoc of appsSnap.docs) {
-                        await tryPush(appDoc);
+            await Promise.all(
+                usersSnap.docs.map(async (userDoc) => {
+                    try {
+                        const appsSnap = await getDocs(
+                            collection(db, "users", userDoc.id, "applications")
+                        );
+                        await Promise.all(
+                            appsSnap.docs.map((appDoc) => tryPush(appDoc))
+                        );
+                    } catch (userAppsErr) {
+                        console.warn(
+                            "[WARN] users/",
+                            userDoc.id,
+                            "/applications",
+                            userAppsErr
+                        );
                     }
-                } catch (userAppsErr) {
-                    console.warn(
-                        "[WARN] users/",
-                        userDoc.id,
-                        "/applications",
-                        userAppsErr
-                    );
-                }
-            }
+                })
+            );
         } catch (usersErr) {
             console.error("[ERROR] loading users collection:", usersErr);
         }

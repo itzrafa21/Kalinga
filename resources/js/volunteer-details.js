@@ -109,40 +109,40 @@ async function buildOrgMissionMap(orgId) {
         if (inHistory) historyMissionIds.add(id);
     };
 
-    try {
-        const missionsSnap = await getDocs(collection(db, "missions"));
-        missionsSnap.docs.forEach((missionDoc) => {
+    const [missionsResult, orgMissionsResult, historyResult] =
+        await Promise.allSettled([
+            getDocs(collection(db, "missions")),
+            getDocs(collection(db, "organizations", orgId, "missions")),
+            getDocs(collection(db, "organizations", orgId, "history")),
+        ]);
+
+    if (missionsResult.status === "fulfilled") {
+        missionsResult.value.docs.forEach((missionDoc) => {
             const mission = missionDoc.data();
             if (mission.orgId === orgId || mission.organizationId === orgId) {
                 addMission(missionDoc.id, mission);
             }
         });
-    } catch (err) {
-        console.error("[ERROR] loading missions:", err);
+    } else {
+        console.error("[ERROR] loading missions:", missionsResult.reason);
     }
 
-    try {
-        const orgMissionsSnap = await getDocs(
-            collection(db, "organizations", orgId, "missions")
-        );
-        orgMissionsSnap.docs.forEach((missionDoc) => {
+    if (orgMissionsResult.status === "fulfilled") {
+        orgMissionsResult.value.docs.forEach((missionDoc) => {
             if (!map.has(missionDoc.id)) {
                 addMission(missionDoc.id, missionDoc.data());
             }
         });
-    } catch (err) {
-        console.warn("[WARN] organizations/missions:", err);
+    } else {
+        console.warn("[WARN] organizations/missions:", orgMissionsResult.reason);
     }
 
-    try {
-        const historySnap = await getDocs(
-            collection(db, "organizations", orgId, "history")
-        );
-        historySnap.docs.forEach((missionDoc) => {
+    if (historyResult.status === "fulfilled") {
+        historyResult.value.docs.forEach((missionDoc) => {
             addMission(missionDoc.id, missionDoc.data(), true);
         });
-    } catch (err) {
-        console.warn("[WARN] organizations/history:", err);
+    } else {
+        console.warn("[WARN] organizations/history:", historyResult.reason);
     }
 
     return map;
@@ -239,32 +239,36 @@ async function loadApplicantApplications(orgId, userId) {
         console.warn("[WARN] users applications:", err);
     }
 
-    for (const [missionId, mission] of orgMissionById) {
-        try {
-            const snap = await getDocs(
-                query(
-                    collection(db, "missions", missionId, "applications"),
-                    where("userId", "==", userId)
-                )
-            );
-            for (const docSnap of snap.docs) {
-                mergeApp(
-                    missionId,
-                    buildApplicationRecord(
-                        docSnap,
-                        docSnap.data(),
-                        missionId,
-                        mission,
-                        STORAGE_MISSIONS_SUB,
-                        userId,
-                        orgId
+    const missionIds = [...orgMissionById.keys()];
+    await Promise.all(
+        missionIds.map(async (missionId) => {
+            const mission = orgMissionById.get(missionId);
+            try {
+                const snap = await getDocs(
+                    query(
+                        collection(db, "missions", missionId, "applications"),
+                        where("userId", "==", userId)
                     )
                 );
+                for (const docSnap of snap.docs) {
+                    mergeApp(
+                        missionId,
+                        buildApplicationRecord(
+                            docSnap,
+                            docSnap.data(),
+                            missionId,
+                            mission,
+                            STORAGE_MISSIONS_SUB,
+                            userId,
+                            orgId
+                        )
+                    );
+                }
+            } catch (err) {
+                console.warn("[WARN] missions applications", missionId, err);
             }
-        } catch (err) {
-            console.warn("[WARN] missions applications", missionId, err);
-        }
-    }
+        })
+    );
 
     return Array.from(byMission.values());
 }
@@ -276,95 +280,100 @@ async function mergeApplicantFromOrgRosters(orgId, userId) {
         byMission.set(app.missionId, app);
     }
 
-    for (const [missionId, mission] of orgMissionById) {
-        if (!isMissionCompleted(missionId)) continue;
+    const completedMissionIds = [...orgMissionById.keys()].filter((missionId) =>
+        isMissionCompleted(missionId)
+    );
 
-        try {
-            const rosterRef = doc(
-                db,
-                "organizations",
-                orgId,
-                "missions",
-                missionId,
-                "volunteers",
-                userId
-            );
-            const rosterSnap = await getDoc(rosterRef);
-            let rosterData = rosterSnap.exists() ? rosterSnap.data() : null;
-
-            if (!rosterData) {
-                const rosterQuery = await getDocs(
-                    query(
-                        collection(
-                            db,
-                            "organizations",
-                            orgId,
-                            "missions",
-                            missionId,
-                            "volunteers"
-                        ),
-                        where("userId", "==", userId)
-                    )
+    await Promise.all(
+        completedMissionIds.map(async (missionId) => {
+            const mission = orgMissionById.get(missionId);
+            try {
+                const rosterRef = doc(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "volunteers",
+                    userId
                 );
-                if (!rosterQuery.empty) {
-                    rosterData = rosterQuery.docs[0].data();
+                const rosterSnap = await getDoc(rosterRef);
+                let rosterData = rosterSnap.exists() ? rosterSnap.data() : null;
+
+                if (!rosterData) {
+                    const rosterQuery = await getDocs(
+                        query(
+                            collection(
+                                db,
+                                "organizations",
+                                orgId,
+                                "missions",
+                                missionId,
+                                "volunteers"
+                            ),
+                            where("userId", "==", userId)
+                        )
+                    );
+                    if (!rosterQuery.empty) {
+                        rosterData = rosterQuery.docs[0].data();
+                    }
                 }
+
+                if (!rosterData) return;
+
+                const rosterStatus = (rosterData.status || "approved").toLowerCase();
+                if (!isApprovedStatus(rosterStatus)) return;
+
+                const existing = byMission.get(missionId);
+                const record = {
+                    orgId,
+                    id: existing?.id || rosterData.applicationId || "",
+                    userApplicationId:
+                        existing?.userApplicationId ||
+                        rosterData.userApplicationId ||
+                        "",
+                    storage: existing?.storage || STORAGE_MISSIONS_SUB,
+                    userId,
+                    name:
+                        existing?.name ||
+                        rosterData.displayName ||
+                        rosterData.name ||
+                        "",
+                    email: existing?.email || rosterData.email || "",
+                    phone:
+                        existing?.phone ||
+                        rosterData.mobileNumber ||
+                        rosterData.phone ||
+                        "",
+                    occupation: existing?.occupation || rosterData.occupation || "",
+                    status: "approved",
+                    missionId,
+                    missionName:
+                        rosterData.missionName ||
+                        existing?.missionName ||
+                        mission.missionName ||
+                        mission.name ||
+                        "Mission",
+                };
+
+                if (
+                    !existing ||
+                    !isApprovedStatus(existing.status) ||
+                    record.storage === STORAGE_MISSIONS_SUB
+                ) {
+                    byMission.set(missionId, record);
+                }
+            } catch (err) {
+                console.warn(
+                    "[WARN] roster",
+                    orgId,
+                    missionId,
+                    userId,
+                    err
+                );
             }
-
-            if (!rosterData) continue;
-
-            const rosterStatus = (rosterData.status || "approved").toLowerCase();
-            if (!isApprovedStatus(rosterStatus)) continue;
-
-            const existing = byMission.get(missionId);
-            const record = {
-                orgId,
-                id: existing?.id || rosterData.applicationId || "",
-                userApplicationId:
-                    existing?.userApplicationId ||
-                    rosterData.userApplicationId ||
-                    "",
-                storage: existing?.storage || STORAGE_MISSIONS_SUB,
-                userId,
-                name:
-                    existing?.name ||
-                    rosterData.displayName ||
-                    rosterData.name ||
-                    "",
-                email: existing?.email || rosterData.email || "",
-                phone:
-                    existing?.phone ||
-                    rosterData.mobileNumber ||
-                    rosterData.phone ||
-                    "",
-                occupation: existing?.occupation || rosterData.occupation || "",
-                status: "approved",
-                missionId,
-                missionName:
-                    rosterData.missionName ||
-                    existing?.missionName ||
-                    mission.missionName ||
-                    mission.name ||
-                    "Mission",
-            };
-
-            if (
-                !existing ||
-                !isApprovedStatus(existing.status) ||
-                record.storage === STORAGE_MISSIONS_SUB
-            ) {
-                byMission.set(missionId, record);
-            }
-        } catch (err) {
-            console.warn(
-                "[WARN] roster",
-                orgId,
-                missionId,
-                userId,
-                err
-            );
-        }
-    }
+        })
+    );
 
     applicantApplications = Array.from(byMission.values());
 }
@@ -523,13 +532,17 @@ async function initPage(user) {
     if (content) content.hidden = true;
 
     orgMissionById = await buildOrgMissionMap(user.uid);
-    applicantApplications = await loadApplicantApplications(
-        user.uid,
-        applicantUserId
-    );
-    await mergeApplicantFromOrgRosters(user.uid, applicantUserId);
 
-    const profile = await loadApplicantProfile(applicantUserId);
+    const [profile] = await Promise.all([
+        loadApplicantProfile(applicantUserId),
+        (async () => {
+            applicantApplications = await loadApplicantApplications(
+                user.uid,
+                applicantUserId
+            );
+            await mergeApplicantFromOrgRosters(user.uid, applicantUserId);
+        })(),
+    ]);
     const nameEl = document.getElementById("applicantName");
     if (nameEl && profile?.name) {
         nameEl.dataset.fallback = profile.name;

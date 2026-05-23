@@ -12,6 +12,10 @@ import {
     syncMissionVolunteerRoster,
 } from "./application-storage.js";
 
+const userProfileCache = new Map();
+let cachedOrgMissionById = null;
+let cachedOrgMissionOrgId = null;
+
 async function fetchUserFieldsForVolunteer(userId) {
     if (!userId) return {};
     try {
@@ -27,6 +31,69 @@ async function fetchUserFieldsForVolunteer(userId) {
     } catch (e) {
         console.warn("[WARNING] Could not load users/", userId, e);
         return {};
+    }
+}
+
+async function prefetchUserProfiles(userIds) {
+    const missing = [
+        ...new Set(
+            userIds.filter((id) => id && !userProfileCache.has(id))
+        ),
+    ];
+    if (missing.length === 0) return;
+
+    await Promise.all(
+        missing.map(async (userId) => {
+            const fields = await fetchUserFieldsForVolunteer(userId);
+            userProfileCache.set(userId, fields);
+        })
+    );
+}
+
+function getCachedUserProfile(userId) {
+    return userId ? userProfileCache.get(userId) || {} : {};
+}
+
+function showVolunteerTableLoading() {
+    if (!volunteerTable) return;
+    volunteerTable.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Loading volunteers…</td></tr>`;
+}
+
+async function enrichVolunteersFromProfiles(volunteers) {
+    const ids = [
+        ...new Set(
+            volunteers
+                .filter((v) => {
+                    if (!v.userId) return false;
+                    const needsName =
+                        !v.name || v.name === "N/A" || v.name.includes("…");
+                    const needsEmail = !v.email || v.email === "N/A";
+                    const needsPhone = !v.phone || v.phone === "N/A";
+                    return needsName || needsEmail || needsPhone;
+                })
+                .map((v) => v.userId)
+        ),
+    ];
+    await prefetchUserProfiles(ids);
+
+    for (const v of volunteers) {
+        if (!v.userId) continue;
+        const p = getCachedUserProfile(v.userId);
+        if (!v.name || v.name === "N/A" || v.name.includes("…")) {
+            v.name = p.name || v.name;
+        }
+        if (!v.email || v.email === "N/A") {
+            v.email = p.email || v.email;
+        }
+        if (!v.phone || v.phone === "N/A") {
+            v.phone = p.phone || v.phone;
+        }
+        if (!v.occupation || v.occupation === "N/A") {
+            v.occupation = p.occupation || v.occupation;
+        }
+        if (!v.name || v.name === "N/A") {
+            v.name = `User ${v.userId.slice(0, 8)}…`;
+        }
     }
 }
 
@@ -489,12 +556,19 @@ onAuthStateChanged(auth, async (user) => {
     console.log("[SUCCESS] Logged in as:", user.uid);
     console.log("[SUCCESS] User email:", user.email);
     
-    // Load missions and volunteers
-    await loadMissions(user.uid);
+    showVolunteerTableLoading();
     await loadVolunteers();
 });
 
-async function buildOrgMissionMap(orgId) {
+async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
+    if (
+        !forceRefresh &&
+        cachedOrgMissionById &&
+        cachedOrgMissionOrgId === orgId
+    ) {
+        return cachedOrgMissionById;
+    }
+
     const map = new Map();
 
     const addMission = (id, data) => {
@@ -505,48 +579,53 @@ async function buildOrgMissionMap(orgId) {
         });
     };
 
-    try {
-        const missionsSnap = await getDocs(collection(db, "missions"));
-        missionsSnap.docs.forEach((missionDoc) => {
+    const [missionsResult, orgMissionsResult, historyResult] =
+        await Promise.allSettled([
+            getDocs(collection(db, "missions")),
+            getDocs(collection(db, "organizations", orgId, "missions")),
+            getDocs(collection(db, "organizations", orgId, "history")),
+        ]);
+
+    if (missionsResult.status === "fulfilled") {
+        missionsResult.value.docs.forEach((missionDoc) => {
             const mission = missionDoc.data();
-            if (mission.orgId === orgId) {
+            if (
+                mission.orgId === orgId ||
+                mission.organizationId === orgId
+            ) {
                 addMission(missionDoc.id, mission);
             }
         });
-    } catch (err) {
-        console.error("[ERROR] loading missions collection:", err);
+    } else {
+        console.error("[ERROR] loading missions collection:", missionsResult.reason);
     }
 
-    try {
-        const orgMissionsSnap = await getDocs(
-            collection(db, "organizations", orgId, "missions")
-        );
-        orgMissionsSnap.docs.forEach((missionDoc) => {
+    if (orgMissionsResult.status === "fulfilled") {
+        orgMissionsResult.value.docs.forEach((missionDoc) => {
             if (!map.has(missionDoc.id)) {
                 addMission(missionDoc.id, missionDoc.data());
             }
         });
-    } catch (err) {
-        console.warn("[WARN] organizations/missions:", err);
+    } else {
+        console.warn("[WARN] organizations/missions:", orgMissionsResult.reason);
     }
 
-    try {
-        const historySnap = await getDocs(
-            collection(db, "organizations", orgId, "history")
-        );
-        historySnap.docs.forEach((missionDoc) => {
+    if (historyResult.status === "fulfilled") {
+        historyResult.value.docs.forEach((missionDoc) => {
             if (!map.has(missionDoc.id)) {
                 addMission(missionDoc.id, missionDoc.data());
             }
         });
-    } catch (err) {
-        console.warn("[WARN] organizations/history:", err);
+    } else {
+        console.warn("[WARN] organizations/history:", historyResult.reason);
     }
 
+    cachedOrgMissionById = map;
+    cachedOrgMissionOrgId = orgId;
     return map;
 }
 
-async function pushVolunteerFromApplication(
+function pushVolunteerFromApplication(
     docSnap,
     application,
     missionId,
@@ -565,7 +644,7 @@ async function pushVolunteerFromApplication(
     let occupation = application.occupation || "";
 
     if ((!name || !email) && userId) {
-        const profile = await fetchUserFieldsForVolunteer(userId);
+        const profile = getCachedUserProfile(userId);
         name = name || profile.name || "";
         email = email || profile.email || "";
         phone = phone || profile.phone || "";
@@ -595,7 +674,7 @@ async function pushVolunteerFromApplication(
     });
 }
 
-async function pushVolunteerFromRoster(docSnap, data, missionId, mission, orgId) {
+function pushVolunteerFromRoster(docSnap, data, missionId, mission, orgId) {
     const userId = data.userId || docSnap.id;
     let name = data.displayName || data.name || "";
     let email = data.email || "";
@@ -603,7 +682,7 @@ async function pushVolunteerFromRoster(docSnap, data, missionId, mission, orgId)
     let occupation = data.occupation || "";
 
     if ((!name || !email) && userId) {
-        const profile = await fetchUserFieldsForVolunteer(userId);
+        const profile = getCachedUserProfile(userId);
         name = name || profile.name || "";
         email = email || profile.email || "";
         phone = phone || profile.phone || "";
@@ -633,40 +712,50 @@ async function pushVolunteerFromRoster(docSnap, data, missionId, mission, orgId)
 }
 
 async function loadOrgMissionVolunteerRosters(orgId, orgMissionById, dedupe) {
-    for (const [missionId, mission] of orgMissionById) {
-        try {
-            const rosterSnap = await getDocs(
-                collection(
-                    db,
-                    "organizations",
-                    orgId,
-                    "missions",
-                    missionId,
-                    "volunteers"
-                )
-            );
-            for (const docSnap of rosterSnap.docs) {
-                const data = docSnap.data();
-                const userId = data.userId || docSnap.id;
-                const key = applicationDedupeKey(missionId, userId, docSnap.id);
-                if (dedupe.has(key)) continue;
-                dedupe.add(key);
-                await pushVolunteerFromRoster(
-                    docSnap,
-                    data,
-                    missionId,
-                    mission,
-                    orgId
+    const missionEntries = [...orgMissionById.entries()];
+
+    const rosterSnaps = await Promise.all(
+        missionEntries.map(async ([missionId, mission]) => {
+            try {
+                const rosterSnap = await getDocs(
+                    collection(
+                        db,
+                        "organizations",
+                        orgId,
+                        "missions",
+                        missionId,
+                        "volunteers"
+                    )
                 );
+                return { missionId, mission, rosterSnap, error: null };
+            } catch (err) {
+                console.warn(
+                    "[WARN] organizations/",
+                    orgId,
+                    "/missions/",
+                    missionId,
+                    "/volunteers:",
+                    err
+                );
+                return { missionId, mission, rosterSnap: null, error: err };
             }
-        } catch (err) {
-            console.warn(
-                "[WARN] organizations/",
-                orgId,
-                "/missions/",
+        })
+    );
+
+    for (const { missionId, mission, rosterSnap } of rosterSnaps) {
+        if (!rosterSnap) continue;
+        for (const docSnap of rosterSnap.docs) {
+            const data = docSnap.data();
+            const userId = data.userId || docSnap.id;
+            const key = applicationDedupeKey(missionId, userId, docSnap.id);
+            if (dedupe.has(key)) continue;
+            dedupe.add(key);
+            pushVolunteerFromRoster(
+                docSnap,
+                data,
                 missionId,
-                "/volunteers:",
-                err
+                mission,
+                orgId
             );
         }
     }
@@ -678,47 +767,51 @@ function shouldSkipApplicationLoad(dedupe, missionId, userId) {
 }
 
 async function loadMissionSubcollectionApplications(orgMissionById, dedupe) {
-    for (const [missionId, mission] of orgMissionById) {
-        try {
-            const applicationsSnapshot = await getDocs(
-                collection(db, "missions", missionId, "applications")
-            );
-            for (const docSnap of applicationsSnapshot.docs) {
-                const application = docSnap.data();
-                const userId = application.userId || "";
-                if (shouldSkipApplicationLoad(dedupe, missionId, userId)) continue;
-                const key = applicationDedupeKey(missionId, userId, docSnap.id);
-                dedupe.add(key);
-                await pushVolunteerFromApplication(
-                    docSnap,
-                    application,
-                    missionId,
-                    mission,
-                    STORAGE_MISSIONS_SUB
+    const missionEntries = [...orgMissionById.entries()];
+
+    const applicationSnaps = await Promise.all(
+        missionEntries.map(async ([missionId, mission]) => {
+            try {
+                const applicationsSnapshot = await getDocs(
+                    collection(db, "missions", missionId, "applications")
                 );
+                return { missionId, mission, applicationsSnapshot, error: null };
+            } catch (missionError) {
+                console.error(
+                    "[ERROR] missions/",
+                    missionId,
+                    "/applications",
+                    missionError
+                );
+                return { missionId, mission, applicationsSnapshot: null, error: missionError };
             }
-        } catch (missionError) {
-            console.error(
-                "[ERROR] missions/",
+        })
+    );
+
+    for (const { missionId, mission, applicationsSnapshot } of applicationSnaps) {
+        if (!applicationsSnapshot) continue;
+        for (const docSnap of applicationsSnapshot.docs) {
+            const application = docSnap.data();
+            const userId = application.userId || "";
+            if (shouldSkipApplicationLoad(dedupe, missionId, userId)) continue;
+            const key = applicationDedupeKey(missionId, userId, docSnap.id);
+            dedupe.add(key);
+            pushVolunteerFromApplication(
+                docSnap,
+                application,
                 missionId,
-                "/applications",
-                missionError
+                mission,
+                STORAGE_MISSIONS_SUB
             );
         }
     }
 }
 
-async function loadMissions(user) {
-    try {
-        const orgMissionById = await buildOrgMissionMap(user);
-        allMissions = Array.from(orgMissionById.entries()).map(([id, m]) => ({
-            id,
-            ...m,
-        }));
-        console.log("[SUCCESS] Org missions cached:", allMissions.length);
-    } catch (error) {
-        console.error("[ERROR] Error loading missions:", error);
-    }
+function syncAllMissionsFromMap(orgMissionById) {
+    allMissions = Array.from(orgMissionById.entries()).map(([id, m]) => ({
+        id,
+        ...m,
+    }));
 }
 
 async function loadVolunteers() {
@@ -730,44 +823,45 @@ async function loadVolunteers() {
 
         const orgId = currentUser.uid;
         const orgMissionById = await buildOrgMissionMap(orgId);
+        syncAllMissionsFromMap(orgMissionById);
         console.log("[INFO] Org missions for volunteer load:", orgMissionById.size);
 
         const dedupe = new Set();
 
-        await loadOrgMissionVolunteerRosters(orgId, orgMissionById, dedupe);
+        const [, , orgAppsResult] = await Promise.all([
+            loadOrgMissionVolunteerRosters(orgId, orgMissionById, dedupe),
+            loadMissionSubcollectionApplications(orgMissionById, dedupe),
+            loadOrgApplications(
+                orgMissionById,
+                (entry) => {
+                    const userId =
+                        entry.data.userId || entry.applicationUserId || "";
+                    if (shouldSkipApplicationLoad(dedupe, entry.missionId, userId)) {
+                        return;
+                    }
+                    const key = applicationDedupeKey(
+                        entry.missionId,
+                        userId,
+                        entry.docSnap.id
+                    );
+                    dedupe.add(key);
+                    pushVolunteerFromApplication(
+                        entry.docSnap,
+                        entry.data,
+                        entry.missionId,
+                        entry.mission,
+                        entry.storage,
+                        entry.applicationUserId
+                    );
+                },
+                orgId
+            ),
+        ]);
+
         console.log("[INFO] Assigned volunteers from org rosters:", dedupe.size);
+        console.log("[INFO] Application load stats:", orgAppsResult);
 
-        await loadMissionSubcollectionApplications(orgMissionById, dedupe);
-
-        const loadStats = await loadOrgApplications(
-            orgMissionById,
-            async (entry) => {
-                const userId =
-                    entry.data.userId || entry.applicationUserId || "";
-                if (shouldSkipApplicationLoad(dedupe, entry.missionId, userId)) {
-                    return;
-                }
-                const key = applicationDedupeKey(
-                    entry.missionId,
-                    userId,
-                    entry.docSnap.id
-                );
-                dedupe.add(key);
-                await pushVolunteerFromApplication(
-                    entry.docSnap,
-                    entry.data,
-                    entry.missionId,
-                    entry.mission,
-                    entry.storage,
-                    entry.applicationUserId
-                );
-            },
-            orgId
-        );
-        console.log("[INFO] Application load stats:", loadStats);
-
-        await autoAcceptPendingApplications(orgMissionById);
-        await autoClosePendingApplications(orgMissionById);
+        await enrichVolunteersFromProfiles(allVolunteers);
 
         allApplicants = groupVolunteersByApplicant(allVolunteers);
         console.log(
@@ -778,10 +872,23 @@ async function loadVolunteers() {
         );
         applyVolunteerFilters();
         initVolunteerPaginationControls();
+
+        void runVolunteerMaintenance(orgMissionById);
     } catch (error) {
         console.error("Error loading volunteers:", error);
         allApplicants = groupVolunteersByApplicant(allVolunteers);
         applyVolunteerFilters();
+    }
+}
+
+async function runVolunteerMaintenance(orgMissionById) {
+    try {
+        await autoAcceptPendingApplications(orgMissionById);
+        await autoClosePendingApplications(orgMissionById);
+        allApplicants = groupVolunteersByApplicant(allVolunteers);
+        applyVolunteerFilters();
+    } catch (err) {
+        console.warn("[WARN] volunteer maintenance:", err);
     }
 }
 
