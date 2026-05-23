@@ -74,17 +74,66 @@ function filterVolunteersByPeriod(volunteers, period) {
     });
 }
 
+function groupVolunteersByApplicant(applications) {
+    const byUser = new Map();
+
+    for (const app of applications) {
+        const key = app.userId || app.email || app.id;
+        if (!byUser.has(key)) {
+            byUser.set(key, {
+                userId: app.userId || "",
+                name: app.name,
+                email: app.email,
+                phone: app.phone,
+                occupation: app.occupation,
+                applications: [],
+            });
+        }
+        const entry = byUser.get(key);
+        entry.applications.push(app);
+        // keep best profile fields
+        if (app.name && app.name !== "N/A") entry.name = app.name;
+        if (app.email && app.email !== "N/A") entry.email = app.email;
+    }
+
+    return Array.from(byUser.values()).map((a) => {
+        const statuses = a.applications.map((x) =>
+            (x.status || "").toLowerCase()
+        );
+        let summaryStatus = "approved";
+        if (statuses.some((s) => s === "pending")) summaryStatus = "pending";
+        else if (statuses.every((s) => s === "rejected")) summaryStatus = "rejected";
+        else if (statuses.some((s) => s === "rejected")) summaryStatus = "mixed";
+
+        return {
+            ...a,
+            missionCount: a.applications.length,
+            summaryStatus,
+        };
+    });
+}
+
 function applyVolunteerFilters() {
     const period = filterSelect.value;
     const term = searchInput.value.toLowerCase().trim();
 
-    let list = filterVolunteersByPeriod(allVolunteers, period);
+    let list = allApplicants.map((a) => ({
+        ...a,
+        // use latest application date for period filter
+        appliedAt: a.applications.reduce((latest, app) => {
+            const d = getAppliedDate(app);
+            if (!d) return latest;
+            return !latest || d > latest ? d : latest;
+        }, null),
+    }));
+
+    list = filterVolunteersByPeriod(list, period);
 
     if (term) {
         list = list.filter(
-            (v) =>
-                (v.name && v.name.toLowerCase().includes(term)) ||
-                (v.email && v.email.toLowerCase().includes(term))
+            (a) =>
+                (a.name && a.name.toLowerCase().includes(term)) ||
+                (a.email && a.email.toLowerCase().includes(term))
         );
     }
 
@@ -273,6 +322,7 @@ const filterSelect = document.getElementById("filterSelect");
 const modalBody = document.getElementById("modalBody");
 
 let allVolunteers = [];
+let allApplicants = []; // one entry per userId
 let allMissions = [];
 let currentUser = null;
 let volunteerPageSize = 10;
@@ -719,11 +769,18 @@ async function loadVolunteers() {
         await autoAcceptPendingApplications(orgMissionById);
         await autoClosePendingApplications(orgMissionById);
 
-        console.log("[SUCCESS] Total volunteers loaded:", allVolunteers.length);
+        allApplicants = groupVolunteersByApplicant(allVolunteers);
+        console.log(
+            "[SUCCESS] Applicants:",
+            allApplicants.length,
+            "applications:",
+            allVolunteers.length
+        );
         applyVolunteerFilters();
         initVolunteerPaginationControls();
     } catch (error) {
         console.error("Error loading volunteers:", error);
+        allApplicants = groupVolunteersByApplicant(allVolunteers);
         applyVolunteerFilters();
     }
 }
@@ -734,8 +791,12 @@ function updateVolunteerCounts(volunteers) {
     
     // Count volunteers by status
     const totalVolunteers = volunteers.length;
-    const pendingVolunteers = volunteers.filter(v => (v.status || '').toLowerCase() === 'pending').length;
-    const approvedVolunteers = volunteers.filter(v => (v.status || '').toLowerCase() === 'approved').length;
+    const pendingVolunteers = volunteers.filter(
+        (v) => (v.summaryStatus || v.status || "").toLowerCase() === "pending"
+    ).length;
+    const approvedVolunteers = volunteers.filter(
+        (v) => (v.summaryStatus || v.status || "").toLowerCase() === "approved"
+    ).length;
     
     console.log("[INFO] Counts - Total:", totalVolunteers, "Pending:", pendingVolunteers, "Approved:", approvedVolunteers);
     
@@ -903,89 +964,46 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
     }
 }
 
-// Fixed displayVolunteers function with better styling
-function displayVolunteers(volunteers) {
+function displayVolunteers(applicants) {
     if (!volunteerTable) return;
-
     volunteerTable.innerHTML = "";
 
-    if (volunteers.length === 0) {
+    if (applicants.length === 0) {
         volunteerTable.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No volunteers found</td></tr>`;
         volunteerCurrentPage = 1;
         applyVolunteerPagination();
         return;
     }
 
-    volunteers.forEach((v) => {
+    applicants.forEach((a) => {
         const row = document.createElement("tr");
         row.classList.add("volunteer-application-row");
-        
-        // Create action buttons with better styling
-        let actionButtons = '';
-        const normalizedStatus = (v.status || '').toLowerCase();
-        
-        if (normalizedStatus === 'pending') {
-            actionButtons = `
-                <button class="action-btn accept-btn" data-id="${v.id}" data-mission-id="${v.missionId}" title="Accept Application">
-                    <i class="fas fa-check"></i> Accept
-                </button>
-                <button class="action-btn reject-btn" data-id="${v.id}" data-mission-id="${v.missionId}" title="Reject Application">
-                    <i class="fas fa-times"></i> Reject
-                </button>
-            `;
-        } else if (normalizedStatus === 'approved') {
-            actionButtons = `
-                <span class="status-badge approved-badge">
-                    <i class="fas fa-check-circle"></i> Accepted
-                </span>
-            `;
-        } else if (normalizedStatus === 'rejected') {
-            actionButtons = `
-                <span class="status-badge rejected-badge">
-                    <i class="fas fa-times-circle"></i> Rejected
-                </span>
-            `;
-        } else if (normalizedStatus === 'closed') {
-            actionButtons = `
-                <span class="status-badge closed-badge">
-                    <i class="fas fa-ban"></i> Closed
-                </span>
-            `;
-        } else {
-            actionButtons = `
-                <span class="status-badge unknown-badge">
-                    <i class="fas fa-question-circle"></i> Unknown
-                </span>
-            `;
-        }
-        
-        // Fixed table structure with better styling
+
+        const missionLabel =
+            a.missionCount === 1
+                ? a.applications[0].missionName || "1 mission"
+                : `${a.missionCount} missions`;
+
+        const statusHtml = `<span class="status-badge ${getStatusBadgeClass(a.summaryStatus)}">${getStatusIcon(a.summaryStatus)} ${a.summaryStatus}</span>`;
+
+        const viewUrl = a.userId
+            ? `/organization/volunteers/details?userId=${encodeURIComponent(a.userId)}`
+            : "#";
+
         row.innerHTML = `
-            <td>${v.name || "N/A"}</td>
-            <td>${v.email || "N/A"}</td>
-            <td>${v.phone || "N/A"}</td>
-            <td>${v.occupation || "N/A"}</td>
-            <td>${v.missionName || "N/A"}</td>
-            <td><span class="status-badge ${getStatusBadgeClass(v.status)}">${getStatusIcon(v.status)} ${v.status || "N/A"}</span></td>
-            <td>${actionButtons}</td>
+            <td>${escapeHtml(a.name || "N/A")}</td>
+            <td>${escapeHtml(a.email || "N/A")}</td>
+            <td>${escapeHtml(a.phone || "N/A")}</td>
+            <td>${escapeHtml(a.occupation || "N/A")}</td>
+            <td>${escapeHtml(missionLabel)}</td>
+            <td>${statusHtml}</td>
+            <td>
+                <a href="${viewUrl}" class="action-btn view-btn" style="text-decoration:none;">
+                    <i class="fas fa-eye"></i> View details
+                </a>
+            </td>
         `;
         volunteerTable.appendChild(row);
-    });
-
-    document.querySelectorAll(".accept-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-            const el = e.target.closest(".accept-btn");
-            if (!el?.dataset?.id) return;
-            updateApplicationStatus(el.dataset.id, el.dataset.missionId, "approved");
-        });
-    });
-
-    document.querySelectorAll(".reject-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-            const el = e.target.closest(".reject-btn");
-            if (!el?.dataset?.id) return;
-            openRejectModal(el.dataset.id, el.dataset.missionId);
-        });
     });
 
     applyVolunteerPagination();
@@ -996,6 +1014,7 @@ function getStatusBadgeClass(status) {
     const normalizedStatus = (status || '').toLowerCase();
     switch(normalizedStatus) {
         case 'pending': return 'pending-badge';
+        case 'mixed': return 'unknown-badge';
         case 'approved': return 'approved-badge';
         case 'rejected': return 'rejected-badge';
         case 'closed': return 'closed-badge';
@@ -1013,24 +1032,6 @@ function getStatusIcon(status) {
         case 'closed': return '<i class="fas fa-ban"></i>';
         default: return '<i class="fas fa-question-circle"></i>';
     }
-}
-
-function showDetails(v) {
-    const rejectedBlock =
-        (v.status || "").toLowerCase() === "rejected" && (v.rejectionReason || "").trim()
-            ? `<p><strong>Reason for rejection:</strong> ${escapeHtml(v.rejectionReason.trim())}</p>`
-            : "";
-    modalBody.innerHTML = `
-        <p><strong>Name:</strong> ${escapeHtml(v.name)}</p>
-        <p><strong>Email:</strong> ${escapeHtml(v.email)}</p>
-        <p><strong>Phone:</strong> ${escapeHtml(v.phone || "N/A")}</p>
-        <p><strong>Occupation:</strong> ${escapeHtml(v.occupation || "N/A")}</p>
-        <p><strong>Mission:</strong> ${escapeHtml(v.missionName || "N/A")}</p>
-        <p><strong>Status:</strong> ${escapeHtml(v.status || "N/A")}</p>
-        <p><strong>Applied At:</strong> ${v.appliedAt || "N/A"}</p>
-        ${rejectedBlock}
-    `;
-    detailsModal.show();
 }
 
 searchInput.addEventListener("input", () => {

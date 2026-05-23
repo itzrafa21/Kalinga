@@ -16,6 +16,8 @@ export default defineConfig({
                 'resources/js/organization-profile.js',
                 'resources/js/admin-dashboard.js',
                 'resources/js/admin-config.js',
+                'resources/js/volunteer.js',
+                'resources/js/volunteer-details.js',
             ],
             refresh: true,
         }),

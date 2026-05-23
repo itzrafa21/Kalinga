@@ -12,7 +12,7 @@
     'resources/js/organization-sidebar.js',
     'resources/js/organization-logout.js',
     'resources/js/volunteer.js',
-    'resources/js/firebase.js'
+    'resources/js/firebase.js',
   ])
   @include('partials.org-layout-styles')
   <style>
@@ -527,10 +527,10 @@ tr.volunteer-application-row.volunteer-row-paged-out {
           <th>Email</th>
           <th>Mobile Number</th>
           <th>Occupation</th>
-          <th>Mission</th>
+          <th>Missions</th>
+          <th>Applied At</th>
           <th>Status</th>
           <th>Actions</th>
-        </tr>
       </thead>
       <tbody id="volunteerTableBody">
         <!-- Filled dynamically -->

@@ -54,3 +54,6 @@ Route::get('/establishments/manage', function () {
 Route::get('/missions/details', function () {
     return view('missions.details');
 });
+Route::get('/organization/volunteers/details', function () {
+    return view('organization.volunteer-details');
+});
