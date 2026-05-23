@@ -444,51 +444,6 @@
             </div>
             <div class="section-body">
               <div id="badge-list">
-                <div class="badge-row" id="bdg-FirstMission">
-                  <div class="badge-icon" style="background:#eff6ff;"><i class="ti ti-rocket" style="color:#3b82f6;font-size:15px;"></i></div>
-                  <div class="badge-info"><div class="badge-name">First mission</div><div class="badge-desc">Complete your first mission</div></div>
-                  <div class="cfg-right">
-                    <span class="preview-chip" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;">Milestone</span>
-                    <div class="toggle on" role="switch"></div>
-                    <button type="button" class="btn btn-r btn-sm" data-remove-badge="FirstMission"><i class="ti ti-trash" style="font-size:12px"></i></button>
-                  </div>
-                </div>
-                <div class="badge-row" id="bdg-Helper">
-                  <div class="badge-icon" style="background:#f0fdf4;"><i class="ti ti-star" style="color:#16a34a;font-size:15px;"></i></div>
-                  <div class="badge-info"><div class="badge-name">Helper badge</div><div class="badge-desc">Reach Helper level</div></div>
-                  <div class="cfg-right">
-                    <span class="preview-chip" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0;">Level up</span>
-                    <div class="toggle on" role="switch"></div>
-                    <button type="button" class="btn btn-r btn-sm" data-remove-badge="Helper"><i class="ti ti-trash" style="font-size:12px"></i></button>
-                  </div>
-                </div>
-                <div class="badge-row" id="bdg-Champion">
-                  <div class="badge-icon" style="background:#faf5ff;"><i class="ti ti-trophy" style="color:#7c3aed;font-size:15px;"></i></div>
-                  <div class="badge-info"><div class="badge-name">Champion badge</div><div class="badge-desc">Reach Champion level</div></div>
-                  <div class="cfg-right">
-                    <span class="preview-chip" style="background:#faf5ff;color:#6d28d9;border-color:#ddd6fe;">Level up</span>
-                    <div class="toggle on" role="switch"></div>
-                    <button type="button" class="btn btn-r btn-sm" data-remove-badge="Champion"><i class="ti ti-trash" style="font-size:12px"></i></button>
-                  </div>
-                </div>
-                <div class="badge-row" id="bdg-10Missions">
-                  <div class="badge-icon" style="background:#fff7ed;"><i class="ti ti-heart" style="color:#ea580c;font-size:15px;"></i></div>
-                  <div class="badge-info"><div class="badge-name">Dedicated</div><div class="badge-desc">Complete 10 missions</div></div>
-                  <div class="cfg-right">
-                    <span class="preview-chip" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;">Achievement</span>
-                    <div class="toggle on" role="switch"></div>
-                    <button type="button" class="btn btn-r btn-sm" data-remove-badge="10Missions"><i class="ti ti-trash" style="font-size:12px"></i></button>
-                  </div>
-                </div>
-                <div class="badge-row" id="bdg-Guardian">
-                  <div class="badge-icon" style="background:#fffbeb;"><i class="ti ti-crown" style="color:#d97706;font-size:15px;"></i></div>
-                  <div class="badge-info"><div class="badge-name">Guardian badge</div><div class="badge-desc">Reach Guardian level</div></div>
-                  <div class="cfg-right">
-                    <span class="preview-chip" style="background:#fffbeb;color:#92400e;border-color:#fde68a;">Level up</span>
-                    <div class="toggle on" role="switch"></div>
-                    <button type="button" class="btn btn-r btn-sm" data-remove-badge="Guardian"><i class="ti ti-trash" style="font-size:12px"></i></button>
-                  </div>
-                </div>
                 <div id="add-badge-form" style="display:none;">
                   <div class="add-row">
                     <input id="nb-name" placeholder="Badge name" />
@@ -521,26 +476,6 @@
             </div>
             <div class="section-body">
               <div id="level-list">
-                <div class="level-row" id="lv-Newcomer">
-                  <div class="level-info"><div class="level-dot" style="background:#9ca3af;"></div><div><div class="level-name">Newcomer</div><div class="level-sub">Starting level</div></div></div>
-                  <div class="range-row"><input class="range-in" type="number" value="0" min="0" /><span class="range-sep">–</span><input class="range-in" type="number" value="50" min="0" /><span class="pts-unit">pts</span><button type="button" class="btn btn-r btn-sm" data-remove-level="Newcomer"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
-                </div>
-                <div class="level-row" id="lv-Helper">
-                  <div class="level-info"><div class="level-dot" style="background:#60a5fa;"></div><div><div class="level-name">Helper</div><div class="level-sub">Early volunteer</div></div></div>
-                  <div class="range-row"><input class="range-in" type="number" value="51" min="0" /><span class="range-sep">–</span><input class="range-in" type="number" value="150" min="0" /><span class="pts-unit">pts</span><button type="button" class="btn btn-r btn-sm" data-remove-level="Helper"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
-                </div>
-                <div class="level-row" id="lv-Volunteer">
-                  <div class="level-info"><div class="level-dot" style="background:#34d399;"></div><div><div class="level-name">Volunteer</div><div class="level-sub">Regular contributor</div></div></div>
-                  <div class="range-row"><input class="range-in" type="number" value="150" min="0" /><span class="range-sep">–</span><input class="range-in" type="number" value="500" min="0" /><span class="pts-unit">pts</span><button type="button" class="btn btn-r btn-sm" data-remove-level="Volunteer"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
-                </div>
-                <div class="level-row" id="lv-Champion">
-                  <div class="level-info"><div class="level-dot" style="background:#a78bfa;"></div><div><div class="level-name">Champion</div><div class="level-sub">Dedicated volunteer</div></div></div>
-                  <div class="range-row"><input class="range-in" type="number" value="500" min="0" /><span class="range-sep">–</span><input class="range-in" type="number" value="1200" min="0" /><span class="pts-unit">pts</span><button type="button" class="btn btn-r btn-sm" data-remove-level="Champion"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
-                </div>
-                <div class="level-row" id="lv-Guardian">
-                  <div class="level-info"><div class="level-dot" style="background:#fbbf24;"></div><div><div class="level-name">Guardian</div><div class="level-sub">Elite volunteer</div></div></div>
-                  <div class="range-row"><input class="range-in" type="number" value="1200" min="0" /><span class="range-sep">–</span><input class="range-in" type="number" placeholder="∞" min="0" /><span class="pts-unit">pts</span><button type="button" class="btn btn-r btn-sm" data-remove-level="Guardian"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
-                </div>
                 <div id="add-level-form" style="display:none;">
                   <div class="add-row">
                     <input id="nl-name" placeholder="Level name" />

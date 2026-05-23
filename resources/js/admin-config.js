@@ -1,7 +1,8 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { DEFAULT_MISSION_TYPES } from "./platform-config.js";
+import { doc, getDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { clearPlatformConfigCache } from "./platform-config.js";
+import { SEED_MISSION_TYPES, SEED_BADGES, SEED_LEVELS } from "./platform-config-seed.js";
 
 const CONFIG_DOC = ["platform_config", "settings"];
 
@@ -142,7 +143,7 @@ window.addType = function () {
     document.getElementById("nt-pts").value = "";
     document.getElementById("add-type-form").style.display = "none";
 
-    persistMissionTypes();
+    persistConfig();
 };
 
 function getTypeRowBasePts(row) {
@@ -228,7 +229,7 @@ function saveTypeEdit(key) {
     }
 
     flashSaved();
-    persistMissionTypes();
+    persistConfig();
 }
 
 function cancelTypeEdit(key) {
@@ -298,7 +299,7 @@ function bindTypeRow(row, key) {
             pill.classList.toggle("bp-green", on);
             pill.classList.toggle("bp-gray", !on);
         }
-        persistMissionTypes();
+        persistConfig();
     });
     row.querySelector("[data-edit-type]")?.addEventListener("click", () => toggleTypeEdit(key));
     row.querySelector("[data-remove-type]")?.addEventListener("click", () => removeType(key));
@@ -325,8 +326,101 @@ window.removeType = function (k) {
     const e = document.getElementById("mt-" + k);
     if (e) e.remove();
     rebuildCalcTypeOptions();
-    persistMissionTypes();
+    persistConfig();
 };
+
+const badgeTypeStyles = {
+    Milestone: "background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;",
+    "Level up": "background:#f0fdf4;color:#15803d;border-color:#bbf7d0;",
+    Achievement: "background:#fff7ed;color:#c2410c;border-color:#fed7aa;",
+};
+
+function createBadgeRowElement({ id, name, description, type, active }) {
+    const key = id || String(name).replace(/\s+/g, "");
+    const badgeType = type || "Milestone";
+    const isActive = active !== false;
+    const row = document.createElement("div");
+    row.className = "badge-row";
+    row.id = "bdg-" + key;
+    row.innerHTML = `
+      <div class="badge-icon" style="background:#f3f4f6;"><i class="ti ti-award" style="color:#6b7280;font-size:16px;" aria-hidden="true"></i></div>
+      <div class="badge-info">
+        <div class="badge-name">${escapeHtml(name)}</div>
+        <div class="badge-desc">${escapeHtml(description || "Custom badge")}</div>
+      </div>
+      <div class="cfg-right">
+        <span class="preview-chip" style="${badgeTypeStyles[badgeType] || badgeTypeStyles.Milestone}">${escapeHtml(badgeType)}</span>
+        <div class="toggle ${isActive ? "on" : ""}" role="switch" aria-checked="${isActive}"></div>
+        <button type="button" class="btn btn-r btn-sm" data-remove-badge="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
+      </div>`;
+    return row;
+}
+
+function renderBadgesList(badges) {
+    const list = document.getElementById("badge-list");
+    const form = document.getElementById("add-badge-form");
+    if (!list || !form) return;
+
+    list.querySelectorAll(".badge-row[id^='bdg-']").forEach((row) => row.remove());
+
+    (badges || []).forEach((b) => {
+        const row = createBadgeRowElement(b);
+        list.insertBefore(row, form);
+    });
+}
+
+function bindBadgeRow(row, key) {
+    const toggle = row.querySelector(".toggle");
+    toggle?.addEventListener("click", () => {
+        toggle.classList.toggle("on");
+        toggle.setAttribute("aria-checked", toggle.classList.contains("on") ? "true" : "false");
+        persistConfig();
+    });
+    row.querySelector("[data-remove-badge]")?.addEventListener("click", () => removeBadge(key));
+}
+
+function createLevelRowElement({ id, name, description, min, max, color }) {
+    const key = id || String(name).replace(/\s+/g, "");
+    const col = color || "#9ca3af";
+    const minVal = min ?? 0;
+    const maxVal = max === null || max === undefined ? "" : String(max);
+    const row = document.createElement("div");
+    row.className = "level-row";
+    row.id = "lv-" + key;
+    row.innerHTML = `
+      <div class="level-info">
+        <div class="level-dot" style="background:${escapeHtml(col)};"></div>
+        <div><div class="level-name">${escapeHtml(name)}</div><div class="level-sub">${escapeHtml(description || "Custom level")}</div></div>
+      </div>
+      <div class="range-row">
+        <input class="range-in" type="number" value="${escapeHtml(String(minVal))}" min="0" />
+        <span class="range-sep">–</span>
+        <input class="range-in" type="number" value="${escapeHtml(maxVal)}" min="0" placeholder="Max" />
+        <span class="pts-unit" style="margin-left:2px;">pts</span>
+        <button type="button" class="btn btn-r btn-sm" style="margin-left:6px;" data-remove-level="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:11px"></i></button>
+      </div>`;
+    return row;
+}
+
+function renderLevelsList(levels) {
+    const list = document.getElementById("level-list");
+    const form = document.getElementById("add-level-form");
+    if (!list || !form) return;
+
+    list.querySelectorAll(".level-row[id^='lv-']").forEach((row) => row.remove());
+
+    (levels || []).forEach((lv) => {
+        const row = createLevelRowElement(lv);
+        list.insertBefore(row, form);
+    });
+}
+
+function bindLevelRow(row, key) {
+    row.querySelectorAll(".range-in").forEach((input) => {
+        input.addEventListener("change", () => persistConfig());
+    });
+    row.querySelector("[data-remove-level]")?.addEventListener("click", () => removeLevel(key));
+}
 
 window.showAddLevel = function () {
     document.getElementById("add-level-form").style.display = "block";
@@ -342,44 +436,33 @@ window.addLevel = function () {
     const key = name.replace(/\s+/g, "");
     const colors = ["#60a5fa", "#34d399", "#a78bfa", "#fbbf24", "#f87171"];
     const col = colors[Math.floor(Math.random() * colors.length)];
-    const row = document.createElement("div");
-    row.className = "level-row";
-    row.id = "lv-" + key;
-    row.innerHTML = `
-      <div class="level-info">
-        <div class="level-dot" style="background:${col};"></div>
-        <div><div class="level-name">${escapeHtml(name)}</div><div class="level-sub">${escapeHtml(desc || "Custom level")}</div></div>
-      </div>
-      <div class="range-row">
-        <input class="range-in" type="number" value="${escapeHtml(mn)}" min="0" />
-        <span class="range-sep">–</span>
-        <input class="range-in" type="number" value="${escapeHtml(mx)}" min="0" placeholder="Max" />
-        <span class="pts-unit" style="margin-left:2px;">pts</span>
-        <button type="button" class="btn btn-r btn-sm" style="margin-left:6px;" data-remove-level="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:11px"></i></button>
-      </div>`;
-    row.querySelector("[data-remove-level]")?.addEventListener("click", () => removeLevel(key));
+    const row = createLevelRowElement({
+        id: key,
+        name,
+        description: desc || "Custom level",
+        min: parseFloat(mn) || 0,
+        max: mx === "" ? null : parseFloat(mx),
+        color: col,
+    });
+    bindLevelRow(row, key);
     document.getElementById("level-list").insertBefore(row, document.getElementById("add-level-form"));
     document.getElementById("nl-name").value = "";
     document.getElementById("nl-desc").value = "";
     document.getElementById("nl-min").value = "";
     document.getElementById("nl-max").value = "";
     document.getElementById("add-level-form").style.display = "none";
+    persistConfig();
 };
 
 window.removeLevel = function (k) {
     const e = document.getElementById("lv-" + k);
     if (e) e.remove();
+    persistConfig();
 };
 
 window.showAddBadge = function () {
     document.getElementById("add-badge-form").style.display = "block";
     document.getElementById("nb-name").focus();
-};
-
-const badgeTypeStyles = {
-    Milestone: "background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;",
-    "Level up": "background:#f0fdf4;color:#15803d;border-color:#bbf7d0;",
-    Achievement: "background:#fff7ed;color:#c2410c;border-color:#fed7aa;",
 };
 
 window.addBadge = function () {
@@ -388,30 +471,25 @@ window.addBadge = function () {
     const type = document.getElementById("nb-type").value;
     if (!name) return;
     const key = name.replace(/\s+/g, "");
-    const row = document.createElement("div");
-    row.className = "badge-row";
-    row.id = "bdg-" + key;
-    row.innerHTML = `
-      <div class="badge-icon" style="background:#f3f4f6;"><i class="ti ti-award" style="color:#6b7280;font-size:16px;" aria-hidden="true"></i></div>
-      <div class="badge-info">
-        <div class="badge-name">${escapeHtml(name)}</div>
-        <div class="badge-desc">${escapeHtml(desc || "Custom badge")}</div>
-      </div>
-      <div class="cfg-right">
-        <span class="preview-chip" style="${badgeTypeStyles[type] || badgeTypeStyles.Milestone}">${escapeHtml(type)}</span>
-        <div class="toggle on" role="switch" aria-checked="true"></div>
-        <button type="button" class="btn btn-r btn-sm" data-remove-badge="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
-      </div>`;
-    row.querySelector("[data-remove-badge]")?.addEventListener("click", () => removeBadge(key));
+    const row = createBadgeRowElement({
+        id: key,
+        name,
+        description: desc || "Custom badge",
+        type,
+        active: true,
+    });
+    bindBadgeRow(row, key);
     document.getElementById("badge-list").insertBefore(row, document.getElementById("add-badge-form"));
     document.getElementById("nb-name").value = "";
     document.getElementById("nb-desc").value = "";
     document.getElementById("add-badge-form").style.display = "none";
+    persistConfig();
 };
 
 window.removeBadge = function (k) {
     const e = document.getElementById("bdg-" + k);
     if (e) e.remove();
+    persistConfig();
 };
 
 function collectConfigFromDom() {
@@ -468,10 +546,12 @@ async function saveConfigToFirestore(options = {}) {
     const { silent = false } = options;
     const payload = {
         ...collectConfigFromDom(),
+        basePointsByType: deleteField(),
         updatedAt: serverTimestamp(),
     };
     try {
         await setDoc(doc(db, ...CONFIG_DOC), payload, { merge: true });
+        clearPlatformConfigCache();
         if (!silent) {
             flashSaved();
             const toast = document.getElementById("configSaveToast");
@@ -490,41 +570,69 @@ async function saveConfigToFirestore(options = {}) {
     }
 }
 
-function persistMissionTypes() {
+function persistConfig() {
     saveConfigToFirestore({ silent: true });
 }
 
 async function loadConfigFromFirestore() {
     try {
-        const snap = await getDoc(doc(db, ...CONFIG_DOC));
-        if (snap.exists() && snap.data().missionTypes?.length) {
-            renderMissionTypesList(snap.data().missionTypes);
-        } else {
-            renderMissionTypesList([...DEFAULT_MISSION_TYPES]);
+        const ref = doc(db, ...CONFIG_DOC);
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? snap.data() : {};
+
+        let missionTypes =
+            Array.isArray(data.missionTypes) && data.missionTypes.length > 0
+                ? data.missionTypes
+                : null;
+        let badges = Array.isArray(data.badges) && data.badges.length > 0 ? data.badges : null;
+        let levels = Array.isArray(data.levels) && data.levels.length > 0 ? data.levels : null;
+
+        const seedPayload = { basePointsByType: deleteField() };
+        if (!missionTypes) {
+            missionTypes = [...SEED_MISSION_TYPES];
+            seedPayload.missionTypes = missionTypes;
         }
+        if (!badges) {
+            badges = [...SEED_BADGES];
+            seedPayload.badges = badges;
+        }
+        if (!levels) {
+            levels = [...SEED_LEVELS];
+            seedPayload.levels = levels;
+        }
+
+        if (seedPayload.missionTypes || seedPayload.badges || seedPayload.levels) {
+            seedPayload.updatedAt = serverTimestamp();
+            await setDoc(ref, seedPayload, { merge: true });
+            clearPlatformConfigCache();
+        }
+
+        renderMissionTypesList(missionTypes);
+        renderBadgesList(badges);
+        renderLevelsList(levels);
     } catch (err) {
         console.warn("[WARN] load config:", err);
-        renderMissionTypesList([...DEFAULT_MISSION_TYPES]);
+        renderMissionTypesList([...SEED_MISSION_TYPES]);
+        renderBadgesList([...SEED_BADGES]);
+        renderLevelsList([...SEED_LEVELS]);
     }
-    bindExistingTypeRows();
+    bindAllConfigRows();
 }
 
-function bindExistingTypeRows() {
+function bindAllConfigRows() {
     document.querySelectorAll("#type-list .cfg-row[id^='mt-']").forEach((row) => {
         const key = row.id.replace(/^mt-/, "");
         bindTypeRow(row, key);
     });
     rebuildCalcTypeOptions();
-    document.querySelectorAll("#badge-list .badge-row .toggle").forEach((toggle) => {
-        toggle.addEventListener("click", () => toggle.classList.toggle("on"));
+
+    document.querySelectorAll("#badge-list .badge-row[id^='bdg-']").forEach((row) => {
+        const key = row.id.replace(/^bdg-/, "");
+        bindBadgeRow(row, key);
     });
-    document.querySelectorAll("[data-remove-type]").forEach((btn) => {
-        btn.addEventListener("click", () => removeType(btn.dataset.removeType));
-    });
-    document.querySelectorAll("[data-remove-level]").forEach((btn) => {
-        btn.addEventListener("click", () => removeLevel(btn.dataset.removeLevel));
-    });
-    document.querySelectorAll("[data-remove-badge]").forEach((btn) => {
-        btn.addEventListener("click", () => removeBadge(btn.dataset.removeBadge));
+
+    document.querySelectorAll("#level-list .level-row[id^='lv-']").forEach((row) => {
+        const key = row.id.replace(/^lv-/, "");
+        bindLevelRow(row, key);
     });
 }

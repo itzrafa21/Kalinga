@@ -146,3 +146,8 @@ export function updateBasePointsDisplay(selectEl, displayEl) {
 export function getConfigDocPath() {
     return CONFIG_PATH;
 }
+
+export function clearPlatformConfigCache() {
+    cachedConfig = null;
+    pointsByTypeName = {};
+}
