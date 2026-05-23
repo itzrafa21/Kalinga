@@ -8,11 +8,65 @@ import {
     isPlatformConfigReady,
 } from "./mission-type-points.js";
 
+function openMissionEditSuccessModal(missionName) {
+  const overlay = document.getElementById("missionEditSuccessModal");
+  const messageEl = document.getElementById("missionEditSuccessModalMessage");
+  if (!overlay) return;
+
+  if (messageEl && missionName) {
+    messageEl.innerHTML = `<strong>${escapeHtml(missionName)}</strong> was updated successfully. Your changes are now saved.`;
+  }
+
+  overlay.removeAttribute("hidden");
+  overlay.classList.add("is-open");
+  document.getElementById("missionEditSuccessModalOk")?.focus();
+}
+
+function closeMissionEditSuccessModal() {
+  const overlay = document.getElementById("missionEditSuccessModal");
+  if (!overlay) return;
+  overlay.setAttribute("hidden", "");
+  overlay.classList.remove("is-open");
+}
+
+function escapeHtml(text) {
+  const s = String(text ?? "");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function initMissionEditSuccessModal() {
+  const overlay = document.getElementById("missionEditSuccessModal");
+  if (!overlay) return;
+
+  const goToDashboard = () => {
+    closeMissionEditSuccessModal();
+    window.location.href = "/organization/dashboard";
+  };
+
+  document.getElementById("missionEditSuccessModalOk")?.addEventListener("click", goToDashboard);
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) goToDashboard();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+      goToDashboard();
+    }
+  });
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "/organization/login";
     return;
   }
+
+  initMissionEditSuccessModal();
 
   await loadPlatformConfig();
 
@@ -147,8 +201,7 @@ onAuthStateChanged(auth, async (user) => {
         await updateDoc(globalRef, updatedData);
       }
 
-      alert("[SUCCESS] Mission updated successfully!");
-      window.location.href = "/organization/dashboard";
+      openMissionEditSuccessModal(updatedData.missionName);
     } catch (error) {
       console.error("[ERROR] Error updating mission:", error?.code, error?.message, error);
       alert(
