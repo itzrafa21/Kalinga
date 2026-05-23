@@ -240,19 +240,89 @@ function isInCurrentMonth(date) {
     return "older";
 }
 
+function escapeHtml(text) {
+    const s = String(text ?? "");
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+async function processHistoryMission(docSnap, userId) {
+    const mission = docSnap.data();
+    const missionId = docSnap.id;
+    const status = (mission.status || "").toLowerCase();
+    const mainMissionSnap = await getDoc(doc(db, "missions", missionId));
+    const showInHistory = status === "rejected" || mainMissionSnap.exists();
+
+    if (!showInHistory) {
+        try {
+            await deleteDoc(doc(db, "organizations", userId, "history", missionId));
+        } catch (deleteError) {
+            console.error(
+                `[ERROR] Error removing mission ${missionId} from history:`,
+                deleteError
+            );
+        }
+        return { removed: true };
+    }
+
+    const actualVolunteers =
+        status === "rejected"
+            ? 0
+            : await getActualVolunteerCount(
+                  missionId,
+                  mission.orgId || mission.organizationId || userId
+              );
+    const totalNeeded = parseInt(mission.volunteers, 10) || 0;
+    const volunteerDisplay =
+        status === "rejected"
+            ? "—"
+            : `${actualVolunteers}/${totalNeeded} volunteers`;
+
+    const completedOn = getMissionCompletionDate(mission);
+    const periodBucket = getPeriodBucket(completedOn);
+    const statusLabel = status === "rejected" ? "Rejected" : "Completed";
+    const statusClass =
+        status === "rejected" ? "status-rejected" : "status-completed";
+
+    const row = `
+        <tr class="history-mission-row" data-period="${periodBucket}">
+            <td>${escapeHtml(mission.missionName || mission.name || "Untitled")}</td>
+            <td>${escapeHtml(mission.date || "N/A")}</td>
+            <td>${escapeHtml(mission.location || "N/A")}</td>
+            <td>${escapeHtml(volunteerDisplay)}</td>
+            <td><span class="status-badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>
+        </tr>`;
+
+    return {
+        removed: false,
+        row,
+        actualVolunteers,
+        status,
+        completedOn,
+    };
+}
+
 // Function to fetch and render completed missions
 async function loadHistoryMissions(user) {
     const historyTableBody = document.getElementById("historyMissionsBody");
-    
+    if (!historyTableBody) return;
+
     try {
         console.log("[INFO] Loading history missions...");
         
-        // Load from history collection
-        const historyRef = collection(db, "organizations", user.uid, "history");
-        const historyQuery = query(historyRef);
-        const historySnapshot = await getDocs(historyQuery);
+        historyTableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <p>Loading missions…</p>
+                </td>
+            </tr>
+        `;
 
-        historyTableBody.innerHTML = "";
+        const historyRef = collection(db, "organizations", user.uid, "history");
+        const historySnapshot = await getDocs(query(historyRef));
 
         if (historySnapshot.empty) {
             historyTableBody.innerHTML = `
@@ -264,88 +334,47 @@ async function loadHistoryMissions(user) {
                     </td>
                 </tr>
             `;
+            updateStats(0, 0, 0);
+            updateHistoryMissionFooter(0);
             console.log("[INFO] No missions in history collection");
             return;
         }
 
         console.log(`[INFO] Found ${historySnapshot.docs.length} missions in history collection`);
 
+        const results = await Promise.all(
+            historySnapshot.docs.map((docSnap) =>
+                processHistoryMission(docSnap, user.uid).catch((checkError) => {
+                    console.error(
+                        `[ERROR] Error checking mission ${docSnap.id}:`,
+                        checkError
+                    );
+                    return null;
+                })
+            )
+        );
+
         let validMissionsCount = 0;
         let removedMissionsCount = 0;
         let totalVolunteersHelped = 0;
         let thisMonthCount = 0;
+        const rows = [];
 
-        // Check each mission in history to see if it still exists in the main missions collection
-        for (const docSnap of historySnapshot.docs) {
-            const mission = docSnap.data();
-            const missionId = docSnap.id;
-            
-            console.log(`[INFO] Checking mission: ${mission.missionName || mission.name || "Untitled"} (ID: ${missionId})`);
+        for (const result of results) {
+            if (!result) continue;
+            if (result.removed) {
+                removedMissionsCount++;
+                continue;
+            }
 
-            try {
-                // Check if this mission still exists in the main missions collection
-                const status = (mission.status || "").toLowerCase();
-                const mainMissionRef = doc(db, "missions", missionId);
-                const mainMissionSnap = await getDoc(mainMissionRef);
+            validMissionsCount++;
+            rows.push(result.row);
 
-                const showInHistory =
-                    status === "rejected" || mainMissionSnap.exists();
-
-                if (!showInHistory) {
-                    try {
-                        await deleteDoc(doc(db, "organizations", user.uid, "history", missionId));
-                        removedMissionsCount++;
-                    } catch (deleteError) {
-                        console.error(`[ERROR] Error removing mission ${missionId} from history:`, deleteError);
-                    }
-                    continue;
+            if (result.status !== "rejected") {
+                totalVolunteersHelped += result.actualVolunteers;
+                if (isInCurrentMonth(result.completedOn)) {
+                    thisMonthCount++;
                 }
-
-                validMissionsCount++;
-
-                const actualVolunteers =
-                    status === "rejected"
-                        ? 0
-                        : await getActualVolunteerCount(
-                            missionId,
-                            mission.orgId || mission.organizationId || user.uid
-                        );
-                const totalNeeded = parseInt(mission.volunteers, 10) || 0;
-                const volunteerDisplay =
-                    status === "rejected"
-                        ? "—"
-                        : `${actualVolunteers}/${totalNeeded} volunteers`;
-
-                        if (status !== "rejected") {
-                            totalVolunteersHelped += actualVolunteers;
-        
-                            const completedOn = getMissionCompletionDate(mission);
-                            if (isInCurrentMonth(completedOn)) {
-                                thisMonthCount++;
-                            }
-                        }
-
-                const statusLabel =
-                    status === "rejected" ? "Rejected" : "Completed";
-                const statusClass =
-                    status === "rejected" ? "status-rejected" : "status-completed";
-
-                    const completedOn = getMissionCompletionDate(mission);
-                    const periodBucket = getPeriodBucket(completedOn);
-    
-                    const row = `
-                        <tr class="history-mission-row" data-period="${periodBucket}">
-                            <td>${mission.missionName || mission.name || "Untitled"}</td>
-                            <td>${mission.date || "N/A"}</td>
-                            <td>${mission.location || "N/A"}</td>
-                            <td>${volunteerDisplay}</td>
-                            <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                        </tr>
-                    `;
-                historyTableBody.insertAdjacentHTML("beforeend", row);
-            } catch (checkError) {
-                console.error(`[ERROR] Error checking mission ${missionId}:`, checkError);
-                // If there's an error checking, we'll skip this mission
             }
         }
 
@@ -365,6 +394,7 @@ async function loadHistoryMissions(user) {
             `;
             updateHistoryMissionFooter(0);
         } else {
+            historyTableBody.innerHTML = rows.join("");
             ensureHistorySearchListener();
             initHistoryPaginationControls();
             historyCurrentPage = 1;
