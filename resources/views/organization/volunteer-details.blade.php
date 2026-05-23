@@ -33,8 +33,56 @@
       padding: 1.25rem 1.35rem; margin-bottom: 1rem;
       box-shadow: 0 1px 2px rgba(16,24,40,0.04);
     }
-    .profile-card h2 { margin: 0 0 0.75rem; font-size: 1.25rem; color: #111827; }
-    .profile-card p { margin: 0.35rem 0; font-size: 0.88rem; color: #475569; }
+    .profile-card-inner {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .profile-avatar-wrap {
+      flex-shrink: 0;
+      width: 96px;
+      height: 96px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #def7e8;
+      border: 2px solid #c6e7d4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .profile-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .profile-avatar-wrap.has-photo .profile-avatar-initial { display: none; }
+    .profile-avatar-initial {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #166534;
+      letter-spacing: 0.02em;
+    }
+    .profile-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      min-width: 0;
+    }
+    .profile-name {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #111827;
+      line-height: 1.25;
+    }
+    .profile-email,
+    .profile-phone {
+      margin: 0;
+      font-size: 0.92rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
     .volunteers-section {
       background: #fff; border-radius: 10px; border: 1px solid #e8edf2;
       box-shadow: 0 1px 2px rgba(16,24,40,0.04); padding: 0.9rem;
@@ -60,6 +108,9 @@
     .mission-desc-cell {
       max-width: 420px; color: #475569; line-height: 1.45;
     }
+    @media (max-width: 540px) {
+      .profile-card-inner { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body class="org-app">
@@ -76,8 +127,17 @@
 
     <div id="detailContent" hidden>
       <section class="profile-card">
-        <h2 id="applicantName">Volunteer</h2>
-        <div id="applicantMeta"></div>
+        <div class="profile-card-inner">
+          <div class="profile-avatar-wrap" id="applicantAvatarWrap">
+            <img id="applicantAvatarImg" class="profile-avatar-img" alt="" hidden>
+            <span id="applicantAvatarInitial" class="profile-avatar-initial">?</span>
+          </div>
+          <div class="profile-info">
+            <p class="profile-name" id="applicantName">Volunteer</p>
+            <p class="profile-email" id="applicantEmail">—</p>
+            <p class="profile-phone" id="applicantPhone">—</p>
+          </div>
+        </div>
       </section>
 
       <section class="volunteers-section">

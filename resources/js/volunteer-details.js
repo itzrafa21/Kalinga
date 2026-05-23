@@ -369,12 +369,25 @@ async function mergeApplicantFromOrgRosters(orgId, userId) {
     applicantApplications = Array.from(byMission.values());
 }
 
+function initialsFromName(name) {
+    const parts = String(name || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function renderProfile(profile) {
     const nameEl = document.getElementById("applicantName");
-    const metaEl = document.getElementById("applicantMeta");
-    if (!nameEl || !metaEl) return;
+    const emailEl = document.getElementById("applicantEmail");
+    const phoneEl = document.getElementById("applicantPhone");
+    const avatarWrap = document.getElementById("applicantAvatarWrap");
+    const avatarImg = document.getElementById("applicantAvatarImg");
+    const avatarInitial = document.getElementById("applicantAvatarInitial");
+    if (!nameEl || !emailEl || !phoneEl) return;
 
-    const attended = getAttendedMissions();
     const first = applicantApplications[0];
     const profileName =
         profile?.name ||
@@ -383,15 +396,36 @@ function renderProfile(profile) {
         "Volunteer";
     const email = profile?.email || first?.email || "—";
     const phone = profile?.phone || first?.phone || "—";
-    const occupation = profile?.occupation || first?.occupation || "—";
+    const photoURL = profile?.photoURL || "";
 
     nameEl.textContent = profileName;
-    metaEl.innerHTML = `
-        <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-        <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
-        <p><strong>Occupation:</strong> ${escapeHtml(occupation)}</p>
-        <p><strong>Missions attended:</strong> ${attended.length}</p>
-    `;
+    emailEl.textContent = email || "—";
+    phoneEl.textContent = phone || "—";
+
+    if (avatarInitial) {
+        avatarInitial.textContent = initialsFromName(profileName);
+    }
+
+    if (avatarWrap && avatarImg) {
+        avatarImg.onerror = () => {
+            console.warn("[WARN] Failed to load photoURL image");
+            avatarImg.removeAttribute("src");
+            avatarImg.setAttribute("hidden", "");
+            avatarWrap.classList.remove("has-photo");
+        };
+
+        if (photoURL) {
+            avatarImg.removeAttribute("crossorigin");
+            avatarImg.removeAttribute("referrerpolicy");
+            avatarImg.src = photoURL;
+            avatarImg.removeAttribute("hidden");
+            avatarWrap.classList.add("has-photo");
+        } else {
+            avatarImg.removeAttribute("src");
+            avatarImg.setAttribute("hidden", "");
+            avatarWrap.classList.remove("has-photo");
+        }
+    }
 }
 
 function renderAttendedMissionsTable() {
@@ -431,18 +465,47 @@ function renderAttendedMissionsTable() {
         .join("");
 }
 
+/** photoURL from users/{id} — Cloudinary (or any https) URL used as-is after normalize. */
+function normalizePhotoURL(photoURL) {
+    let raw = String(photoURL ?? "").trim();
+    if (!raw) return "";
+
+    // Protocol-relative Cloudinary URLs: //res.cloudinary.com/...
+    if (raw.startsWith("//")) {
+        return `https:${raw}`;
+    }
+
+    if (/^https?:\/\//i.test(raw)) {
+        return raw;
+    }
+
+    // Stored without protocol, e.g. res.cloudinary.com/...
+    if (/cloudinary\.com/i.test(raw)) {
+        return `https://${raw.replace(/^\/+/, "")}`;
+    }
+
+    return raw;
+}
+
 async function loadApplicantProfile(userId) {
     try {
         const snap = await getDoc(doc(db, "users", userId));
-        if (!snap.exists()) return null;
+        if (!snap.exists()) {
+            console.warn("[WARN] users/", userId, "not found");
+            return null;
+        }
         const u = snap.data();
+        const photoURL = normalizePhotoURL(u.photoURL);
+
         return {
             name: u.name || u.displayName || "Volunteer",
             email: u.email || "",
             phone: u.phone || u.mobileNumber || u.mobile || "",
             occupation: u.occupation || "",
+            photoURL,
         };
-    } catch {
+    } catch (err) {
+        console.error("[ERROR] loadApplicantProfile:", err);
         return null;
     }
 }
@@ -469,7 +532,6 @@ async function initPage(user) {
     const profile = await loadApplicantProfile(applicantUserId);
     const nameEl = document.getElementById("applicantName");
     if (nameEl && profile?.name) {
-        nameEl.textContent = profile.name;
         nameEl.dataset.fallback = profile.name;
     }
 
