@@ -89,26 +89,25 @@
       background:rgb(255, 255, 255);
       color: #fff;
     }
-    .stat-card-header .stat-card-icon i {
-  color:rgb(0, 0, 0);   /* icon color — try #000000 for black */
-}
     .stat-card-header.card-teal {
       background:rgb(255, 255, 255);
       color: #fff;
     }
+    .stat-card-header.card-amber {
+      background: rgb(255, 255, 255);
+    }
     .stat-card-header .stat-card-title {
       font-size: 0.9rem;
       font-weight: 500;
-      opacity: 0.95;
       margin-bottom: 0.35rem;
-      color: #000000;
+      color: #374151;
     }
     .stat-card-header .stat-card-value {
       font-size: 2.25rem;
       font-weight: 700;
       margin: 0;
       line-height: 1.2;
-      color: #000000;
+      color: #111827;
     }
     .stat-card-header .stat-card-icon {
       position: absolute;
@@ -117,11 +116,71 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      border: 2px solid rgba(0, 0, 0, 0.9);
+      border: 2px solid rgba(40, 167, 69, 0.35);
+      background: rgba(40, 167, 69, 0.08);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
+    }
+    .stat-card-header .stat-card-icon i {
+      color: #28a745;
+    }
+    .stat-card-header.card-purple .stat-card-icon {
+      border-color: rgba(56, 107, 87, 0.35);
+      background: rgba(56, 107, 87, 0.08);
+    }
+    .stat-card-header.card-purple .stat-card-icon i {
+      color: rgb(56, 107, 87);
+    }
+    .stat-card-header.card-amber .stat-card-icon {
+      border-color: rgba(217, 119, 6, 0.35);
+      background: rgba(217, 119, 6, 0.1);
+    }
+    .stat-card-header.card-amber .stat-card-icon i {
+      color: #d97706;
+    }
+    .toolbar-filter {
+      min-width: 160px;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    .missions-table-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid #eee;
+      background: #fafbfa;
+    }
+    .missions-table-head h3,
+    .missions-table-head .missions-table-title {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1e3a2f;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .missions-table-count {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: #e8f5ec;
+      color: #166534;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .create-btn--sm {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
     }
     .table-wrap {
       background: #fff;
@@ -173,6 +232,101 @@
       font-weight: 600;
       color: #1e3a2f;
     }
+    .mission-name-link {
+      color: #166534;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .mission-name-link:hover {
+      color: #15803d;
+      text-decoration: underline;
+    }
+    .mission-location-sub {
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: #64748b;
+      margin-top: 0.2rem;
+    }
+    .mission-tag {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      background: #ecfdf5;
+      color: #047857;
+      font-size: 0.68rem;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .volunteer-progress {
+      font-weight: 600;
+      color: #1e3a2f;
+    }
+    .mission-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #22a447;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .mission-action-btn:hover {
+      background: #1d923e;
+      color: #fff;
+    }
+    .missions-loading,
+    .missions-error {
+      text-align: center;
+      color: #64748b;
+      padding: 2rem 1rem !important;
+    }
+    .missions-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .missions-loading-spinner {
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid #e2e8f0;
+      border-top-color: #166534;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    .missions-loading i {
+      animation: spin 1s linear infinite;
+      margin-right: 0.35rem;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .missions-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #64748b;
+    }
+    .missions-empty i {
+      font-size: 2rem;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .missions-empty h4 {
+      margin: 0 0 0.35rem;
+      color: #334155;
+      font-size: 1rem;
+    }
+    .missions-empty p {
+      margin: 0;
+      font-size: 0.88rem;
+    }
     #missionsTable tbody tr:hover { background: #f8f9fa; }
     #missionsTable tbody tr:nth-child(even) { background: #fafafa; }
     #missionsTable tbody tr:nth-child(even):hover { background: #f0f4f0; }
@@ -194,38 +348,6 @@
     .missions td.col-actions {
       white-space: nowrap;
     }
-
-    .edit-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-weight: 600;
-      background: #ffc107;
-      color: #000;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: all 0.2s;
-    }
-    .edit-btn:hover { background: #e0a800; color: #000; }
-    .delete-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-weight: 600;
-      background: #dc3545;
-      color: #fff;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      margin-left: 6px;
-      font-size: 0.85rem;
-      transition: all 0.2s;
-    }
-    .delete-btn:hover { background: #c82333; }
 
   </style>
 </head>
@@ -260,11 +382,27 @@
           </div>
         </div>
       </div>
+      <div class="stat-card">
+        <div class="stat-card-header card-amber">
+          <span class="stat-card-title">Pending Approval</span>
+          <p class="stat-card-value" id="pendingMissions">0</p>
+          <div class="stat-card-icon">
+            <i class="bi bi-hourglass-split"></i>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="missions">
       <div class="toolbar">
         <input type="text" class="toolbar-search" id="missionSearch" placeholder="Search missions..." aria-label="Search missions">
+        <select class="toolbar-filter" id="missionStatusFilter" aria-label="Filter by status">
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
         <div class="toolbar-actions">
           <button type="button" class="create-btn" onclick="window.location.href='/missions/create'">
             <i class="bi bi-plus-lg"></i> Create New Mission
@@ -273,39 +411,42 @@
       </div>
 
       <div class="table-wrap">
+        <div class="missions-table-head">
+          <h2 class="missions-table-title">Your Missions</h2>
+          <span class="missions-table-count" id="missionsTableCount">0 missions</span>
+        </div>
         <table id="missionsTable">
           <colgroup>
-            <col style="width: 18%">
-            <col style="width: 30%">
+            <col style="width: 22%">
             <col style="width: 14%">
-            <col style="width: 10%">
+            <col style="width: 14%">
             <col style="width: 12%">
-            <col style="width: 16%">
+            <col style="width: 12%">
+            <col style="width: 12%">
           </colgroup>
           <thead>
             <tr>
-              <th>Missions</th>
-              <th>Description</th>
+              <th>Mission</th>
+              <th>Date</th>
               <th>Type</th>
               <th class="col-volunteers">Volunteers</th>
               <th class="col-status">Status</th>
               <th class="col-actions">Actions</th>
             </tr>
           </thead>
-          <tbody id="missionsBody"></tbody>
+          <tbody id="missionsBody">
+            <tr class="missions-loading-row">
+              <td colspan="6">
+                <div class="missions-loading">
+                  <div class="missions-loading-spinner" aria-hidden="true"></div>
+                  <span>Loading missions…</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
         </table>
       </div>
     </div>
   </main>
-
-  <script>
-    // Optional: filter table by search
-    document.getElementById('missionSearch')?.addEventListener('input', function() {
-      var q = this.value.toLowerCase();
-      document.querySelectorAll('#missionsBody tr').forEach(function(tr) {
-        tr.style.display = tr.textContent.toLowerCase().indexOf(q) === -1 ? 'none' : '';
-      });
-    });
-  </script>
 </body>
 </html>

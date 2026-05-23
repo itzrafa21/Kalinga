@@ -15,8 +15,8 @@ import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { awardMissionPoints } from "./volunteer-recognition.js";
 
 let CURRENT_USER = null;
+let allDashboardMissions = [];
 
-// When user is logged in
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.href = "/organization/login";
@@ -26,74 +26,72 @@ onAuthStateChanged(auth, async (user) => {
     console.log("[SUCCESS] User logged in:", user.uid);
     CURRENT_USER = user;
 
-    // Load missions the first time
+    initMissionFilters();
     await loadMissions(user);
-    
-    // Set up automatic status updates every 1 minute (more frequent)
+
     setInterval(async () => {
         if (CURRENT_USER) {
             await updateMissionStatuses(CURRENT_USER);
             await loadMissions(CURRENT_USER);
         }
-    }, 1 * 60 * 1000); // 1 minute instead of 5
+    }, 1 * 60 * 1000);
 });
 
-//  Function to update mission statuses automatically
 async function updateMissionStatuses(user) {
     try {
         console.log("[INFO] Updating mission statuses...");
-        
+
         const missionsRef = collection(db, "organizations", user.uid, "missions");
         const snapshot = await getDocs(missionsRef);
-        
+
         let updatedCount = 0;
-        
+
         for (const docSnap of snapshot.docs) {
             const mission = docSnap.data();
             const missionId = docSnap.id;
-            
-            // Skip pending missions
+
             if (mission.status === "Pending" || mission.status === "pending") {
                 continue;
             }
 
+            const newStatus = calculateMissionStatus(mission);
+
             if (newStatus === "Completed") {
                 await closePendingApplicationsForMission(missionId);
             }
-            
-            const newStatus = calculateMissionStatus(mission);
-            
+
             if (newStatus !== mission.status) {
-                console.log(`[INFO] Updating mission ${missionId}: ${mission.status} → ${newStatus}`);
-                
-                // Update in organization's missions
-                await updateDoc(doc(db, "organizations", user.uid, "missions", missionId), {
-                    status: newStatus,
-                    lastStatusUpdate: new Date()
-                });
-                
-                // Also update in global missions collection
+                console.log(
+                    `[INFO] Updating mission ${missionId}: ${mission.status} → ${newStatus}`
+                );
+
+                await updateDoc(
+                    doc(db, "organizations", user.uid, "missions", missionId),
+                    {
+                        status: newStatus,
+                        lastStatusUpdate: new Date(),
+                    }
+                );
+
                 try {
                     await updateDoc(doc(db, "missions", missionId), {
                         status: newStatus,
-                        lastStatusUpdate: new Date()
+                        lastStatusUpdate: new Date(),
                     });
                 } catch (error) {
                     console.log("[WARNING] Could not update global mission:", error);
                 }
-                
+
                 updatedCount++;
             }
         }
-        
+
         console.log(`[SUCCESS] Updated ${updatedCount} mission statuses`);
-        
     } catch (error) {
         console.error("[ERROR] Error updating mission statuses:", error);
     }
 }
 
-//  Calculate what a mission's status should be
 function calculateMissionStatus(mission) {
     const now = new Date();
     const startDate = mission.date;
@@ -102,7 +100,6 @@ function calculateMissionStatus(mission) {
     const endTime = mission.endTime;
 
     if (!startDate || !endDate || !startTime || !endTime) {
-        console.log("[WARNING] Mission missing date/time info:", mission);
         return mission.status;
     }
 
@@ -123,23 +120,11 @@ function calculateMissionStatus(mission) {
         }
 
         if (endDateTime < missionDateTime) {
-            console.warn("[WARNING] End before start; treating end as after start:", mission.missionName);
             endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
         }
 
-        console.log("[INFO] Status calculation for mission:", {
-            missionName: mission.missionName,
-            now: now.toISOString(),
-            missionStart: missionDateTime.toISOString(),
-            missionEnd: endDateTime.toISOString(),
-        });
-
-        if (now < missionDateTime) {
-            return "Open";
-        }
-        if (now >= missionDateTime && now <= endDateTime) {
-            return "Ongoing";
-        }
+        if (now < missionDateTime) return "Open";
+        if (now >= missionDateTime && now <= endDateTime) return "Ongoing";
         return "Completed";
     } catch (error) {
         console.error("[ERROR] Error calculating mission status:", error);
@@ -184,20 +169,19 @@ async function closePendingApplicationsForMission(missionId) {
     }
 }
 
-//  Parse 12-hour time format
 function parse12HourTime(date, time12hr) {
-    const [time, period] = time12hr.split(' ');
-    const [hours, minutes] = time.split(':');
-    
-    let hour24 = parseInt(hours);
-    
-    if (period === 'AM') {
-        if (hour24 === 12) hour24 = 0; // 12 AM = 00:00
-    } else if (period === 'PM') {
-        if (hour24 !== 12) hour24 += 12; // Add 12 except for 12 PM
+    const [time, period] = time12hr.split(" ");
+    const [hours, minutes] = time.split(":");
+
+    let hour24 = parseInt(hours, 10);
+
+    if (period === "AM") {
+        if (hour24 === 12) hour24 = 0;
+    } else if (period === "PM") {
+        if (hour24 !== 12) hour24 += 12;
     }
-    
-    return new Date(`${date}T${hour24.toString().padStart(2, '0')}:${minutes}`);
+
+    return new Date(`${date}T${hour24.toString().padStart(2, "0")}:${minutes}`);
 }
 
 function escapeMissionCell(text) {
@@ -209,8 +193,12 @@ function escapeMissionCell(text) {
         .replace(/"/g, "&quot;");
 }
 
+function normalizeMissionStatus(status) {
+    return (status || "").toLowerCase();
+}
+
 function getMissionStatusClass(status) {
-    const normalizedStatus = (status || "").toLowerCase();
+    const normalizedStatus = normalizeMissionStatus(status);
     switch (normalizedStatus) {
         case "open":
             return "mission-status--open";
@@ -227,101 +215,298 @@ function getMissionStatusClass(status) {
     }
 }
 
-// Function to fetch and render missions
+function formatMissionDate(mission) {
+    const raw = mission.date || mission.endDate;
+    if (!raw) return "—";
+    const d = new Date(`${raw}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+}
+
+function formatLocationShort(mission) {
+    const raw = String(mission.location || "").trim();
+    if (!raw) return "—";
+    const idx = raw.indexOf(",");
+    return idx > 0 ? raw.slice(0, idx).trim() : raw;
+}
+
+function isApprovedSignupStatus(status) {
+    const st = (status || "").toLowerCase();
+    return st === "approved" || st === "accepted";
+}
+
+async function countApprovedForMission(missionId, orgId) {
+    const keys = new Set();
+
+    const addIfApproved = (data, docId) => {
+        if (!isApprovedSignupStatus(data.status)) return;
+        const u = data.userId;
+        keys.add(u ? `u:${u}` : `d:${docId}`);
+    };
+
+    try {
+        const sub = await getDocs(
+            collection(db, "missions", missionId, "applications")
+        );
+        sub.forEach((d) => addIfApproved(d.data(), d.id));
+    } catch {
+        /* ignore */
+    }
+
+    if (orgId) {
+        try {
+            const rosterSnap = await getDocs(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "volunteers"
+                )
+            );
+            rosterSnap.forEach((d) => {
+                const data = d.data();
+                addIfApproved({ ...data, userId: data.userId || d.id }, d.id);
+            });
+        } catch {
+            /* ignore */
+        }
+    }
+
+    return keys.size;
+}
+
+function showMissionsLoading() {
+    const tbody = document.getElementById("missionsBody");
+    if (!tbody) return;
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6" class="missions-loading">
+                <i class="bi bi-arrow-repeat"></i> Loading missions…
+            </td>
+        </tr>`;
+}
+
+function updateDashboardStats(missions) {
+    const totalEl = document.getElementById("totalMissions");
+    const ongoingEl = document.getElementById("ongoingMissions");
+    const pendingEl = document.getElementById("pendingMissions");
+    const tableCountEl = document.getElementById("missionsTableCount");
+
+    const ongoingCount = missions.filter((m) => {
+        const st = normalizeMissionStatus(m.status);
+        return st === "open" || st === "ongoing";
+    }).length;
+
+    const pendingCount = missions.filter(
+        (m) => normalizeMissionStatus(m.status) === "pending"
+    ).length;
+
+    if (totalEl) totalEl.textContent = String(missions.length);
+    if (ongoingEl) ongoingEl.textContent = String(ongoingCount);
+    if (pendingEl) pendingEl.textContent = String(pendingCount);
+    if (tableCountEl) {
+        tableCountEl.textContent =
+            missions.length === 1 ? "1 mission" : `${missions.length} missions`;
+    }
+}
+
+function renderMissionsTable(missions) {
+    const tbody = document.getElementById("missionsBody");
+    if (!tbody) return;
+
+    if (missions.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="missions-empty">
+                        <i class="bi bi-journal-x" aria-hidden="true"></i>
+                        <h4>No missions found</h4>
+                        <p>Try adjusting your search or filters, or create a new mission.</p>
+                        <button type="button" class="create-btn create-btn--sm" onclick="window.location.href='/missions/create'">
+                            <i class="bi bi-plus-lg"></i> Create New Mission
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = missions
+        .map((m) => {
+            const statusLabel = m.status || "N/A";
+            const needed = Math.max(0, parseInt(m.volunteersNeeded, 10) || 0);
+            const signedUp = m.signedUp ?? 0;
+            const detailsUrl = `/missions/details?id=${encodeURIComponent(m.id)}`;
+            const editUrl = `/missions/edit?id=${encodeURIComponent(m.id)}`;
+            const autoAcceptBadge = m.autoAcceptVolunteers
+                ? `<span class="mission-tag" title="Auto-accept volunteers">Auto-accept</span>`
+                : "";
+
+            return `
+                <tr data-status="${escapeMissionCell(normalizeMissionStatus(statusLabel))}">
+                    <td class="col-mission">
+                        <a href="${detailsUrl}" class="mission-name-link">${escapeMissionCell(m.missionName || "Untitled")}</a>
+                        ${autoAcceptBadge}
+                        <div class="mission-location-sub">${escapeMissionCell(m.locationShort)}</div>
+                    </td>
+                    <td class="col-date">${escapeMissionCell(m.dateLabel)}</td>
+                    <td class="col-type">${escapeMissionCell(m.type || "—")}</td>
+                    <td class="col-volunteers">
+                        <span class="volunteer-progress">${signedUp} / ${needed}</span>
+                    </td>
+                    <td class="col-status">
+                        <span class="mission-status ${getMissionStatusClass(statusLabel)}">${escapeMissionCell(statusLabel)}</span>
+                    </td>
+                    <td class="col-actions">
+                        <a href="${editUrl}" class="mission-action-btn">Edit</a>
+                    </td>
+                </tr>`;
+        })
+        .join("");
+}
+
+function applyMissionFilters() {
+    const searchEl = document.getElementById("missionSearch");
+    const filterEl = document.getElementById("missionStatusFilter");
+    const term = (searchEl?.value || "").toLowerCase().trim();
+    const statusFilter = (filterEl?.value || "all").toLowerCase();
+
+    let list = [...allDashboardMissions];
+
+    if (statusFilter !== "all") {
+        list = list.filter(
+            (m) => normalizeMissionStatus(m.status) === statusFilter
+        );
+    }
+
+    if (term) {
+        list = list.filter((m) => {
+            const haystack = [
+                m.missionName,
+                m.type,
+                m.locationShort,
+                m.status,
+            ]
+                .join(" ")
+                .toLowerCase();
+            return haystack.includes(term);
+        });
+    }
+
+    const tableCountEl = document.getElementById("missionsTableCount");
+    if (tableCountEl) {
+        tableCountEl.textContent =
+            list.length === 1 ? "1 mission" : `${list.length} missions`;
+    }
+
+    renderMissionsTable(list);
+}
+
+function initMissionFilters() {
+    const searchEl = document.getElementById("missionSearch");
+    const filterEl = document.getElementById("missionStatusFilter");
+
+    if (searchEl && !searchEl.dataset.bound) {
+        searchEl.dataset.bound = "1";
+        searchEl.addEventListener("input", applyMissionFilters);
+    }
+
+    if (filterEl && !filterEl.dataset.bound) {
+        filterEl.dataset.bound = "1";
+        filterEl.addEventListener("change", applyMissionFilters);
+    }
+}
+
+async function buildDashboardMission(user, docSnap, today) {
+    const mission = docSnap.data();
+    const missionId = docSnap.id;
+    const normalizedStatus = normalizeMissionStatus(mission.status);
+
+    if (normalizedStatus === "rejected") {
+        void moveMissionToHistory(user.uid, missionId, mission);
+        return null;
+    }
+
+    if (shouldMoveMissionToHistory(mission, today)) {
+        void moveMissionToHistory(user.uid, missionId, mission);
+        return null;
+    }
+
+    const signedUp = await countApprovedForMission(missionId, user.uid);
+
+    return {
+        id: missionId,
+        missionName: mission.missionName || mission.name || "Untitled",
+        type: mission.type || "—",
+        status: mission.status || "N/A",
+        volunteersNeeded: mission.volunteers ?? 0,
+        signedUp,
+        dateLabel: formatMissionDate(mission),
+        locationShort: formatLocationShort(mission),
+        autoAcceptVolunteers: mission.autoAcceptVolunteers === true,
+    };
+}
+
 async function loadMissions(user) {
     const missionsTableBody = document.getElementById("missionsBody");
+    if (!missionsTableBody) return;
+
+    showMissionsLoading();
+
     const missionsRef = collection(db, "organizations", user.uid, "missions");
     const missionsQuery = query(missionsRef);
 
     try {
         const snapshot = await getDocs(missionsQuery);
-        missionsTableBody.innerHTML = "";
+        const today = new Date();
 
         if (snapshot.empty) {
-            console.log("No missions found!");
-            document.getElementById("totalMissions").innerText = "0";
-            document.getElementById("ongoingMissions").innerText = "0";
+            allDashboardMissions = [];
+            updateDashboardStats([]);
+            renderMissionsTable([]);
             return;
         }
 
-        let totalCount = 0;
-        let ongoingCount = 0;
-        const today = new Date();
+        const results = await Promise.all(
+            snapshot.docs.map((docSnap) => buildDashboardMission(user, docSnap, today))
+        );
 
-        snapshot.forEach((docSnap) => {
-            const mission = docSnap.data();
-            const normalizedStatus = (mission.status || "").toLowerCase();
+        allDashboardMissions = results
+            .filter(Boolean)
+            .sort((a, b) =>
+                String(a.dateLabel).localeCompare(String(b.dateLabel))
+            );
 
-            // Rejected → move to history, do not show on dashboard
-            if (normalizedStatus === "rejected") {
-                console.log(`[INFO] Moving rejected mission "${mission.missionName}" to history`);
-                moveMissionToHistory(user.uid, docSnap.id, mission);
-                return;
-            }
+        updateDashboardStats(allDashboardMissions);
+        applyMissionFilters();
 
-            const shouldMoveToHistory = shouldMoveMissionToHistory(mission, today);
-
-            if (shouldMoveToHistory) {
-                console.log(`[INFO] Moving mission "${mission.missionName}" to history`);
-                moveMissionToHistory(user.uid, docSnap.id, mission);
-                return;
-            }
-
-            totalCount++;
-
-            const isMissionOngoing =
-                normalizedStatus === "open" ||
-                normalizedStatus === "ongoing" ||
-                (normalizedStatus === "completed" && isMissionInFuture(mission));
-
-            if (isMissionOngoing) {
-                ongoingCount++;
-            }
-
-            const statusLabel = mission.status || "N/A";
-            const row = `
-                <tr>
-                    <td class="col-mission">${escapeMissionCell(mission.missionName || "Untitled")}</td>
-                    <td class="col-description" title="${escapeMissionCell(mission.description || "N/A")}">${escapeMissionCell(mission.description || "N/A")}</td>
-                    <td>${escapeMissionCell(mission.type || "N/A")}</td>
-                    <td class="col-volunteers">${escapeMissionCell(mission.volunteers ?? 0)}</td>
-                    <td class="col-status"><span class="mission-status ${getMissionStatusClass(statusLabel)}">${escapeMissionCell(statusLabel)}</span></td>
-                    <td class="col-actions">
-                        <button type="button" class="edit-btn view-details-btn" data-id="${docSnap.id}">View Details</button>
-                    </td>
-                </tr>
-            `;
-            missionsTableBody.insertAdjacentHTML("beforeend", row);
-        });
-
-        // Update counters
-        document.getElementById("totalMissions").innerText = String(totalCount);
-        document.getElementById("ongoingMissions").innerText = String(ongoingCount);
-        
-        console.log(`[SUCCESS] Loaded ${totalCount} missions, ${ongoingCount} ongoing`);
-        
+        console.log(`[SUCCESS] Loaded ${allDashboardMissions.length} missions`);
     } catch (error) {
         console.error("Error fetching missions: ", error);
+        missionsTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="missions-error">Could not load missions. Please refresh the page.</td>
+            </tr>`;
     }
 }
 
-//  Check if mission should be moved to history (FIXED)
 function shouldMoveMissionToHistory(mission, today) {
-    // Pending missions should stay on the dashboard until admin acts
-    const status = (mission.status || '').toLowerCase();
-    if (status === 'pending') {
-        return false;
-    }
+    const status = normalizeMissionStatus(mission.status);
+    if (status === "pending") return false;
 
     const endDate = mission.endDate || mission.date;
-    if (!endDate || !mission.endTime) {
-        return false;
-    }
+    if (!endDate || !mission.endTime) return false;
 
     try {
         let missionEndDateTime;
 
-        if (mission.endTime.includes('AM') || mission.endTime.includes('PM')) {
+        if (mission.endTime.includes("AM") || mission.endTime.includes("PM")) {
             missionEndDateTime = parse12HourTime(endDate, mission.endTime);
         } else {
             missionEndDateTime = new Date(`${endDate}T${mission.endTime}`);
@@ -334,19 +519,18 @@ function shouldMoveMissionToHistory(mission, today) {
     }
 }
 
-//  Check if mission is in the future
 function isMissionInFuture(mission) {
     if (!mission.date || !mission.startTime) return false;
-    
+
     try {
         let missionStartDateTime;
-        
-        if (mission.startTime.includes('AM') || mission.startTime.includes('PM')) {
+
+        if (mission.startTime.includes("AM") || mission.startTime.includes("PM")) {
             missionStartDateTime = parse12HourTime(mission.date, mission.startTime);
         } else {
             missionStartDateTime = new Date(`${mission.date}T${mission.startTime}`);
         }
-        
+
         return missionStartDateTime > new Date();
     } catch (error) {
         console.error("Error checking mission future status:", error);
@@ -354,7 +538,6 @@ function isMissionInFuture(mission) {
     }
 }
 
-//  Move mission to history (merge global missions/{id} so volunteers etc. stay correct)
 async function moveMissionToHistory(orgId, missionId, mission) {
     try {
         const historyRef = doc(db, "organizations", orgId, "history", missionId);
@@ -365,7 +548,6 @@ async function moveMissionToHistory(orgId, missionId, mission) {
             const globalSnap = await getDoc(doc(db, "missions", missionId));
             if (globalSnap.exists()) {
                 const globalData = globalSnap.data();
-                // Global doc wins on overlapping keys (fixes stale volunteers on org snapshot)
                 payload = { ...mission, ...globalData, movedToHistoryAt: new Date() };
             }
         } catch (e) {
@@ -394,50 +576,3 @@ async function moveMissionToHistory(orgId, missionId, mission) {
         console.error("[ERROR] Error moving mission to history:", error);
     }
 }
-
-// Convert time from 24hr to 12hr format
-function formatTime(time) {
-    if (time === "N/A" || !time) return "N/A";
-    const [hour, minute] = time.split(':');
-    let suffix = "AM";
-    let formattedHour = parseInt(hour);
-
-    if (formattedHour >= 12) {
-        suffix = "PM";
-        if (formattedHour > 12) formattedHour -= 12;
-    } else if (formattedHour === 0) {
-        formattedHour = 12;  // Midnight
-    }
-
-    return `${formattedHour}:${minute} ${suffix}`;
-}
-
-//  Event delegation for edit/delete
-document.getElementById("missionsBody")?.addEventListener("click", async (e) => {
-    const editBtn = e.target.closest(".edit-btn");
-    const deleteBtn = e.target.closest(".delete-btn");
-
-    if (!editBtn && !deleteBtn) return;
-    if (!CURRENT_USER) return;
-
-    const missionId = (editBtn || deleteBtn).dataset.id;
-
-    if (editBtn) {
-        window.location.href = `/missions/details?id=${encodeURIComponent(missionId)}`;
-        return;
-      }
-
-    if (deleteBtn) {
-        if (!confirm("Are you sure you want to delete this mission?")) return;
-
-        try {
-            await deleteDoc(doc(db, "organizations", CURRENT_USER.uid, "missions", missionId));
-            await deleteDoc(doc(db, "missions", missionId)); // also delete global mission
-            alert("[SUCCESS] Mission deleted!");
-            await loadMissions(CURRENT_USER); // refresh table and counters
-        } catch (err) {
-            console.error("Error deleting mission:", err);
-            alert("[ERROR] Failed to delete mission.");
-        }
-    }
-});
