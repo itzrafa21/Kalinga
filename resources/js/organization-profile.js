@@ -1,7 +1,28 @@
 import { auth, db } from "./firebase";
-import { doc, updateDoc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, collection, getDocs, deleteField } from "firebase/firestore";
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, onAuthStateChanged } from "firebase/auth";
+import {
+  ORG_CLOUDINARY,
+  uploadImageToCloudinary,
+  cloudinaryUrlWithTransform,
+} from "./cloudinary-upload";
 
+function normalizeProfilePictureSrc(src) {
+  let raw = String(src ?? "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("//")) return `https:${raw}`;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/cloudinary\.com/i.test(raw)) return `https://${raw.replace(/^\/+/, "")}`;
+  return raw;
+}
+
+function resolveProfilePicture(data) {
+  const url = normalizeProfilePictureSrc(data?.profilePictureURL);
+  if (url) {
+    return cloudinaryUrlWithTransform(url, ORG_CLOUDINARY.avatarTransform);
+  }
+  return data?.profilePictureBase64 || "";
+}
 let currentUser = null;
 let orgRef = null;
 
@@ -161,10 +182,9 @@ onAuthStateChanged(auth, async (user) => {
     setLastUpdatedFooter(data);
     await loadProfileStats(user.uid);
 
-    if (data.profilePictureBase64) {
-      loadProfilePicture(data.profilePictureBase64);
-    } else if (data.profilePictureURL) {
-      loadProfilePicture(data.profilePictureURL);
+    const pic = resolveProfilePicture(data);
+    if (pic) {
+      loadProfilePicture(pic);
     } else {
       resetProfilePicture();
     }
@@ -224,7 +244,7 @@ function updateSidebarUser(data, user) {
   }
 
   if (!wrap || !img) return;
-  const pic = data && (data.profilePictureBase64 || data.profilePictureURL);
+  const pic = resolveProfilePicture(data);
   if (pic) {
     img.src = pic;
     wrap.classList.add("has-photo");
@@ -336,27 +356,47 @@ function initializeFormHandlers() {
         this.value = "";
         return;
       }
-      if (file.size > 2 * 1024 * 1024) {
-        alert("File size must be less than 2MB for Base64 storage.");
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB.");
         this.value = "";
         return;
       }
+      const uploadBtnEl = document.getElementById("profileAvatarUploadBtn");
+      const prevUploadHtml = uploadBtnEl?.innerHTML;
       try {
-        const base64Image = await convertToBase64(file);
-        loadProfilePicture(base64Image);
+        if (uploadBtnEl) {
+          uploadBtnEl.disabled = true;
+          uploadBtnEl.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        }
+        const imageUrl = await uploadImageToCloudinary(file, {
+          folder: ORG_CLOUDINARY.folder,
+          publicId: `${currentUser.uid}/${ORG_CLOUDINARY.avatarPublicId}`,
+          tags: ["organization", "avatar", currentUser.uid],
+        });
+        const displayUrl = cloudinaryUrlWithTransform(
+          imageUrl,
+          ORG_CLOUDINARY.avatarTransform
+        );
+        loadProfilePicture(displayUrl);
         await updateDoc(orgRef, {
-          profilePictureBase64: base64Image,
-          profilePictureURL: null,
+          profilePictureURL: imageUrl,
+          profilePictureBase64: deleteField(),
         });
         updateSidebarUser(
-          { profilePictureBase64: base64Image, name: document.getElementById("orgName")?.value },
+          { profilePictureURL: displayUrl, name: document.getElementById("orgName")?.value },
           currentUser
         );
         alert("[SUCCESS] Profile picture updated successfully!");
       } catch (error) {
         console.error("[ERROR] Error storing profile picture:", error);
-        alert("Failed to store profile picture. Please try again.");
+        alert(error.message || "Failed to store profile picture. Please try again.");
         resetProfilePicture();
+      } finally {
+        if (uploadBtnEl) {
+          uploadBtnEl.disabled = false;
+          if (prevUploadHtml != null) uploadBtnEl.innerHTML = prevUploadHtml;
+        }
+        this.value = "";
       }
     });
   }
@@ -367,8 +407,8 @@ function initializeFormHandlers() {
       if (!confirm("Are you sure you want to remove your profile picture?")) return;
       try {
         await updateDoc(orgRef, {
-          profilePictureBase64: null,
-          profilePictureURL: null,
+          profilePictureURL: deleteField(),
+          profilePictureBase64: deleteField(),
         });
         resetProfilePicture();
         alert("[SUCCESS] Profile picture removed successfully!");
@@ -483,15 +523,6 @@ function initializeFormHandlers() {
         saveBtn.textContent = "Save Changes";
       }
     }
-  });
-}
-
-function convertToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(file);
   });
 }
 

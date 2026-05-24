@@ -190,25 +190,202 @@ function buildMissionTypeChartData(counts, configuredTypes) {
     };
 }
 
+function toJsDate(value) {
+    if (!value) return null;
+    if (typeof value.toDate === "function") return value.toDate();
+    if (value instanceof Date) return value;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function getLastSixMonthBuckets() {
+    const buckets = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        buckets.push({
+            key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+            label: d.toLocaleString("en-US", { month: "short" }),
+            missions: 0,
+            volunteers: 0,
+        });
+    }
+    return buckets;
+}
+
+function incrementActivityBucket(buckets, dateValue, field) {
+    const date = toJsDate(dateValue);
+    if (!date) return;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const bucket = buckets.find((b) => b.key === key);
+    if (bucket) bucket[field] += 1;
+}
+
+function applicationActivityDate(data) {
+    return (
+        data?.approvedAt ||
+        data?.appliedAt ||
+        data?.createdAt ||
+        data?.updatedAt ||
+        null
+    );
+}
+
+function isCountableVolunteerApplication(data) {
+    const status = String(data?.status || "pending").toLowerCase();
+    return status !== "rejected" && status !== "closed";
+}
+
+async function fetchMissionMonthlyCounts(buckets) {
+    const seenMissionIds = new Set();
+
+    const addMission = (docId, data) => {
+        if (docId && seenMissionIds.has(docId)) return;
+        if (docId) seenMissionIds.add(docId);
+        incrementActivityBucket(
+            buckets,
+            data?.submittedAt || data?.createdAt || data?.updatedAt,
+            "missions"
+        );
+    };
+
+    try {
+        const submissionsSnap = await getDocs(collection(db, "mission_submissions"));
+        submissionsSnap.docs.forEach((docSnap) =>
+            addMission(docSnap.id, docSnap.data())
+        );
+    } catch (err) {
+        console.warn("[WARN] mission_submissions for activity chart:", err);
+    }
+
+    try {
+        const missionsSnap = await getDocs(collection(db, "missions"));
+        missionsSnap.docs.forEach((docSnap) =>
+            addMission(docSnap.id, docSnap.data())
+        );
+    } catch (err) {
+        console.warn("[WARN] missions collection for activity chart:", err);
+    }
+}
+
+async function fetchVolunteerMonthlyCounts(buckets) {
+    const seenApplications = new Set();
+
+    const addApplication = (docSnap) => {
+        const data = docSnap.data();
+        if (!isCountableVolunteerApplication(data)) return;
+        const path = docSnap.ref?.path || docSnap.id;
+        if (seenApplications.has(path)) return;
+        seenApplications.add(path);
+        incrementActivityBucket(
+            buckets,
+            applicationActivityDate(data),
+            "volunteers"
+        );
+    };
+
+    try {
+        const cgSnap = await getDocs(collectionGroup(db, "applications"));
+        cgSnap.docs.forEach(addApplication);
+    } catch (err) {
+        console.warn("[WARN] collectionGroup(applications) for activity chart:", err);
+    }
+
+    if (seenApplications.size === 0) {
+        try {
+            const missionsSnap = await getDocs(collection(db, "missions"));
+            for (const missionDoc of missionsSnap.docs) {
+                const appsSnap = await getDocs(
+                    collection(db, "missions", missionDoc.id, "applications")
+                );
+                appsSnap.docs.forEach(addApplication);
+            }
+        } catch (err) {
+            console.warn("[WARN] missions/*/applications for activity chart:", err);
+        }
+    }
+
+    if (seenApplications.size === 0) {
+        try {
+            const usersSnap = await getDocs(collection(db, "users"));
+            for (const userDoc of usersSnap.docs) {
+                const appsSnap = await getDocs(
+                    collection(db, "users", userDoc.id, "applications")
+                );
+                appsSnap.docs.forEach(addApplication);
+            }
+        } catch (err) {
+            console.warn("[WARN] users/*/applications for activity chart:", err);
+        }
+    }
+
+    if (seenApplications.size === 0) {
+        try {
+            const orgUserIds = await getOrganizationUserIds();
+            const usersSnap = await getDocs(collection(db, "users"));
+            usersSnap.docs.forEach((userDoc) => {
+                const data = userDoc.data();
+                if (!isVolunteerUserDoc(data, orgUserIds)) return;
+                incrementActivityBucket(
+                    buckets,
+                    data.createdAt || data.registeredAt || data.updatedAt,
+                    "volunteers"
+                );
+            });
+        } catch (err) {
+            console.warn("[WARN] volunteer registrations for activity chart:", err);
+        }
+    }
+}
+
+async function fetchActivityAnalyticsData() {
+    const buckets = getLastSixMonthBuckets();
+    await Promise.all([
+        fetchMissionMonthlyCounts(buckets),
+        fetchVolunteerMonthlyCounts(buckets),
+    ]);
+    return buckets;
+}
+
+function updateActivityChart(buckets) {
+    if (!activityChart) return;
+    activityChart.data.labels = buckets.map((b) => b.label);
+    activityChart.data.datasets[0].data = buckets.map((b) => b.missions);
+    activityChart.data.datasets[1].data = buckets.map((b) => b.volunteers);
+    activityChart.update();
+}
+
+async function refreshActivityChart() {
+    try {
+        const buckets = await fetchActivityAnalyticsData();
+        updateActivityChart(buckets);
+        console.log("[SUCCESS] Activity analytics loaded:", buckets);
+    } catch (err) {
+        console.error("[ERROR] Activity analytics:", err);
+    }
+}
+
 function initializeActivityChart() {
     const activityEl = document.getElementById("activityChart");
     if (!activityEl || activityChart) return;
 
+    const buckets = getLastSixMonthBuckets();
+
     activityChart = new Chart(activityEl.getContext("2d"), {
         type: "line",
         data: {
-            labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+            labels: buckets.map((b) => b.label),
             datasets: [
                 {
                     label: "Missions",
-                    data: [12, 19, 3, 5, 2, 3],
+                    data: buckets.map(() => 0),
                     borderColor: "#667eea",
                     backgroundColor: "rgba(102, 126, 234, 0.1)",
                     tension: 0.4,
                 },
                 {
                     label: "Volunteers",
-                    data: [2, 3, 20, 5, 1, 4],
+                    data: buckets.map(() => 0),
                     borderColor: "#f093fb",
                     backgroundColor: "rgba(240, 147, 251, 0.1)",
                     tension: 0.4,
@@ -220,6 +397,14 @@ function initializeActivityChart() {
             plugins: {
                 legend: {
                     position: "top",
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                    },
                 },
             },
         },
@@ -624,6 +809,7 @@ async function loadDashboardData() {
     try {
         await loadDashboardStats();
         await refreshMissionTypesChart();
+        await refreshActivityChart();
 
         console.log("[SUCCESS] Dashboard data loaded from Firebase");
     } catch (error) {
