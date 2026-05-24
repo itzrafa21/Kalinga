@@ -85,8 +85,6 @@ export async function uploadImageToCloudinary(file, options = {}) {
     }
     if (options.publicId) {
         body.append("public_id", options.publicId);
-        body.append("overwrite", "true");
-        body.append("invalidate", "true");
     }
     if (options.tags?.length) {
         body.append("tags", options.tags.join(","));
