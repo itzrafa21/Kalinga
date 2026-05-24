@@ -11,6 +11,16 @@ import {
     applicationDedupeKey,
     syncMissionVolunteerRoster,
 } from "./application-storage.js";
+import {
+    ORG_CACHE_KEYS,
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheStale,
+    invalidateOrgCache,
+    missionDetailCacheKey,
+    isLoadingTableHtml,
+    tableHtmlForCache,
+} from "./org-data-cache.js";
 
 const userProfileCache = new Map();
 let cachedOrgMissionById = null;
@@ -56,7 +66,15 @@ function getCachedUserProfile(userId) {
 
 function showVolunteerTableLoading() {
     if (!volunteerTable) return;
-    volunteerTable.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Loading volunteers…</td></tr>`;
+    volunteerTable.innerHTML = `
+        <tr class="missions-loading-row">
+            <td colspan="4">
+                <div class="missions-loading">
+                    <div class="missions-loading-spinner" aria-hidden="true"></div>
+                    <span>Loading volunteers…</span>
+                </div>
+            </td>
+        </tr>`;
 }
 
 async function enrichVolunteersFromProfiles(volunteers) {
@@ -552,12 +570,44 @@ onAuthStateChanged(auth, async (user) => {
     }
     
     currentUser = user;
-    await loadSidebarUser(user);
-    console.log("[SUCCESS] Logged in as:", user.uid);
-    console.log("[SUCCESS] User email:", user.email);
-    
-    showVolunteerTableLoading();
-    await loadVolunteers();
+
+    const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.VOLUNTEERS);
+    if (cached) {
+        allVolunteers = cached.payload.allVolunteers || [];
+        allApplicants = groupVolunteersByApplicant(allVolunteers);
+        const cachedHtml = cached.payload.tableHtml || "";
+        if (
+            volunteerTable &&
+            cachedHtml &&
+            !isLoadingTableHtml(cachedHtml)
+        ) {
+            volunteerTable.innerHTML = cachedHtml;
+            applyVolunteerPagination();
+        } else {
+            applyVolunteerFilters();
+        }
+        initVolunteerPaginationControls();
+    } else {
+        showVolunteerTableLoading();
+    }
+
+    void loadSidebarUser(user);
+
+    const stillShowingLoading =
+        volunteerTable && isLoadingTableHtml(volunteerTable.innerHTML);
+
+    await loadVolunteers({
+        refresh: stillShowingLoading || !cached,
+        background: Boolean(cached) && !stillShowingLoading,
+    });
+
+    if (
+        cached &&
+        !stillShowingLoading &&
+        isOrgCacheStale(user.uid, ORG_CACHE_KEYS.VOLUNTEERS)
+    ) {
+        void loadVolunteers({ refresh: true, background: true });
+    }
 });
 
 async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
@@ -586,26 +636,18 @@ async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
         });
     };
 
-    const [missionsResult, orgMissionsResult, historyResult] =
-        await Promise.allSettled([
-            getDocs(collection(db, "missions")),
-            getDocs(collection(db, "organizations", orgId, "missions")),
-            getDocs(collection(db, "organizations", orgId, "history")),
-        ]);
-
-    if (missionsResult.status === "fulfilled") {
-        missionsResult.value.docs.forEach((missionDoc) => {
-            const mission = missionDoc.data();
-            if (
-                mission.orgId === orgId ||
-                mission.organizationId === orgId
-            ) {
-                mergeMission(missionDoc.id, mission);
-            }
-        });
-    } else {
-        console.error("[ERROR] loading missions collection:", missionsResult.reason);
+    const cachedMap = readOrgCache(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+    if (!forceRefresh && cachedMap?.payload?.entries?.length) {
+        cachedMap.payload.entries.forEach(([id, data]) => mergeMission(id, data));
+        cachedOrgMissionById = map;
+        cachedOrgMissionOrgId = orgId;
+        return map;
     }
+
+    const [orgMissionsResult, historyResult] = await Promise.allSettled([
+        getDocs(collection(db, "organizations", orgId, "missions")),
+        getDocs(collection(db, "organizations", orgId, "history")),
+    ]);
 
     if (orgMissionsResult.status === "fulfilled") {
         orgMissionsResult.value.docs.forEach((missionDoc) => {
@@ -625,6 +667,11 @@ async function buildOrgMissionMap(orgId, { forceRefresh = false } = {}) {
 
     cachedOrgMissionById = map;
     cachedOrgMissionOrgId = orgId;
+
+    writeOrgCache(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP, {
+        entries: Array.from(map.entries()),
+    });
+
     return map;
 }
 
@@ -817,14 +864,43 @@ function syncAllMissionsFromMap(orgMissionById) {
     }));
 }
 
-async function loadVolunteers() {
+async function loadVolunteers({
+    silent = false,
+    refresh = true,
+    background = false,
+} = {}) {
+    const orgId = currentUser?.uid;
+    if (!orgId) return;
+
+    const cached = readOrgCache(orgId, ORG_CACHE_KEYS.VOLUNTEERS);
+    const hasCache = cached !== null;
+
+    const stillShowingLoading =
+        volunteerTable && isLoadingTableHtml(volunteerTable.innerHTML);
+
+    if (hasCache && !refresh && !stillShowingLoading) {
+        return;
+    }
+
+    if (
+        hasCache &&
+        !background &&
+        !stillShowingLoading &&
+        !isOrgCacheStale(orgId, ORG_CACHE_KEYS.VOLUNTEERS)
+    ) {
+        return;
+    }
+
+    if (!hasCache && !silent && !background) {
+        showVolunteerTableLoading();
+    }
+
     try {
         console.log(
             "[INFO] Loading volunteers: org mission rosters, then pending applications"
         );
         allVolunteers = [];
 
-        const orgId = currentUser.uid;
         const orgMissionById = await buildOrgMissionMap(orgId);
         syncAllMissionsFromMap(orgMissionById);
         console.log("[INFO] Org missions for volunteer load:", orgMissionById.size);
@@ -876,11 +952,24 @@ async function loadVolunteers() {
         applyVolunteerFilters();
         initVolunteerPaginationControls();
 
-        void runVolunteerMaintenance(orgMissionById);
+        writeOrgCache(orgId, ORG_CACHE_KEYS.VOLUNTEERS, {
+            allVolunteers,
+            tableHtml: tableHtmlForCache(volunteerTable?.innerHTML),
+        });
+
+        if (!background) {
+            setTimeout(() => {
+                void runVolunteerMaintenance(orgMissionById);
+            }, 1500);
+        }
     } catch (error) {
         console.error("Error loading volunteers:", error);
         allApplicants = groupVolunteersByApplicant(allVolunteers);
         applyVolunteerFilters();
+    } finally {
+        if (volunteerTable && isLoadingTableHtml(volunteerTable.innerHTML)) {
+            applyVolunteerFilters();
+        }
     }
 }
 
@@ -1067,6 +1156,17 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
         volunteerCurrentPage = 1;
         applyVolunteerFilters();
 
+        if (currentUser?.uid) {
+            writeOrgCache(currentUser.uid, ORG_CACHE_KEYS.VOLUNTEERS, {
+                allVolunteers,
+                tableHtml: tableHtmlForCache(volunteerTable?.innerHTML),
+            });
+            invalidateOrgCache(
+                currentUser.uid,
+                missionDetailCacheKey(volunteer.missionId)
+            );
+        }
+
         openVolunteerStatusSuccessModal(newStatus);
     } catch (error) {
         console.error("[ERROR] Error updating application status:", error);
@@ -1079,7 +1179,16 @@ function displayVolunteers(applicants) {
     volunteerTable.innerHTML = "";
 
     if (applicants.length === 0) {
-        volunteerTable.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No volunteers found</td></tr>`;
+        volunteerTable.innerHTML = `
+            <tr>
+                <td colspan="4">
+                    <div class="missions-empty">
+                        <i class="bi bi-people"></i>
+                        <h4>No volunteers found</h4>
+                        <p>Applications will appear here when volunteers apply to your missions.</p>
+                    </div>
+                </td>
+            </tr>`;
         volunteerCurrentPage = 1;
         applyVolunteerPagination();
         return;
@@ -1094,15 +1203,14 @@ function displayVolunteers(applicants) {
             : "#";
 
         row.innerHTML = `
-            <td>${escapeHtml(a.name || "N/A")}</td>
-            <td>${escapeHtml(a.email || "N/A")}</td>
-            <td>${escapeHtml(a.phone || "N/A")}</td>
-            <td>
-                <a href="${viewUrl}" class="action-btn view-btn" style="text-decoration:none;">
-                    <i class="fas fa-eye"></i> View details
+            <td class="col-name"><span class="volunteer-name">${escapeHtml(a.name || "N/A")}</span></td>
+            <td class="col-email">${escapeHtml(a.email || "N/A")}</td>
+            <td class="col-phone">${escapeHtml(a.phone || "N/A")}</td>
+            <td class="col-actions">
+                <a href="${viewUrl}" class="mission-action-btn">
+                    <i class="bi bi-eye"></i> View details
                 </a>
-            </td>
-        `;
+            </td>`;
         volunteerTable.appendChild(row);
     });
 

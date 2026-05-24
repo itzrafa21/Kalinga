@@ -13,6 +13,7 @@ import {
     readUsDateInputValue,
     validateUsDateInput,
 } from "./us-date-input.js";
+import { invalidateOrgCache, ORG_CACHE_KEYS } from "./org-data-cache.js";
 
 let currentUser = null;
 let selectedMissionImageFile = null;
@@ -231,7 +232,12 @@ function initializeFormSubmission() {
                 ...submissionData,
                 submissionId: submissionRef.id
             });
-            console.log("[SUCCESS] Mission saved to organization dashboard as Pending");  
+            console.log("[SUCCESS] Mission saved to organization dashboard as Pending");
+
+            invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.DASHBOARD);
+            invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.PROFILE);
+            invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+            invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.VOLUNTEERS);
 
             openMissionSuccessModal();
         } catch (error) {

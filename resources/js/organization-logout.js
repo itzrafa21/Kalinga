@@ -1,5 +1,6 @@
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase";
+import { clearAllOrgCaches } from "./org-data-cache.js";
 
 function openLogoutModal() {
     const overlay = document.getElementById("orgLogoutModal");
@@ -20,6 +21,7 @@ async function performLogout() {
     const confirmBtn = document.getElementById("orgLogoutConfirm");
     if (confirmBtn) confirmBtn.disabled = true;
     try {
+        clearAllOrgCaches();
         await signOut(auth);
         window.location.href = "/organization/login";
     } catch (error) {

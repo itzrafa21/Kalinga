@@ -1,6 +1,12 @@
 import { auth, db } from "./firebase";
 import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import {
+    ORG_CACHE_KEYS,
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheStale,
+} from "./org-data-cache.js";
 
 let CURRENT_USER = null;
 let historySearchListenerAttached = false;
@@ -57,7 +63,7 @@ onAuthStateChanged(auth, async (user) => {
     await populateSidebarUser(user);
 
     // Load missions for this user
-    await loadHistoryMissions(user);
+    await loadHistoryMissions(user, { refresh: false });
 });
 
 function updateHistoryMissionFooter(visibleCount) {
@@ -393,14 +399,49 @@ async function processHistoryMission(docSnap, userId) {
     };
 }
 
-// Function to fetch and render completed missions
-async function loadHistoryMissions(user) {
+function renderHistoryFromPayload(payload) {
     const historyTableBody = document.getElementById("historyMissionsBody");
     if (!historyTableBody) return;
 
-    try {
+    const { rowsHtml, stats, empty } = payload;
+
+    if (empty || !rowsHtml) {
+        historyTableBody.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="missions-empty">
+                        <i class="bi bi-clipboard"></i>
+                        <h4>No completed missions found</h4>
+                        <p>Missions will appear here once they are completed</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        updateStats(0, 0, 0);
+        updateHistoryMissionFooter(0);
+        return;
+    }
+
+    historyTableBody.innerHTML = rowsHtml;
+    updateStats(stats.totalCompleted, stats.thisMonth, stats.totalVolunteers);
+    ensureHistorySearchListener();
+    initHistoryPaginationControls();
+    historyCurrentPage = 1;
+    applyHistoryPagination();
+}
+
+// Function to fetch and render completed missions
+async function loadHistoryMissions(user, { silent = false, refresh = true } = {}) {
+    const historyTableBody = document.getElementById("historyMissionsBody");
+    if (!historyTableBody) return;
+
+    const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
+    const hasCache = cached !== null;
+
+    if (hasCache) {
+        renderHistoryFromPayload(cached.payload);
+    } else if (!silent) {
         console.log("[INFO] Loading history missions...");
-        
         historyTableBody.innerHTML = `
             <tr class="missions-loading-row">
                 <td colspan="6">
@@ -411,24 +452,28 @@ async function loadHistoryMissions(user) {
                 </td>
             </tr>
         `;
+    }
 
+    if (hasCache && !refresh) {
+        return;
+    }
+
+    if (hasCache && !isOrgCacheStale(user.uid, ORG_CACHE_KEYS.HISTORY)) {
+        return;
+    }
+
+    try {
         const historyRef = collection(db, "organizations", user.uid, "history");
         const historySnapshot = await getDocs(query(historyRef));
 
         if (historySnapshot.empty) {
-            historyTableBody.innerHTML = `
-                <tr>
-                    <td colspan="6">
-                        <div class="missions-empty">
-                            <i class="bi bi-clipboard"></i>
-                            <h4>No completed missions found</h4>
-                            <p>Missions will appear here once they are completed</p>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            updateStats(0, 0, 0);
-            updateHistoryMissionFooter(0);
+            const emptyPayload = {
+                empty: true,
+                rowsHtml: "",
+                stats: { totalCompleted: 0, thisMonth: 0, totalVolunteers: 0 },
+            };
+            writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, emptyPayload);
+            renderHistoryFromPayload(emptyPayload);
             console.log("[INFO] No missions in history collection");
             return;
         }
@@ -478,45 +523,38 @@ async function loadHistoryMissions(user) {
         });
 
         const rows = validResults.map((result) => result.row);
+        const stats = {
+            totalCompleted: validMissionsCount,
+            thisMonth: thisMonthCount,
+            totalVolunteers: totalVolunteersHelped,
+        };
 
-        // Update stats
-        updateStats(validMissionsCount, thisMonthCount, totalVolunteersHelped);
-
-        // If no valid missions remain, show empty message
         if (validMissionsCount === 0) {
-            historyTableBody.innerHTML = `
-                <tr>
-                    <td colspan="6">
-                        <div class="missions-empty">
-                            <i class="bi bi-clipboard"></i>
-                            <h4>No completed missions found</h4>
-                            <p>Missions will appear here once they are completed</p>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            updateHistoryMissionFooter(0);
+            const emptyPayload = { empty: true, rowsHtml: "", stats };
+            writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, emptyPayload);
+            renderHistoryFromPayload(emptyPayload);
         } else {
-            historyTableBody.innerHTML = rows.join("");
-            ensureHistorySearchListener();
-            initHistoryPaginationControls();
-            historyCurrentPage = 1;
-            applyHistoryPagination();
+            const payload = {
+                empty: false,
+                rowsHtml: rows.join(""),
+                stats,
+            };
+            writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, payload);
+            renderHistoryFromPayload(payload);
         }
 
         console.log(`[SUCCESS] History cleanup complete:`);
         console.log(`   - Valid missions shown: ${validMissionsCount}`);
         console.log(`   - Removed missions: ${removedMissionsCount}`);
         console.log(`   - Total volunteers helped: ${totalVolunteersHelped}`);
-        
-        // Show a message if missions were cleaned up
+
         if (removedMissionsCount > 0) {
             console.log(`[INFO] Cleaned up ${removedMissionsCount} deleted missions from history`);
         }
-
     } catch (error) {
         console.error("[ERROR] Error fetching history missions:", error);
-        historyTableBody.innerHTML = `
+        if (!hasCache) {
+            historyTableBody.innerHTML = `
             <tr>
                 <td colspan="6">
                     <div class="missions-error">
@@ -527,7 +565,8 @@ async function loadHistoryMissions(user) {
                 </td>
             </tr>
         `;
-        updateHistoryMissionFooter(0);
+            updateHistoryMissionFooter(0);
+        }
     }
 }
 

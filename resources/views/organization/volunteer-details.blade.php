@@ -108,6 +108,39 @@
     .mission-desc-cell {
       max-width: 420px; color: #475569; line-height: 1.45;
     }
+    #detailLoading {
+      margin: 0 0 1rem;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    #detailLoading[hidden] {
+      display: none !important;
+    }
+    #detailContent[hidden] {
+      display: none !important;
+    }
+    .detail-loading-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .detail-loading-spinner {
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid #e2e8f0;
+      border-top-color: #166534;
+      border-radius: 50%;
+      animation: detail-spin 1s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes detail-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .detail-loading-error {
+      margin: 0;
+      color: #b91c1c;
+    }
     @media (max-width: 540px) {
       .profile-card-inner { flex-direction: column; align-items: flex-start; }
     }
@@ -123,7 +156,7 @@
 
     <h1 class="page-title"><i class="bi bi-person-badge"></i> Volunteer details</h1>
 
-    <p id="detailLoading" class="text-muted">Loading applicant…</p>
+    <div id="detailLoading" aria-live="polite"></div>
 
     <div id="detailContent" hidden>
       <section class="profile-card">

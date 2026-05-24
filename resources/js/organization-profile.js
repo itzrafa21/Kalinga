@@ -6,6 +6,13 @@ import {
   uploadImageToCloudinary,
   cloudinaryUrlWithTransform,
 } from "./cloudinary-upload";
+import {
+  ORG_CACHE_KEYS,
+  readOrgCache,
+  writeOrgCache,
+  isOrgCacheStale,
+  invalidateOrgCache,
+} from "./org-data-cache.js";
 
 function normalizeProfilePictureSrc(src) {
   let raw = String(src ?? "").trim();
@@ -87,11 +94,34 @@ function setLastUpdatedFooter(data) {
     });
 }
 
-async function loadProfileStats(uid) {
+function applyProfileStatsToDom(stats) {
+  const elTotal = document.getElementById("totalMissions");
+  const elActive = document.getElementById("activeMissions");
+  const elVol = document.getElementById("totalVolunteers");
+  if (!elTotal || !elActive || !elVol || !stats) return;
+  elTotal.textContent = String(stats.total ?? 0);
+  elActive.textContent = String(stats.active ?? 0);
+  elVol.textContent = String(stats.volunteers ?? 0);
+}
+
+async function loadProfileStats(uid, { refresh = true } = {}) {
   const elTotal = document.getElementById("totalMissions");
   const elActive = document.getElementById("activeMissions");
   const elVol = document.getElementById("totalVolunteers");
   if (!elTotal || !elActive || !elVol) return;
+
+  const cached = readOrgCache(uid, ORG_CACHE_KEYS.PROFILE);
+  if (cached?.payload?.stats) {
+    applyProfileStatsToDom(cached.payload.stats);
+  }
+
+  if (cached && !refresh) {
+    return;
+  }
+
+  if (cached && !isOrgCacheStale(uid, ORG_CACHE_KEYS.PROFILE)) {
+    return;
+  }
 
   try {
     const missionsRef = collection(db, "organizations", uid, "missions");
@@ -133,6 +163,10 @@ async function loadProfileStats(uid) {
     elTotal.textContent = String(total);
     elActive.textContent = String(active);
     elVol.textContent = String(approvedVolunteers);
+
+    writeOrgCache(uid, ORG_CACHE_KEYS.PROFILE, {
+      stats: { total, active: active, volunteers: approvedVolunteers },
+    });
   } catch (e) {
     console.error("[ERROR] loadProfileStats:", e);
     elTotal.textContent = "0";
@@ -180,7 +214,7 @@ onAuthStateChanged(auth, async (user) => {
 
     updateProfileHeader(data, user);
     setLastUpdatedFooter(data);
-    await loadProfileStats(user.uid);
+    await loadProfileStats(user.uid, { refresh: false });
 
     const pic = resolveProfilePicture(data);
     if (pic) {
@@ -218,7 +252,7 @@ onAuthStateChanged(auth, async (user) => {
       user
     );
     setLastUpdatedFooter({});
-    await loadProfileStats(user.uid);
+    await loadProfileStats(user.uid, { refresh: false });
     resetProfilePicture();
   }
 
@@ -382,6 +416,7 @@ function initializeFormHandlers() {
           profilePictureURL: imageUrl,
           profilePictureBase64: deleteField(),
         });
+        invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.SIDEBAR);
         updateSidebarUser(
           { profilePictureURL: displayUrl, name: document.getElementById("orgName")?.value },
           currentUser
@@ -510,6 +545,9 @@ function initializeFormHandlers() {
         email: currentUser.email,
         updatedAt: new Date(),
       });
+
+      invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.SIDEBAR);
+      invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.PROFILE);
 
       updateProfileHeader({ name: orgName, orgName }, currentUser);
       setLastUpdatedFooter({ updatedAt: new Date() });

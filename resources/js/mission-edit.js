@@ -14,6 +14,11 @@ import {
     setUsDateInputValue,
     validateUsDateInput,
 } from "./us-date-input.js";
+import {
+    invalidateOrgCache,
+    ORG_CACHE_KEYS,
+    missionDetailCacheKey,
+} from "./org-data-cache.js";
 
 let selectedMissionImageFile = null;
 let removeMissionImage = false;
@@ -330,6 +335,11 @@ onAuthStateChanged(auth, async (user) => {
       if (globalSnap.exists()) {
         await updateDoc(globalRef, updatedData);
       }
+
+      invalidateOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
+      invalidateOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
+      invalidateOrgCache(user.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+      invalidateOrgCache(user.uid, missionDetailCacheKey(missionId));
 
       openMissionEditSuccessModal(updatedData.missionName);
     } catch (error) {

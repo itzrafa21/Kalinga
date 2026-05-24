@@ -14,6 +14,16 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { awardMissionPoints } from "./volunteer-recognition.js";
+import {
+    ORG_CACHE_KEYS,
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheStale,
+    invalidateOrgCache,
+    missionDetailCacheKey,
+    isLoadingTableHtml,
+    tableHtmlForCache,
+} from "./org-data-cache.js";
 
 let CURRENT_USER = null;
 let allDashboardMissions = [];
@@ -42,12 +52,12 @@ onAuthStateChanged(auth, async (user) => {
     CURRENT_USER = user;
 
     initMissionFilters();
-    await loadMissions(user);
+    await loadMissions(user, { refresh: false });
 
     setInterval(async () => {
         if (CURRENT_USER) {
             await updateMissionStatuses(CURRENT_USER);
-            await loadMissions(CURRENT_USER);
+            await loadMissions(CURRENT_USER, { silent: true, force: true });
         }
     }, 1 * 60 * 1000);
 });
@@ -487,23 +497,79 @@ async function buildDashboardMission(user, docSnap, today) {
     };
 }
 
-async function loadMissions(user) {
+function getDashboardStatsSnapshot(missions) {
+    return {
+        total: missions.length,
+        ongoing: missions.filter(
+            (m) => normalizeMissionStatus(m.status) === "ongoing"
+        ).length,
+        pending: missions.filter(
+            (m) => normalizeMissionStatus(m.status) === "pending"
+        ).length,
+    };
+}
+
+function saveDashboardCache(orgId) {
+    const tbody = document.getElementById("missionsBody");
+    writeOrgCache(orgId, ORG_CACHE_KEYS.DASHBOARD, {
+        missions: allDashboardMissions,
+        tableHtml: tableHtmlForCache(tbody?.innerHTML),
+        stats: getDashboardStatsSnapshot(allDashboardMissions),
+    });
+}
+
+function applyCachedDashboardMissions(payload) {
+    allDashboardMissions = payload.missions || [];
+    updateDashboardStats(allDashboardMissions);
+
+    const tbody = document.getElementById("missionsBody");
+    const cachedHtml = payload.tableHtml || "";
+    if (tbody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
+        tbody.innerHTML = cachedHtml;
+        return;
+    }
+    applyMissionFilters();
+}
+
+async function loadMissions(user, { silent = false, force = false, refresh = true } = {}) {
     const missionsTableBody = document.getElementById("missionsBody");
     if (!missionsTableBody) return;
 
-    showMissionsLoading();
+    const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
+    const hasCache = cached !== null;
+
+    if (hasCache) {
+        applyCachedDashboardMissions(cached.payload);
+    } else if (!silent) {
+        showMissionsLoading();
+    }
+
+    const stillShowingLoading =
+        missionsTableBody &&
+        isLoadingTableHtml(missionsTableBody.innerHTML);
+
+    if (hasCache && !force && !refresh && !stillShowingLoading) {
+        return;
+    }
+
+    if (
+        hasCache &&
+        !force &&
+        !stillShowingLoading &&
+        !isOrgCacheStale(user.uid, ORG_CACHE_KEYS.DASHBOARD)
+    ) {
+        return;
+    }
 
     const missionsRef = collection(db, "organizations", user.uid, "missions");
-    const missionsQuery = query(missionsRef, orderBy("createdAt", "desc"));
+    const today = new Date();
 
-    try {
-        const snapshot = await getDocs(missionsQuery);
-        const today = new Date();
-
+    const applySnapshot = async (snapshot) => {
         if (snapshot.empty) {
             allDashboardMissions = [];
             updateDashboardStats([]);
             renderMissionsTable([]);
+            saveDashboardCache(user.uid);
             return;
         }
 
@@ -512,17 +578,31 @@ async function loadMissions(user) {
         );
 
         allDashboardMissions = sortMissionsByCreatedAt(results.filter(Boolean));
-
         updateDashboardStats(allDashboardMissions);
         applyMissionFilters();
-
+        saveDashboardCache(user.uid);
         console.log(`[SUCCESS] Loaded ${allDashboardMissions.length} missions`);
+    };
+
+    try {
+        const snapshot = await getDocs(
+            query(missionsRef, orderBy("createdAt", "desc"))
+        );
+        await applySnapshot(snapshot);
     } catch (error) {
-        console.error("Error fetching missions: ", error);
-        missionsTableBody.innerHTML = `
+        console.warn("[WARN] orderBy(createdAt) failed, loading without index:", error);
+        try {
+            const snapshot = await getDocs(missionsRef);
+            await applySnapshot(snapshot);
+        } catch (fallbackError) {
+            console.error("Error fetching missions: ", fallbackError);
+            if (!hasCache || isLoadingTableHtml(missionsTableBody.innerHTML)) {
+                missionsTableBody.innerHTML = `
             <tr>
                 <td colspan="6" class="missions-error-cell">Could not load missions. Please refresh the page.</td>
             </tr>`;
+            }
+        }
     }
 }
 
@@ -600,6 +680,12 @@ async function moveMissionToHistory(orgId, missionId, mission) {
         await awardMissionPoints(orgId, missionId, payload);
 
         await deleteDoc(doc(db, "organizations", orgId, "missions", missionId));
+
+        invalidateOrgCache(orgId, ORG_CACHE_KEYS.DASHBOARD);
+        invalidateOrgCache(orgId, ORG_CACHE_KEYS.HISTORY);
+        invalidateOrgCache(orgId, ORG_CACHE_KEYS.VOLUNTEERS);
+        invalidateOrgCache(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+        invalidateOrgCache(orgId, missionDetailCacheKey(missionId));
 
         console.log(`[SUCCESS] Mission "${mission.missionName}" moved to history`);
     } catch (error) {

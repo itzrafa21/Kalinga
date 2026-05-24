@@ -1,6 +1,11 @@
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import {
+    ORG_CACHE_KEYS,
+    readOrgCache,
+    writeOrgCache,
+} from "./org-data-cache.js";
 
 function updateSidebarAvatar(data) {
   const wrap = document.querySelector(".sidebar-user-avatar");
@@ -29,6 +34,19 @@ onAuthStateChanged(auth, async (user) => {
     const sidebarInitialEl = document.getElementById("sidebarUserInitial");
 
     try {
+      const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
+      if (cached?.payload) {
+        const { displayName, orgData } = cached.payload;
+        updateSidebarAvatar(orgData);
+        if (orgNameEl) orgNameEl.textContent = displayName;
+        if (welcomeNameEl) welcomeNameEl.textContent = displayName;
+        if (sidebarNameEl) sidebarNameEl.textContent = displayName;
+        if (sidebarInitialEl) {
+          const ch = String(displayName).trim().charAt(0);
+          sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
+        }
+      }
+
       const docRef = doc(db, "organizations", user.uid);
       const snap = await getDoc(docRef);
 
@@ -47,6 +65,8 @@ onAuthStateChanged(auth, async (user) => {
       } else {
         displayName = user.displayName || user.email;
       }
+
+      writeOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR, { displayName, orgData });
 
       updateSidebarAvatar(orgData);
       if (orgNameEl) orgNameEl.textContent = displayName;

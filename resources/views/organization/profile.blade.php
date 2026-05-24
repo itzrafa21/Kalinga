@@ -395,6 +395,7 @@
               <span><strong id="totalVolunteers">0</strong> Volunteers</span>
             </div>
           </div>
+          @include('partials.org-cache-hydrate')
         </div>
         <blockquote class="profile-hero-quote">Together, we can make a bigger impact.</blockquote>
       </div>

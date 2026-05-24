@@ -109,29 +109,14 @@ async function buildOrgMissionMap(orgId) {
         if (inHistory) historyMissionIds.add(id);
     };
 
-    const [missionsResult, orgMissionsResult, historyResult] =
-        await Promise.allSettled([
-            getDocs(collection(db, "missions")),
-            getDocs(collection(db, "organizations", orgId, "missions")),
-            getDocs(collection(db, "organizations", orgId, "history")),
-        ]);
-
-    if (missionsResult.status === "fulfilled") {
-        missionsResult.value.docs.forEach((missionDoc) => {
-            const mission = missionDoc.data();
-            if (mission.orgId === orgId || mission.organizationId === orgId) {
-                addMission(missionDoc.id, mission);
-            }
-        });
-    } else {
-        console.error("[ERROR] loading missions:", missionsResult.reason);
-    }
+    const [orgMissionsResult, historyResult] = await Promise.allSettled([
+        getDocs(collection(db, "organizations", orgId, "missions")),
+        getDocs(collection(db, "organizations", orgId, "history")),
+    ]);
 
     if (orgMissionsResult.status === "fulfilled") {
         orgMissionsResult.value.docs.forEach((missionDoc) => {
-            if (!map.has(missionDoc.id)) {
-                addMission(missionDoc.id, missionDoc.data());
-            }
+            addMission(missionDoc.id, missionDoc.data());
         });
     } else {
         console.warn("[WARN] organizations/missions:", orgMissionsResult.reason);
@@ -239,37 +224,6 @@ async function loadApplicantApplications(orgId, userId) {
         console.warn("[WARN] users applications:", err);
     }
 
-    const missionIds = [...orgMissionById.keys()];
-    await Promise.all(
-        missionIds.map(async (missionId) => {
-            const mission = orgMissionById.get(missionId);
-            try {
-                const snap = await getDocs(
-                    query(
-                        collection(db, "missions", missionId, "applications"),
-                        where("userId", "==", userId)
-                    )
-                );
-                for (const docSnap of snap.docs) {
-                    mergeApp(
-                        missionId,
-                        buildApplicationRecord(
-                            docSnap,
-                            docSnap.data(),
-                            missionId,
-                            mission,
-                            STORAGE_MISSIONS_SUB,
-                            userId,
-                            orgId
-                        )
-                    );
-                }
-            } catch (err) {
-                console.warn("[WARN] missions applications", missionId, err);
-            }
-        })
-    );
-
     return Array.from(byMission.values());
 }
 
@@ -280,12 +234,12 @@ async function mergeApplicantFromOrgRosters(orgId, userId) {
         byMission.set(app.missionId, app);
     }
 
-    const completedMissionIds = [...orgMissionById.keys()].filter((missionId) =>
+    const missionIdsToCheck = [...orgMissionById.keys()].filter((missionId) =>
         isMissionCompleted(missionId)
     );
 
     await Promise.all(
-        completedMissionIds.map(async (missionId) => {
+        missionIdsToCheck.map(async (missionId) => {
             const mission = orgMissionById.get(missionId);
             try {
                 const rosterRef = doc(
@@ -519,6 +473,35 @@ async function loadApplicantProfile(userId) {
     }
 }
 
+function setDetailLoadingVisible(visible, message = "Loading volunteer…") {
+    const loading = document.getElementById("detailLoading");
+    const content = document.getElementById("detailContent");
+    if (loading) {
+        if (visible) {
+            loading.hidden = false;
+            loading.removeAttribute("hidden");
+            loading.innerHTML = `
+                <div class="detail-loading-inner">
+                    <div class="detail-loading-spinner" aria-hidden="true"></div>
+                    <span>${escapeHtml(message)}</span>
+                </div>`;
+        } else {
+            loading.hidden = true;
+            loading.setAttribute("hidden", "");
+            loading.innerHTML = "";
+        }
+    }
+    if (content) {
+        if (visible) {
+            content.hidden = true;
+            content.setAttribute("hidden", "");
+        } else {
+            content.hidden = false;
+            content.removeAttribute("hidden");
+        }
+    }
+}
+
 async function initPage(user) {
     applicantUserId = getUserIdFromUrl();
     if (!applicantUserId) {
@@ -526,44 +509,58 @@ async function initPage(user) {
         return;
     }
 
-    const loading = document.getElementById("detailLoading");
-    const content = document.getElementById("detailContent");
-    if (loading) loading.hidden = false;
-    if (content) content.hidden = true;
+    setDetailLoadingVisible(true);
 
-    orgMissionById = await buildOrgMissionMap(user.uid);
+    try {
+        const [profile, missionMap] = await Promise.all([
+            loadApplicantProfile(applicantUserId),
+            buildOrgMissionMap(user.uid),
+        ]);
 
-    const [profile] = await Promise.all([
-        loadApplicantProfile(applicantUserId),
-        (async () => {
-            applicantApplications = await loadApplicantApplications(
-                user.uid,
-                applicantUserId
-            );
-            await mergeApplicantFromOrgRosters(user.uid, applicantUserId);
-        })(),
-    ]);
-    const nameEl = document.getElementById("applicantName");
-    if (nameEl && profile?.name) {
-        nameEl.dataset.fallback = profile.name;
+        orgMissionById = missionMap;
+
+        applicantApplications = await loadApplicantApplications(
+            user.uid,
+            applicantUserId
+        );
+        await mergeApplicantFromOrgRosters(user.uid, applicantUserId);
+
+        const nameEl = document.getElementById("applicantName");
+        if (nameEl && profile?.name) {
+            nameEl.dataset.fallback = profile.name;
+        }
+
+        if (profile && applicantApplications.length > 0) {
+            applicantApplications[0].name =
+                applicantApplications[0].name || profile.name;
+            applicantApplications[0].email =
+                applicantApplications[0].email || profile.email;
+            applicantApplications[0].phone =
+                applicantApplications[0].phone || profile.phone;
+            applicantApplications[0].occupation =
+                applicantApplications[0].occupation || profile.occupation;
+        }
+
+        renderProfile(profile);
+        renderAttendedMissionsTable();
+    } catch (err) {
+        console.error("[ERROR] initPage:", err);
+        const loading = document.getElementById("detailLoading");
+        if (loading) {
+            loading.hidden = false;
+            loading.removeAttribute("hidden");
+            loading.innerHTML =
+                '<p class="detail-loading-error">Could not load volunteer details. Please refresh the page.</p>';
+        }
+        const content = document.getElementById("detailContent");
+        if (content) {
+            content.hidden = true;
+            content.setAttribute("hidden", "");
+        }
+        return;
     }
 
-    if (profile && applicantApplications.length > 0) {
-        applicantApplications[0].name =
-            applicantApplications[0].name || profile.name;
-        applicantApplications[0].email =
-            applicantApplications[0].email || profile.email;
-        applicantApplications[0].phone =
-            applicantApplications[0].phone || profile.phone;
-        applicantApplications[0].occupation =
-            applicantApplications[0].occupation || profile.occupation;
-    }
-
-    renderProfile(profile);
-    renderAttendedMissionsTable();
-
-    if (loading) loading.hidden = true;
-    if (content) content.hidden = false;
+    setDetailLoadingVisible(false);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

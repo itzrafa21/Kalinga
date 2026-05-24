@@ -26,6 +26,13 @@ import {
   loadPlatformConfig,
   computeMissionDurationHours,
 } from "./mission-type-points.js";
+import {
+  readOrgCache,
+  writeOrgCache,
+  isOrgCacheStale,
+  invalidateOrgCache,
+  missionDetailCacheKey,
+} from "./org-data-cache.js";
 
 let pendingRejectVolunteer = null;
 let currentMissionContext = null;
@@ -1431,11 +1438,79 @@ function renderOwnerFooterActions(isOwner, editUrl, inHistory, mission = null) {
     <a href="${editUrl}" class="md-btn md-btn-g"><i class="ti ti-edit" aria-hidden="true"></i> Edit mission</a>`;
 }
 
-async function refreshMissionDetails() {
+function saveMissionDetailCache(orgId, missionId, payload) {
+  if (!orgId || !missionId) return;
+  writeOrgCache(orgId, missionDetailCacheKey(missionId), payload);
+}
+
+function renderMissionDetailsFromCache(container, payload, user) {
+  const { mission, inHistory, volunteers, signedUp, missionId } = payload;
+  if (!mission || !missionId) return false;
+
+  if ((mission.status || "").toLowerCase() === "rejected") {
+    renderRejectedMissionPage(container, mission, missionId, user, Boolean(inHistory));
+    return true;
+  }
+
+  currentMissionContext = {
+    mission,
+    missionId,
+    user,
+    volunteers: volunteers || [],
+    slotInfo: getMissionVolunteerCapacity(mission, volunteers || []),
+  };
+
+  renderMissionFrame(
+    container,
+    mission,
+    missionId,
+    user,
+    signedUp ?? 0,
+    volunteers || [],
+    Boolean(inHistory)
+  );
+  return true;
+}
+
+async function refreshMissionDetails({ refresh = true, background = false } = {}) {
   const container = document.getElementById("detailsContainer");
   const missionId = getMissionIdFromUrl();
   const user = auth.currentUser;
   if (!container || !missionId) return;
+
+  const orgId = user?.uid || null;
+  const cacheKey = missionDetailCacheKey(missionId);
+  const cached = orgId ? readOrgCache(orgId, cacheKey) : null;
+  const hasCache = Boolean(cached?.payload?.mission);
+
+  if (hasCache && !background) {
+    const rendered = renderMissionDetailsFromCache(
+      container,
+      cached.payload,
+      user
+    );
+    if (!rendered && !background) {
+      container.innerHTML = `
+        <div class="md-loading">
+          <div class="missions-loading-spinner" aria-hidden="true"></div>
+          <span>Loading mission…</span>
+        </div>`;
+    }
+  } else if (!hasCache && !background) {
+    container.innerHTML = `
+      <div class="md-loading">
+        <div class="missions-loading-spinner" aria-hidden="true"></div>
+        <span>Loading mission…</span>
+      </div>`;
+  }
+
+  if (hasCache && !refresh) {
+    return;
+  }
+
+  if (hasCache && !background && !isOrgCacheStale(orgId, cacheKey)) {
+    return;
+  }
 
   try {
     const loaded = await loadMissionDocument(missionId, user);
@@ -1452,6 +1527,15 @@ async function refreshMissionDetails() {
 
     if (status === "rejected") {
       renderRejectedMissionPage(container, mission, missionId, user, inHistory);
+      if (orgId) {
+        saveMissionDetailCache(orgId, missionId, {
+          mission,
+          missionId,
+          inHistory,
+          volunteers: [],
+          signedUp: 0,
+        });
+      }
       return;
     }
 
@@ -1490,10 +1574,25 @@ async function refreshMissionDetails() {
       volunteers,
       inHistory
     );
+
+    if (orgId) {
+      saveMissionDetailCache(orgId, missionId, {
+        mission,
+        missionId,
+        inHistory,
+        volunteers,
+        signedUp,
+      });
+    }
   } catch (err) {
     console.error(err);
-    clearMissionPageNav();
-    container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
+    if (
+      !hasCache ||
+      container.querySelector(".md-loading, .missions-loading")
+    ) {
+      clearMissionPageNav();
+      container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
+    }
   }
 }
 
@@ -1514,10 +1613,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     try {
-      await loadPlatformConfig();
       wireRosterStatusSuccessModal();
       wireMissionFullModal();
-      await refreshMissionDetails();
+
+      const missionId = getMissionIdFromUrl();
+      const cached = readOrgCache(user.uid, missionDetailCacheKey(missionId));
+
+      await Promise.all([
+        loadPlatformConfig(),
+        refreshMissionDetails({ refresh: false }),
+      ]);
+
+      if (!cached || isOrgCacheStale(user.uid, missionDetailCacheKey(missionId))) {
+        void refreshMissionDetails({ refresh: true, background: true });
+      }
     } catch (err) {
       console.error(err);
       container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;

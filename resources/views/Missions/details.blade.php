@@ -410,6 +410,11 @@
       line-height: 1.5;
     }
     .md-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
       padding: 4rem 2rem;
       text-align: center;
       color: #64748b;
@@ -417,6 +422,18 @@
       background: #fff;
       border-radius: 14px;
       border: 1px dashed #cbd5e1;
+    }
+    .md-loading .missions-loading-spinner {
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid #e2e8f0;
+      border-top-color: #166534;
+      border-radius: 50%;
+      animation: md-detail-spin 1s linear infinite;
+    }
+    @keyframes md-detail-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
     .md-error { padding: 2rem; text-align: center; color: #b91c1c; }
     .reject-modal-overlay {
@@ -535,9 +552,7 @@
         <h1 class="md-page-header">Mission Details</h1>
         <nav id="mdTopNav" class="md-topbar-actions" aria-label="Mission actions"></nav>
       </header>
-      <div id="detailsContainer">
-        <p class="md-loading">Loading mission…</p>
-      </div>
+      <div id="detailsContainer"></div>
     </div>
   </main>
 
