@@ -3,6 +3,7 @@ import {
     collection,
     getDocs,
     query,
+    orderBy,
     doc,
     deleteDoc,
     setDoc,
@@ -16,6 +17,20 @@ import { awardMissionPoints } from "./volunteer-recognition.js";
 
 let CURRENT_USER = null;
 let allDashboardMissions = [];
+
+function getCreatedAtMs(value) {
+    if (!value) return 0;
+    if (typeof value.toDate === "function") return value.toDate().getTime();
+    if (value instanceof Date) return value.getTime();
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function sortMissionsByCreatedAt(missions) {
+    return [...missions].sort(
+        (a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt)
+    );
+}
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -374,12 +389,14 @@ function renderMissionsTable(missions) {
                     </td>
                     <td class="col-mission">
                         <a href="${detailsUrl}" class="mission-name-link">${escapeMissionCell(m.missionName || "Untitled")}</a>
-                        ${autoAcceptBadge}
                         <div class="mission-location-sub">${escapeMissionCell(m.locationShort)}</div>
                     </td>
                     <td class="col-type">${escapeMissionCell(m.type || "—")}</td>
                     <td class="col-volunteers">
-                        <span class="volunteer-progress">${signedUp} / ${needed}</span>
+                        <div class="volunteers-cell">
+                            <span class="volunteer-progress">${signedUp} / ${needed}</span>
+                            ${autoAcceptBadge}
+                        </div>
                     </td>
                     <td class="col-status">
                         <span class="mission-status ${getMissionStatusClass(statusLabel)}">${escapeMissionCell(statusLabel)}</span>
@@ -466,6 +483,7 @@ async function buildDashboardMission(user, docSnap, today) {
         timeLabel: formatMissionTimeRange(mission),
         locationShort: formatLocationShort(mission),
         autoAcceptVolunteers: mission.autoAcceptVolunteers === true,
+        createdAt: mission.createdAt ?? mission.submittedAt ?? null,
     };
 }
 
@@ -476,7 +494,7 @@ async function loadMissions(user) {
     showMissionsLoading();
 
     const missionsRef = collection(db, "organizations", user.uid, "missions");
-    const missionsQuery = query(missionsRef);
+    const missionsQuery = query(missionsRef, orderBy("createdAt", "desc"));
 
     try {
         const snapshot = await getDocs(missionsQuery);
@@ -493,11 +511,7 @@ async function loadMissions(user) {
             snapshot.docs.map((docSnap) => buildDashboardMission(user, docSnap, today))
         );
 
-        allDashboardMissions = results
-            .filter(Boolean)
-            .sort((a, b) =>
-                String(a.dateLabel).localeCompare(String(b.dateLabel))
-            );
+        allDashboardMissions = sortMissionsByCreatedAt(results.filter(Boolean));
 
         updateDashboardStats(allDashboardMissions);
         applyMissionFilters();

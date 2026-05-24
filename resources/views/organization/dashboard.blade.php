@@ -44,17 +44,17 @@
     }
     .toolbar-actions { display: flex; align-items: center; gap: 0.75rem; }
     .create-btn {
-      background: #28a745;
+      background: #275735;
       color: #fff;
       border: none;
-      padding: 10px 18px;
-      border-radius: 8px;
+      padding: 6px 12px;
+      border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       transition: all 0.2s;
     }
     .create-btn:hover {
@@ -200,12 +200,16 @@
       max-width: 0;
     }
     #missionsTable td.col-mission {
-      font-weight: 600;
       color: #1e3a2f;
+    }
+    #missionsTable td.col-mission .mission-name-link {
+      display: block;
     }
     .mission-name-link {
       color: #166534;
+      font-size: 14px;
       font-weight: 600;
+      text-transform: uppercase;
       text-decoration: none;
     }
     .mission-name-link:hover {
@@ -213,7 +217,7 @@
       text-decoration: underline;
     }
     .mission-location-sub {
-      font-size: 0.78rem;
+      font-size: 12px;
       font-weight: 400;
       color: #64748b;
       margin-top: 0.2rem;
@@ -225,27 +229,37 @@
       max-width: none;
     }
     .mission-date-main {
+      font-size: 12px;
       font-weight: 500;
       color: #1e3a2f;
     }
     .mission-time-sub {
-      font-size: 0.78rem;
+      font-size: 12px;
       font-weight: 400;
       color: #64748b;
       margin-top: 0.2rem;
     }
+    .volunteers-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
     .mission-tag {
       display: inline-block;
-      margin-left: 0.35rem;
+      margin: 0;
       padding: 0.12rem 0.45rem;
       border-radius: 999px;
       background: #ecfdf5;
       color: #047857;
-      font-size: 0.68rem;
+      font-size: 12px;
       font-weight: 600;
-      vertical-align: middle;
+    }
+    #missionsTable td.col-type {
+      font-size: 12px;
     }
     .volunteer-progress {
+      font-size: 12px;
       font-weight: 600;
       color: #1e3a2f;
     }
@@ -255,9 +269,9 @@
       justify-content: center;
       padding: 6px 12px;
       border-radius: 6px;
-      background: #22a447;
+      background: #275735;
       color: #fff;
-      font-size: 0.85rem;
+      font-size: 12px;
       font-weight: 600;
       text-decoration: none;
       transition: background 0.2s;
@@ -345,7 +359,7 @@
       line-height: 1.2;
       white-space: nowrap;
     }
-    .mission-status--open { background: #dbeafe; color: #1d4ed8; }
+    .mission-status--open { background: #ecfdf5; color: #047857; }
     .mission-status--ongoing { background: #cffafe; color: #0e7490; }
     .mission-status--completed { background: #dcfce7; color: #15803d; }
     .mission-status--pending { background: #fef3c7; color: #b45309; }
@@ -420,7 +434,7 @@
         <table id="missionsTable">
           <colgroup>
             <col style="width: 14%">
-            <col style="width: 22%">
+            <col style="width: 35%">
             <col style="width: 14%">
             <col style="width: 12%">
             <col style="width: 12%">
