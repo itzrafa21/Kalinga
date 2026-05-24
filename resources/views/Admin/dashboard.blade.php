@@ -41,6 +41,12 @@
 #missionDetailsBackdrop {
   z-index: 1055;
 }
+#volunteerDetailsModal {
+  z-index: 1062;
+}
+#volunteerDetailsBackdrop {
+  z-index: 1061;
+}
 /* Mission reject modal */
 .reject-modal-overlay {
   position: fixed;
@@ -753,6 +759,22 @@
   <div class="org-details-modal__body" id="missionDetailsBody"></div>
   <div class="org-details-modal__footer">
     <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- Volunteer details modal -->
+<div class="org-modal-backdrop" id="volunteerDetailsBackdrop" hidden></div>
+<div class="org-details-modal" id="volunteerDetailsModal" role="dialog" aria-labelledby="volunteerDetailsTitle" hidden>
+  <div class="org-details-modal__header">
+    <div class="org-details-modal__title-wrap">
+      <i class="fas fa-hands-helping"></i>
+      <h2 id="volunteerDetailsTitle">VOLUNTEER DETAILS</h2>
+    </div>
+    <button type="button" class="org-details-modal__close-x" id="volunteerDetailsCloseX" aria-label="Close">&times;</button>
+  </div>
+  <div class="org-details-modal__body" id="volunteerDetailsBody"></div>
+  <div class="org-details-modal__footer">
+    <button type="button" class="org-details-modal__close-btn" id="volunteerDetailsCloseBtn">Close</button>
   </div>
 </div>
 

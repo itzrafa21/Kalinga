@@ -18,11 +18,19 @@ import {
     setDoc,
     serverTimestamp,
     deleteField,
+    collectionGroup,
 } from "firebase/firestore";
 import { computeMissionPointsPayload } from "./mission-type-points.js";
-import { loadPlatformConfig, getMissionTypes } from "./platform-config.js";
+import {
+    loadPlatformConfig,
+    getMissionTypes,
+    getLevelForPoints,
+    computeMissionDurationHours,
+} from "./platform-config.js";
 
 let allAdminMissions = [];
+let allAdminVolunteers = [];
+const missionDurationHoursCache = new Map();
 let adminMissionsPageSize = 10;
 let adminMissionsCurrentPage = 1;
 let activityChart = null;
@@ -673,28 +681,488 @@ async function loadDashboardStats() {
     }
 }
 
-function loadVolunteersData() {
-    // Mock data - replace with actual Firebase queries
-    const volunteersData = [
+function escapeHtml(text) {
+    return String(text ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
 
-    ];
-    
-    const tbody = document.getElementById('volunteersTableBody');
-    tbody.innerHTML = volunteersData.map(volunteer => `
-        <tr>
-            <td>${volunteer.name}</td>
-            <td>${volunteer.email}</td>
-            <td>${volunteer.missions}</td>
-            <td>${volunteer.hours}</td>
-            <td><span class="badge bg-warning">${volunteer.badges} Badges</span></td>
-            <td><span class="badge ${volunteer.status === 'Top Performer' ? 'bg-success' : 'bg-primary'}">${volunteer.status}</span></td>
+function isVolunteerUserDoc(data, orgUserIds = null) {
+    const role = String(data?.role || "").toLowerCase();
+    if (role === "volunteer") return true;
+    if (role === "admin" || role === "organization" || role === "org") return false;
+    if (orgUserIds && data?.uid && orgUserIds.has(data.uid)) return false;
+    return true;
+}
+
+async function getOrganizationUserIds() {
+    try {
+        const orgSnap = await getDocs(collection(db, "organizations"));
+        return new Set(orgSnap.docs.map((d) => d.id));
+    } catch {
+        return new Set();
+    }
+}
+
+function mergeApplicationVolunteerProfile(map, userId, appData) {
+    if (!userId) return;
+    const existing = map.get(userId) || {
+        name: "",
+        email: "",
+        phone: "",
+        applicationCount: 0,
+    };
+    map.set(userId, {
+        ...existing,
+        name:
+            appData.displayName ||
+            appData.name ||
+            existing.name,
+        email: appData.email || existing.email,
+        phone:
+            appData.mobileNumber ||
+            appData.phone ||
+            appData.mobile ||
+            existing.phone,
+        applicationCount: existing.applicationCount + 1,
+    });
+}
+
+async function discoverVolunteersFromApplications() {
+    const profileByUserId = new Map();
+
+    try {
+        const cgSnap = await getDocs(collectionGroup(db, "applications"));
+        for (const appDoc of cgSnap.docs) {
+            mergeApplicationVolunteerProfile(
+                profileByUserId,
+                appDoc.data().userId,
+                appDoc.data()
+            );
+        }
+    } catch (err) {
+        console.warn("[WARN] collectionGroup(applications) for admin volunteers:", err);
+    }
+
+    if (profileByUserId.size === 0) {
+        try {
+            const missionsSnap = await getDocs(collection(db, "missions"));
+            for (const missionDoc of missionsSnap.docs) {
+                const appsSnap = await getDocs(
+                    collection(db, "missions", missionDoc.id, "applications")
+                );
+                for (const appDoc of appsSnap.docs) {
+                    mergeApplicationVolunteerProfile(
+                        profileByUserId,
+                        appDoc.data().userId,
+                        appDoc.data()
+                    );
+                }
+            }
+        } catch (err) {
+            console.warn("[WARN] missions/*/applications scan for admin volunteers:", err);
+        }
+    }
+
+  if (profileByUserId.size === 0) {
+        try {
+            const orgSnap = await getDocs(collection(db, "organizations"));
+            for (const orgDoc of orgSnap.docs) {
+                const missionsSnap = await getDocs(
+                    collection(db, "organizations", orgDoc.id, "missions")
+                );
+                for (const missionDoc of missionsSnap.docs) {
+                    const rosterSnap = await getDocs(
+                        collection(
+                            db,
+                            "organizations",
+                            orgDoc.id,
+                            "missions",
+                            missionDoc.id,
+                            "volunteers"
+                        )
+                    );
+                    for (const rosterDoc of rosterSnap.docs) {
+                        const data = rosterDoc.data();
+                        mergeApplicationVolunteerProfile(
+                            profileByUserId,
+                            data.userId || rosterDoc.id,
+                            data
+                        );
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("[WARN] org mission rosters scan for admin volunteers:", err);
+        }
+    }
+
+    const entries = [];
+    for (const [userId, profile] of profileByUserId) {
+        let data = { ...profile };
+        try {
+            const userSnap = await getDoc(doc(db, "users", userId));
+            if (userSnap.exists()) {
+                data = { ...userSnap.data(), ...profile };
+            }
+        } catch {
+            /* use application profile only */
+        }
+        entries.push({ id: userId, data });
+    }
+    return entries;
+}
+
+async function loadVolunteerUserEntries() {
+    const orgUserIds = await getOrganizationUserIds();
+    const entries = [];
+    const seenIds = new Set();
+
+    const addEntry = (id, data) => {
+        if (!id || seenIds.has(id) || orgUserIds.has(id)) return;
+        if (!isVolunteerUserDoc(data, orgUserIds)) return;
+        seenIds.add(id);
+        entries.push({ id, data });
+    };
+
+    try {
+        const roleSnap = await getDocs(
+            query(collection(db, "users"), where("role", "==", "volunteer"))
+        );
+        roleSnap.docs.forEach((d) => addEntry(d.id, d.data()));
+    } catch (err) {
+        console.warn("[WARN] role=volunteer query:", err);
+    }
+
+    if (entries.length === 0) {
+        try {
+            const allUsersSnap = await getDocs(collection(db, "users"));
+            allUsersSnap.docs.forEach((d) => addEntry(d.id, d.data()));
+            console.log(
+                "[INFO] Loaded users collection for volunteers:",
+                allUsersSnap.size,
+                "raw,",
+                entries.length,
+                "after filter"
+            );
+        } catch (err) {
+            console.warn("[WARN] all users query:", err);
+        }
+    }
+
+    if (entries.length === 0) {
+        const fromApplications = await discoverVolunteersFromApplications();
+        fromApplications.forEach(({ id, data }) => addEntry(id, data));
+        console.log(
+            "[INFO] Discovered volunteers from applications/rosters:",
+            entries.length
+        );
+    }
+
+    return entries;
+}
+
+async function getMissionDurationHoursCached(missionId) {
+    if (!missionId) return 0;
+    if (missionDurationHoursCache.has(missionId)) {
+        return missionDurationHoursCache.get(missionId);
+    }
+
+    let hours = 0;
+    try {
+        const snap = await getDoc(doc(db, "missions", missionId));
+        if (snap.exists()) {
+            const mission = snap.data();
+            hours =
+                Number(mission.durationHours) ||
+                computeMissionDurationHours(mission) ||
+                0;
+        }
+    } catch (err) {
+        console.warn("[WARN] Could not load mission hours for", missionId, err);
+    }
+
+    missionDurationHoursCache.set(missionId, hours);
+    return hours;
+}
+
+async function countApprovedApplications(userId) {
+    try {
+        const appsSnap = await getDocs(
+            collection(db, "users", userId, "applications")
+        );
+        return appsSnap.docs.filter((d) => {
+            const status = String(d.data().status || "").toLowerCase();
+            return status === "approved" || status === "accepted" || status === "completed";
+        }).length;
+    } catch {
+        return 0;
+    }
+}
+
+async function createVolunteerRow(userId, data) {
+    const name = data.name || data.displayName || data.fullName || "Volunteer";
+    const email = data.email || "—";
+    const totalPoints = Number(data.totalPoints) || 0;
+    let missionsJoined = Number(data.missionsCompleted) || 0;
+
+    if (missionsJoined === 0 && Number(data.applicationCount) > 0) {
+        missionsJoined = Number(data.applicationCount);
+    }
+
+    if (missionsJoined === 0) {
+        const ledgerCount = await getDocs(
+            collection(db, "users", userId, "pointsLedger")
+        ).then((snap) => snap.size).catch(() => 0);
+        if (ledgerCount > 0) {
+            missionsJoined = ledgerCount;
+        } else {
+            missionsJoined = await countApprovedApplications(userId);
+        }
+    }
+
+    let hoursVolunteered =
+        Number(data.totalVolunteerHours ?? data.hoursVolunteered) || 0;
+    if (hoursVolunteered <= 0) {
+        try {
+            const ledgerSnap = await getDocs(
+                collection(db, "users", userId, "pointsLedger")
+            );
+            let totalHours = 0;
+            for (const ledgerDoc of ledgerSnap.docs) {
+                totalHours += await getMissionDurationHoursCached(ledgerDoc.id);
+            }
+            hoursVolunteered = Math.round(totalHours * 10) / 10;
+        } catch {
+            hoursVolunteered = 0;
+        }
+    }
+
+    const level =
+        data.volunteerLevel ||
+        getLevelForPoints(totalPoints).name ||
+        "—";
+    const badgeCount = Array.isArray(data.badges) ? data.badges.length : 0;
+
+    return {
+        id: userId,
+        name,
+        email,
+        missionsJoined,
+        hoursVolunteered,
+        level,
+        badgeCount,
+        totalPoints,
+        disabled: data.disabled === true,
+        accountStatus: String(data.status || data.accountStatus || "").toLowerCase(),
+    };
+}
+
+function deriveVolunteerStatus(volunteer) {
+    if (
+        volunteer.disabled ||
+        volunteer.accountStatus === "inactive" ||
+        volunteer.accountStatus === "disabled"
+    ) {
+        return "Inactive";
+    }
+    if (volunteer.missionsJoined >= 5 || volunteer.totalPoints >= 150) {
+        return "Top Performer";
+    }
+    return volunteer.missionsJoined > 0 ? "Active" : "Registered";
+}
+
+function getVolunteerStatusBadgeClass(status) {
+    switch (status) {
+        case "Top Performer":
+            return "bg-success";
+        case "Active":
+            return "bg-primary";
+        case "Registered":
+            return "bg-secondary";
+        case "Inactive":
+            return "bg-danger";
+        default:
+            return "bg-secondary";
+    }
+}
+
+function renderVolunteersTable(volunteers) {
+    const tbody = document.getElementById("volunteersTableBody");
+    if (!tbody) return;
+
+    if (!volunteers.length) {
+        tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center text-muted">No volunteers found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = volunteers
+        .map((volunteer) => {
+            const status = deriveVolunteerStatus(volunteer);
+            const statusClass = getVolunteerStatusBadgeClass(status);
+            const hoursLabel =
+                volunteer.hoursVolunteered > 0
+                    ? `${volunteer.hoursVolunteered}h`
+                    : "0h";
+
+            return `
+        <tr data-volunteer-id="${escapeHtml(volunteer.id)}" data-status="${escapeHtml(statusString(status))}">
+            <td>${escapeHtml(volunteer.name)}</td>
+            <td>${escapeHtml(volunteer.email)}</td>
+            <td>${volunteer.missionsJoined}</td>
+            <td>${hoursLabel}</td>
+            <td><span class="badge bg-warning text-dark">${escapeHtml(volunteer.level)}</span></td>
+            <td><span class="badge ${statusClass}">${escapeHtml(status)}</span></td>
             <td>
-                <button class="btn btn-sm btn-admin" onclick="viewVolunteerProfile('${volunteer.email}')">
+                <button type="button" class="btn btn-sm btn-admin" onclick="viewVolunteerProfile('${escapeHtml(volunteer.id)}')" title="View volunteer">
                     <i class="fas fa-eye"></i>
                 </button>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+        })
+        .join("");
+}
+
+function statusString(status) {
+    return String(status || "").toLowerCase().replace(/\s+/g, "-");
+}
+
+function adminDetailRow(iconClass, label, value, options = {}) {
+    const { isBadge = false } = options;
+    let valHtml;
+    if (isBadge) {
+        const badgeClass = getVolunteerStatusBadgeClass(value);
+        valHtml = `<span class="badge ${badgeClass}">${escapeHtml(value)}</span>`;
+    } else {
+        valHtml = `<span class="org-detail-row__value">${escapeHtml(value ?? "N/A")}</span>`;
+    }
+    return `
+        <div class="org-detail-row">
+            <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
+            <div class="org-detail-row__content">
+                <span class="org-detail-row__label">${escapeHtml(label)}</span>
+                ${valHtml}
+            </div>
+        </div>`;
+}
+
+function openVolunteerDetailsModal() {
+    const modal = document.getElementById("volunteerDetailsModal");
+    const backdrop = document.getElementById("volunteerDetailsBackdrop");
+    backdrop?.removeAttribute("hidden");
+    if (modal) {
+        modal.removeAttribute("hidden");
+        modal.style.display = "flex";
+    }
+    document.body.style.overflow = "hidden";
+}
+
+function closeVolunteerDetailsModal() {
+    const modal = document.getElementById("volunteerDetailsModal");
+    const backdrop = document.getElementById("volunteerDetailsBackdrop");
+    backdrop?.setAttribute("hidden", "");
+    if (modal) {
+        modal.setAttribute("hidden", "");
+        modal.style.display = "none";
+    }
+    document.body.style.overflow = "";
+}
+
+function initVolunteerDetailsModal() {
+    document
+        .getElementById("volunteerDetailsCloseBtn")
+        ?.addEventListener("click", closeVolunteerDetailsModal);
+    document
+        .getElementById("volunteerDetailsCloseX")
+        ?.addEventListener("click", closeVolunteerDetailsModal);
+    document
+        .getElementById("volunteerDetailsBackdrop")
+        ?.addEventListener("click", closeVolunteerDetailsModal);
+    document.addEventListener("keydown", (e) => {
+        const modal = document.getElementById("volunteerDetailsModal");
+        if (
+            e.key === "Escape" &&
+            modal &&
+            !modal.hasAttribute("hidden")
+        ) {
+            closeVolunteerDetailsModal();
+        }
+    });
+}
+
+window.viewVolunteerProfile = async function (userId) {
+    const cached = allAdminVolunteers.find((v) => v.id === userId);
+    const body = document.getElementById("volunteerDetailsBody");
+    if (!body) return;
+
+    try {
+        const snap = await getDoc(doc(db, "users", userId));
+        if (!snap.exists() && !cached) {
+            alert("Volunteer not found.");
+            return;
+        }
+
+        const data = snap.exists() ? snap.data() : {};
+        const volunteer =
+            cached || (await createVolunteerRow(userId, data));
+        const status = deriveVolunteerStatus(volunteer);
+        const hoursLabel =
+            volunteer.hoursVolunteered > 0
+                ? `${volunteer.hoursVolunteered}h`
+                : "0h";
+
+        body.innerHTML = [
+            adminDetailRow("fa-user", "Name:", volunteer.name),
+            adminDetailRow("fa-envelope", "Email:", volunteer.email),
+            adminDetailRow("fa-bullseye", "Missions joined:", String(volunteer.missionsJoined)),
+            adminDetailRow("fa-clock", "Hours volunteered:", hoursLabel),
+            adminDetailRow("fa-layer-group", "Level:", volunteer.level),
+            adminDetailRow("fa-star", "Total points:", String(volunteer.totalPoints)),
+            adminDetailRow("fa-award", "Badges:", String(volunteer.badgeCount)),
+            adminDetailRow("fa-circle-check", "Status:", status, { isBadge: true }),
+            adminDetailRow("fa-fingerprint", "User ID:", userId),
+        ].join("");
+
+        openVolunteerDetailsModal();
+    } catch (e) {
+        console.error("[ERROR] viewVolunteerProfile:", e);
+        alert("Could not load volunteer profile.");
+    }
+};
+
+async function loadVolunteersData() {
+    const tbody = document.getElementById("volunteersTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML =
+        '<tr><td colspan="7" class="text-center text-muted">Loading volunteers…</td></tr>';
+
+    try {
+        await loadPlatformConfig();
+
+        const userEntries = await loadVolunteerUserEntries();
+
+        const volunteers = await Promise.all(
+            userEntries.map(({ id, data }) => createVolunteerRow(id, data))
+        );
+
+        volunteers.sort((a, b) =>
+            String(a.name).localeCompare(String(b.name), undefined, {
+                sensitivity: "base",
+            })
+        );
+
+        allAdminVolunteers = volunteers;
+        filterVolunteers();
+        console.log("[SUCCESS] Volunteers loaded:", volunteers.length);
+    } catch (error) {
+        console.error("[ERROR] Error loading volunteers:", error);
+        tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger">Failed to load volunteers. Please try again.</td></tr>';
+    }
 }
 
 function setupEventListeners() {
@@ -733,6 +1201,11 @@ function setupEventListeners() {
         volunteerSearch.addEventListener('input', filterVolunteers);
         console.log("[SUCCESS] Volunteer search listener added");
     }
+    const volunteerFilter = document.getElementById("volunteerFilter");
+    if (volunteerFilter) {
+        volunteerFilter.addEventListener("change", filterVolunteers);
+        console.log("[SUCCESS] Volunteer filter listener added");
+    }
     
     // Notification form
     const notificationForm = document.getElementById('notificationForm');
@@ -753,6 +1226,8 @@ function setupEventListeners() {
         leaderboardForm.addEventListener('submit', saveLeaderboardSettings);
         console.log("[SUCCESS] Leaderboard form listener added");
     }
+
+    initVolunteerDetailsModal();
     
     console.log("[SUCCESS] All event listeners set up successfully");
 }
@@ -1098,11 +1573,38 @@ function filterMissions() {
 }
 
 function filterVolunteers() {
-    const searchTerm = document.getElementById('volunteerSearch').value.toLowerCase();
-    const filterType = document.getElementById('volunteerFilter').value;
-    
-    // Implement filtering logic here
-    console.log(`Filtering volunteers: ${searchTerm}, type: ${filterType}`);
+    const searchTerm = (
+        document.getElementById("volunteerSearch")?.value || ""
+    )
+        .toLowerCase()
+        .trim();
+    const filterType = document.getElementById("volunteerFilter")?.value || "all";
+
+    let filtered = allAdminVolunteers.slice();
+
+    if (filterType === "active") {
+        filtered = filtered.filter((v) => {
+            const status = deriveVolunteerStatus(v);
+            return status === "Active" || status === "Top Performer";
+        });
+    } else if (filterType === "inactive") {
+        filtered = filtered.filter(
+            (v) => deriveVolunteerStatus(v) === "Inactive"
+        );
+    } else if (filterType === "top") {
+        filtered = filtered.filter(
+            (v) => deriveVolunteerStatus(v) === "Top Performer"
+        );
+    }
+
+    if (searchTerm) {
+        filtered = filtered.filter((v) => {
+            const haystack = `${v.name} ${v.email} ${v.level}`.toLowerCase();
+            return haystack.includes(searchTerm);
+        });
+    }
+
+    renderVolunteersTable(filtered);
 }
 
 function getStatusBadgeClass(status) {
