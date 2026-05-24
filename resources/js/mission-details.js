@@ -994,7 +994,15 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
     </section>`;
 }
 
-function renderMissionFrame(container, mission, missionId, user, signedUp, volunteers) {
+function renderMissionFrame(
+  container,
+  mission,
+  missionId,
+  user,
+  signedUp,
+  volunteers,
+  inHistory = false
+) {
   const status = mission.status || "N/A";
   const statusLower = status.toLowerCase();
   const needed = Math.max(0, parseInt(mission.volunteers, 10) || 0);
@@ -1019,22 +1027,25 @@ function renderMissionFrame(container, mission, missionId, user, signedUp, volun
   const ptsSub = pointsBreakdown(mission);
   const editUrl = `/missions/edit?id=${encodeURIComponent(missionId)}`;
   const lastUpdated = formatLastUpdated(mission);
+  const backHref = inHistory ? "/missions/history" : "/organization/dashboard";
+  const backLabel = inHistory ? "History" : "Dashboard";
 
   const topEdit = canVolunteer
   ? `<button type="button" class="md-btn md-btn-g" id="volunteerApplyBtn">...</button>`
   : "";
 
+  const footerActions = renderOwnerFooterActions(
+    isOwner,
+    editUrl,
+    inHistory,
+    mission
+  );
   const rosterHtml = renderRosterSection(volunteers, mission, isOwner, slotInfo);
+
+  setMissionPageNav(backHref, backLabel, topEdit);
 
   container.innerHTML = `
     <div class="md-page">
-      <div class="md-topbar">
-        <a href="/organization/dashboard" class="md-back">
-          <i class="ti ti-arrow-left" aria-hidden="true"></i> Dashboard
-        </a>
-        <div class="md-topbar-actions">${topEdit}</div>
-      </div>
-
       <div class="md-hero">
         <span class="md-hero-badge md-badge ${badge.cls}">${escapeHtml(badge.label)}</span>
         <div class="md-hero-content">
@@ -1087,13 +1098,7 @@ function renderMissionFrame(container, mission, missionId, user, signedUp, volun
 
       <div class="md-foot">
         <div class="md-foot-meta">${escapeHtml(lastUpdated)}</div>
-        <div class="md-foot-actions">
-          ${
-            isOwner
-              ? `<a href="${editUrl}" class="md-btn md-btn-g"><i class="ti ti-edit" aria-hidden="true"></i> Edit mission</a>`
-              : ""
-          }
-        </div>
+        <div class="md-foot-actions">${footerActions}</div>
       </div>
     </div>
   `;
@@ -1177,7 +1182,7 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
   });
 }
 
-function renderRejectedMissionPage(container, mission, missionId, user) {
+function renderRejectedMissionPage(container, mission, missionId, user, inHistory = false) {
   const reason =
     (mission.rejectionReason || "").trim() ||
     "No reason was provided by the administrator.";
@@ -1188,15 +1193,19 @@ function renderRejectedMissionPage(container, mission, missionId, user) {
   const orgId = mission.orgId || mission.organizationId;
   const isOwner = Boolean(user && orgId && orgId === user.uid);
   const editUrl = `/missions/edit?id=${encodeURIComponent(missionId)}`;
+  const backHref = inHistory ? "/missions/history" : "/organization/dashboard";
+  const backLabel = inHistory ? "History" : "Dashboard";
+  const footerActions = renderOwnerFooterActions(
+    isOwner,
+    editUrl,
+    inHistory,
+    mission
+  );
+
+  setMissionPageNav(backHref, backLabel);
 
   container.innerHTML = `
     <div class="md-page">
-      <div class="md-topbar">
-        <a href="/organization/dashboard" class="md-back">
-          <i class="ti ti-arrow-left" aria-hidden="true"></i> Dashboard
-        </a>
-      </div>
-
       <div class="md-hero">
         <span class="md-hero-badge md-badge ${badge.cls}">${escapeHtml(badge.label)}</span>
         <div class="md-hero-content">
@@ -1241,13 +1250,7 @@ function renderRejectedMissionPage(container, mission, missionId, user) {
 
       <div class="md-foot">
         <div class="md-foot-meta">${escapeHtml(formatLastUpdated(mission))}</div>
-        <div class="md-foot-actions">
-          ${
-            isOwner
-              ? `<a href="${editUrl}" class="md-btn md-btn-g"><i class="ti ti-edit" aria-hidden="true"></i> Edit mission</a>`
-              : ""
-          }
-        </div>
+        <div class="md-foot-actions">${footerActions}</div>
       </div>
     </div>
   `;
@@ -1319,29 +1322,113 @@ async function loadMissionDocument(missionId, user) {
   const globalSnap = await getDoc(doc(db, "missions", missionId));
   const globalData = globalSnap.exists() ? globalSnap.data() : null;
   let orgData = null;
-  const orgId = globalData?.orgId || globalData?.organizationId;
+  let historyData = null;
+
+  const orgId =
+    globalData?.orgId ||
+    globalData?.organizationId ||
+    user?.uid ||
+    null;
+
   if (orgId) {
     const orgSnap = await getDoc(
       doc(db, "organizations", orgId, "missions", missionId)
     );
     if (orgSnap.exists()) orgData = orgSnap.data();
+
+    const historySnap = await getDoc(
+      doc(db, "organizations", orgId, "history", missionId)
+    );
+    if (historySnap.exists()) historyData = historySnap.data();
   }
-  if (globalData || orgData) {
-    return { mission: { ...globalData, ...orgData } };
+
+  if (user?.uid && !historyData) {
+    const ownHistorySnap = await getDoc(
+      doc(db, "organizations", user.uid, "history", missionId)
+    );
+    if (ownHistorySnap.exists()) historyData = ownHistorySnap.data();
   }
+
+  if (globalData || orgData || historyData) {
+    const resolvedOrgId =
+      globalData?.orgId ||
+      globalData?.organizationId ||
+      orgData?.orgId ||
+      orgData?.organizationId ||
+      historyData?.orgId ||
+      historyData?.organizationId ||
+      user?.uid ||
+      null;
+
+    return {
+      mission: {
+        ...globalData,
+        ...orgData,
+        ...historyData,
+        orgId: resolvedOrgId,
+        organizationId: resolvedOrgId,
+      },
+      inHistory: Boolean(historyData),
+    };
+  }
+
   if (user?.uid) {
     const volunteerOrgSnap = await getDoc(
       doc(db, "organizations", user.uid, "missions", missionId)
     );
     if (volunteerOrgSnap.exists()) {
-      return { mission: volunteerOrgSnap.data() };
+      return { mission: volunteerOrgSnap.data(), inHistory: false };
     }
   }
+
   const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
   if (subSnap.exists()) {
-    return { mission: subSnap.data() };
+    return { mission: subSnap.data(), inHistory: false };
   }
+
   return null;
+}
+
+function clearMissionPageNav() {
+  const backEl = document.getElementById("mdPageBack");
+  const navEl = document.getElementById("mdTopNav");
+  if (backEl) backEl.innerHTML = "";
+  if (navEl) navEl.innerHTML = "";
+}
+
+function setMissionPageNav(backHref, backLabel, topActionsHtml = "") {
+  const backEl = document.getElementById("mdPageBack");
+  const navEl = document.getElementById("mdTopNav");
+  if (backEl) {
+    backEl.innerHTML = `
+      <a href="${backHref}" class="md-back">
+        <i class="ti ti-arrow-left" aria-hidden="true"></i> ${escapeHtml(backLabel)}
+      </a>`;
+  }
+  if (navEl) {
+    navEl.innerHTML = topActionsHtml || "";
+  }
+}
+
+function isMissionReadOnly(mission, inHistory) {
+  if (inHistory) return true;
+  const status = (mission?.status || "").toLowerCase();
+  return ["completed", "history", "closed"].includes(status);
+}
+
+function renderOwnerFooterActions(isOwner, editUrl, inHistory, mission = null) {
+  if (!isOwner) return "";
+
+  const backLink = inHistory
+    ? `<a href="/missions/history" class="md-btn md-btn-outline-g"><i class="ti ti-history" aria-hidden="true"></i> Back to history</a>`
+    : "";
+
+  if (isMissionReadOnly(mission, inHistory)) {
+    return backLink;
+  }
+
+  return `${backLink}
+    <a href="${editUrl}" class="md-btn md-btn-g"><i class="ti ti-edit" aria-hidden="true"></i> Edit mission</a>`;
 }
 
 async function refreshMissionDetails() {
@@ -1353,16 +1440,18 @@ async function refreshMissionDetails() {
   try {
     const loaded = await loadMissionDocument(missionId, user);
     if (!loaded) {
+      clearMissionPageNav();
       container.innerHTML = `<p class="md-error">Mission not found.</p>`;
       return;
     }
     const mission = loaded.mission;
+    const inHistory = Boolean(loaded.inHistory);
     const orgId =
       mission.orgId || mission.organizationId || user?.uid || "";
     const status = (mission.status || "").toLowerCase();
 
     if (status === "rejected") {
-      renderRejectedMissionPage(container, mission, missionId, user);
+      renderRejectedMissionPage(container, mission, missionId, user, inHistory);
       return;
     }
 
@@ -1370,7 +1459,7 @@ async function refreshMissionDetails() {
     let volunteers = isOwner
       ? await loadMissionVolunteers(missionId, orgId, mission)
       : [];
-    if (isOwner && missionHasAutoAccept(mission)) {
+    if (isOwner && !inHistory && missionHasAutoAccept(mission)) {
       const accepted = await autoAcceptPendingMissionApplications(
         missionId,
         mission,
@@ -1398,10 +1487,12 @@ async function refreshMissionDetails() {
       missionId,
       user,
       signedUp,
-      volunteers
+      volunteers,
+      inHistory
     );
   } catch (err) {
     console.error(err);
+    clearMissionPageNav();
     container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
   }
 }
@@ -1412,6 +1503,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!container) return;
   if (!missionId) {
+    clearMissionPageNav();
     container.innerHTML = `<p class="md-error">No mission ID provided.</p>`;
     return;
   }

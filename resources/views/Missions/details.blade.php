@@ -25,12 +25,33 @@
       max-width: 1080px;
       margin: 0 auto;
     }
+    .md-page-head {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.65rem;
+      margin-bottom: 1.25rem;
+    }
+    #mdPageBack {
+      width: 100%;
+    }
+    #mdPageBack:empty {
+      display: none;
+    }
     .md-page-header {
       font-size: 1.5rem;
       font-weight: 600;
       color: #1e3a2f;
-      margin: 0 0 1.25rem;
+      margin: 0;
       letter-spacing: -0.02em;
+    }
+    #mdTopNav:empty {
+      display: none;
+    }
+    #mdTopNav:not(:empty) {
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
     }
     .md-page {
       font-size: 13px;
@@ -509,7 +530,11 @@
 
   <main class="org-main-content main-content">
     <div class="md-wrap">
-      <h1 class="md-page-header">Mission Details</h1>
+      <header class="md-page-head">
+        <div id="mdPageBack"></div>
+        <h1 class="md-page-header">Mission Details</h1>
+        <nav id="mdTopNav" class="md-topbar-actions" aria-label="Mission actions"></nav>
+      </header>
       <div id="detailsContainer">
         <p class="md-loading">Loading mission…</p>
       </div>

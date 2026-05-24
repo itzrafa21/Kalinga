@@ -253,11 +253,17 @@ function getHistoryDateParts(mission) {
 function renderHistoryDateCellHtml(mission) {
     const { datePart, timePart } = getHistoryDateParts(mission);
     if (!timePart) {
-        return `<div class="history-date-main">${escapeHtml(datePart)}</div>`;
+        return `<div class="mission-date-main">${escapeHtml(datePart)}</div>`;
     }
     return `
-        <div class="history-date-main">${escapeHtml(datePart)}</div>
-        <div class="history-time-sub">${escapeHtml(timePart)}</div>`;
+        <div class="mission-date-main">${escapeHtml(datePart)}</div>
+        <div class="mission-time-sub">${escapeHtml(timePart)}</div>`;
+}
+
+function getHistoryStatusClass(status) {
+    return status === "rejected"
+        ? "mission-status--rejected"
+        : "mission-status--completed";
 }
 
 function getMissionCompletionDate(mission) {
@@ -356,16 +362,26 @@ async function processHistoryMission(docSnap, userId) {
     const completedOn = getMissionCompletionDate(mission);
     const periodBucket = getPeriodBucket(completedOn);
     const statusLabel = status === "rejected" ? "Rejected" : "Completed";
-    const statusClass =
-        status === "rejected" ? "status-rejected" : "status-completed";
+    const statusClass = getHistoryStatusClass(status);
+    const missionName = mission.missionName || mission.name || "Untitled";
+    const detailsUrl = `/missions/details?id=${encodeURIComponent(missionId)}`;
 
     const row = `
         <tr class="history-mission-row" data-period="${periodBucket}">
             <td class="col-date">${renderHistoryDateCellHtml(mission)}</td>
-            <td>${escapeHtml(mission.missionName || mission.name || "Untitled")}</td>
-            <td>${escapeHtml(mission.location || "N/A")}</td>
-            <td>${escapeHtml(volunteerDisplay)}</td>
-            <td><span class="status-badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>
+            <td class="col-mission">
+                <a href="${detailsUrl}" class="mission-name-link">${escapeHtml(missionName)}</a>
+            </td>
+            <td class="col-location">${escapeHtml(mission.location || "N/A")}</td>
+            <td class="col-volunteers">
+                <span class="volunteer-progress">${escapeHtml(volunteerDisplay)}</span>
+            </td>
+            <td class="col-status">
+                <span class="mission-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+            </td>
+            <td class="col-actions">
+                <a href="${detailsUrl}" class="mission-action-btn">View details</a>
+            </td>
         </tr>`;
 
     return {
@@ -386,9 +402,12 @@ async function loadHistoryMissions(user) {
         console.log("[INFO] Loading history missions...");
         
         historyTableBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="empty-state">
-                    <p>Loading missions…</p>
+            <tr class="missions-loading-row">
+                <td colspan="6">
+                    <div class="missions-loading">
+                        <div class="missions-loading-spinner" aria-hidden="true"></div>
+                        <span>Loading missions…</span>
+                    </div>
                 </td>
             </tr>
         `;
@@ -399,10 +418,12 @@ async function loadHistoryMissions(user) {
         if (historySnapshot.empty) {
             historyTableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="empty-state">
-                        <div class="empty-state-icon"><i class="bi bi-clipboard"></i></div>
-                        <h4>No completed missions found</h4>
-                        <p>Missions will appear here once they are completed</p>
+                    <td colspan="6">
+                        <div class="missions-empty">
+                            <i class="bi bi-clipboard"></i>
+                            <h4>No completed missions found</h4>
+                            <p>Missions will appear here once they are completed</p>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -465,10 +486,12 @@ async function loadHistoryMissions(user) {
         if (validMissionsCount === 0) {
             historyTableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="empty-state">
-                        <div class="empty-state-icon"><i class="bi bi-clipboard"></i></div>
-                        <h4>No completed missions found</h4>
-                        <p>Missions will appear here once they are completed</p>
+                    <td colspan="6">
+                        <div class="missions-empty">
+                            <i class="bi bi-clipboard"></i>
+                            <h4>No completed missions found</h4>
+                            <p>Missions will appear here once they are completed</p>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -495,10 +518,12 @@ async function loadHistoryMissions(user) {
         console.error("[ERROR] Error fetching history missions:", error);
         historyTableBody.innerHTML = `
             <tr>
-                <td colspan="5" class="empty-state">
-                    <div class="empty-state-icon"><i class="bi bi-x-circle"></i></div>
-                    <h4>Error loading missions</h4>
-                    <p>Please refresh the page and try again</p>
+                <td colspan="6">
+                    <div class="missions-error">
+                        <i class="bi bi-x-circle"></i>
+                        <h4>Error loading missions</h4>
+                        <p>Please refresh the page and try again</p>
+                    </div>
                 </td>
             </tr>
         `;

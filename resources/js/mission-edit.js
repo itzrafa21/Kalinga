@@ -175,9 +175,15 @@ onAuthStateChanged(auth, async (user) => {
 
   document.getElementById("missionId").value = missionId;
 
-  // Fetch mission data
-  const docRef = doc(db, "organizations", user.uid, "missions", missionId);
-  const docSnap = await getDoc(docRef);
+  const activeDocRef = doc(db, "organizations", user.uid, "missions", missionId);
+  const historyDocRef = doc(db, "organizations", user.uid, "history", missionId);
+  let docRef = activeDocRef;
+
+  let docSnap = await getDoc(activeDocRef);
+  if (!docSnap.exists()) {
+    docSnap = await getDoc(historyDocRef);
+    if (docSnap.exists()) docRef = historyDocRef;
+  }
 
   if (docSnap.exists()) {
     const mission = docSnap.data();
