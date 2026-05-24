@@ -164,6 +164,8 @@
     margin-left: 260px;
     padding: 1.5rem 2rem 2rem;
     min-height: 100vh;
+    background:#effff4;
+    color: #1f2937;
   }
   @media (max-width: 768px) {
     .org-sidebar {

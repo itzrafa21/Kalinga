@@ -18,8 +18,6 @@
   <style>
     .org-main-content.main-content {
       padding: 1.5rem 1.75rem 2.5rem;
-      background: linear-gradient(165deg, #f4faf6 0%, #eef2f7 45%, #f8faf9 100%);
-      min-height: 100vh;
     }
     .md-wrap {
       max-width: 1080px;
