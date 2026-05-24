@@ -492,6 +492,16 @@
       color: #fff;
     }
     .roster-success-modal-confirm:hover { background: #245a42; }
+    .roster-success-modal-icon.is-warning { color: #b45309; }
+    .roster-success-modal-confirm.is-amber {
+      background: #d97706;
+    }
+    .roster-success-modal-confirm.is-amber:hover {
+      background: #b45309;
+    }
+    .md-roster-accept-btn.is-mission-full {
+      opacity: 0.72;
+    }
   </style>
 </head>
 <body class="org-app">
@@ -543,6 +553,28 @@
       <p class="roster-success-modal-message" id="rosterStatusSuccessMessage"></p>
       <div class="roster-success-modal-actions">
         <button type="button" class="roster-success-modal-confirm" id="rosterStatusSuccessOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="missionFullModal"
+    class="roster-success-modal-overlay"
+    hidden
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="missionFullTitle"
+  >
+    <div class="roster-success-modal" role="document">
+      <div class="roster-success-modal-icon is-warning" aria-hidden="true">
+        <i class="ti ti-users-minus"></i>
+      </div>
+      <h2 id="missionFullTitle">Mission is full</h2>
+      <p class="roster-success-modal-message" id="missionFullMessage">
+        This mission has no open volunteer slots. You cannot accept more applicants.
+      </p>
+      <div class="roster-success-modal-actions">
+        <button type="button" class="roster-success-modal-confirm is-amber" id="missionFullOk">OK</button>
       </div>
     </div>
   </div>

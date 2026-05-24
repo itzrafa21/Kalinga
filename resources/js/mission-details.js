@@ -229,6 +229,22 @@ function countApprovedVolunteers(volunteers) {
   return keys.size;
 }
 
+function getMissionVolunteerCapacity(mission, volunteers) {
+  const needed = Math.max(0, parseInt(mission?.volunteers, 10) || 0);
+  const signedUp = Array.isArray(volunteers) ? countApprovedVolunteers(volunteers) : 0;
+  const hasCapacityLimit = needed > 0;
+  const slotsOpen = hasCapacityLimit ? Math.max(0, needed - signedUp) : null;
+  const isFull = hasCapacityLimit && signedUp >= needed;
+  return { needed, signedUp, slotsOpen, isFull, hasCapacityLimit };
+}
+
+function canAcceptVolunteerApplication(mission, volunteers, volunteer) {
+  if (volunteer && isApprovedSignupStatus(volunteer.status)) return true;
+  const { isFull, hasCapacityLimit } = getMissionVolunteerCapacity(mission, volunteers);
+  if (!hasCapacityLimit) return true;
+  return !isFull;
+}
+
 /** Confirmed sign-ups: approved/accepted in applications and org roster. */
 async function countMissionSignups(missionId, orgId = null) {
   const keys = new Set();
@@ -703,6 +719,7 @@ async function autoAcceptPendingMissionApplications(missionId, mission, voluntee
   let changed = false;
   for (const volunteer of volunteers) {
     if ((volunteer.status || "").toLowerCase() !== "pending") continue;
+    if (!canAcceptVolunteerApplication(mission, volunteers, volunteer)) break;
     try {
       await updateApplicationStatus(volunteer, missionId, "approved");
       volunteer.status = "approved";
@@ -782,6 +799,47 @@ function wireRosterStatusSuccessModal() {
   });
 }
 
+function openMissionFullModal(mission, capacity) {
+  const overlay = document.getElementById("missionFullModal");
+  const messageEl = document.getElementById("missionFullMessage");
+  if (!overlay) return;
+
+  const needed = capacity?.needed ?? Math.max(0, parseInt(mission?.volunteers, 10) || 0);
+  const signedUp = capacity?.signedUp ?? needed;
+  if (messageEl) {
+    messageEl.textContent =
+      needed > 0
+        ? `This mission is full (${signedUp} of ${needed} volunteer slots filled). You cannot accept more applicants until a spot opens up.`
+        : "This mission has no open volunteer slots. You cannot accept more applicants.";
+  }
+
+  overlay.hidden = false;
+  overlay.classList.add("is-open");
+  document.getElementById("missionFullOk")?.focus();
+}
+
+function closeMissionFullModal() {
+  const overlay = document.getElementById("missionFullModal");
+  if (!overlay) return;
+  overlay.classList.remove("is-open");
+  overlay.hidden = true;
+}
+
+function wireMissionFullModal() {
+  const overlay = document.getElementById("missionFullModal");
+  if (!overlay || overlay.dataset.wired === "1") return;
+  overlay.dataset.wired = "1";
+
+  const close = () => closeMissionFullModal();
+  document.getElementById("missionFullOk")?.addEventListener("click", close);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay.classList.contains("is-open")) close();
+  });
+}
+
 function openRejectModal(volunteer) {
   pendingRejectVolunteer = volunteer;
   const overlay = document.getElementById("rejectReasonModal");
@@ -843,10 +901,11 @@ function wireRejectModal(missionId) {
   });
 }
 
-function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner) {
+function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotInfo = {}) {
   const st = volunteerStatusBadge(v.status);
   const norm = (v.status || "").toLowerCase();
   const showActions = isOwner && norm === "pending";
+  const missionFull = Boolean(slotInfo.isFull);
   const hoursLabel =
     norm === "rejected"
       ? '<span class="md-dash">—</span>'
@@ -860,7 +919,7 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner) {
 
   const actionButtons = showActions
     ? `<div class="md-action-group">
-        <button type="button" class="md-btn md-btn-outline-g md-btn-xs md-roster-accept-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+        <button type="button" class="md-btn md-btn-outline-g md-btn-xs md-roster-accept-btn${missionFull ? " is-mission-full" : ""}" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}"${missionFull ? ' title="Mission is full"' : ""}>
           <i class="ti ti-check" aria-hidden="true"></i> Accept
         </button>
         <button type="button" class="md-btn md-btn-r md-btn-xs md-roster-decline-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
@@ -891,7 +950,7 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner) {
     </tr>`;
 }
 
-function renderRosterSection(volunteers, mission, isOwner) {
+function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
   if (!isOwner) return "";
 
   const missionPoints = resolveMissionPoints(mission);
@@ -901,7 +960,9 @@ function renderRosterSection(volunteers, mission, isOwner) {
   const rows =
     volunteers.length > 0
       ? volunteers
-          .map((v) => rosterRowHtml(v, mission, missionPoints, durationHours, isOwner))
+          .map((v) =>
+            rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotInfo)
+          )
           .join("")
       : "";
 
@@ -944,6 +1005,7 @@ function renderMissionFrame(container, mission, missionId, user, signedUp, volun
         ? 100
         : 0;
   const slotsOpen = needed > 0 ? Math.max(0, needed - signedUp) : 0;
+  const slotInfo = getMissionVolunteerCapacity(mission, volunteers);
 
   const orgId = mission.orgId || mission.organizationId;
   const isOwner = Boolean(user && orgId && orgId === user.uid);
@@ -962,7 +1024,7 @@ function renderMissionFrame(container, mission, missionId, user, signedUp, volun
   ? `<button type="button" class="md-btn md-btn-g" id="volunteerApplyBtn">...</button>`
   : "";
 
-  const rosterHtml = renderRosterSection(volunteers, mission, isOwner);
+  const rosterHtml = renderRosterSection(volunteers, mission, isOwner, slotInfo);
 
   container.innerHTML = `
     <div class="md-page">
@@ -1081,6 +1143,19 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
 
     if (declineBtn) {
       openRejectModal(volunteer);
+      return;
+    }
+
+    const missionCtx = currentMissionContext?.mission || mission;
+    const rosterForCapacity =
+      currentMissionContext?.volunteers?.length > 0
+        ? currentMissionContext.volunteers
+        : roster;
+    if (!canAcceptVolunteerApplication(missionCtx, rosterForCapacity, volunteer)) {
+      const capacity =
+        currentMissionContext?.slotInfo ||
+        getMissionVolunteerCapacity(missionCtx, rosterForCapacity);
+      openMissionFullModal(missionCtx, capacity);
       return;
     }
 
@@ -1309,7 +1384,13 @@ async function refreshMissionDetails() {
       ? countApprovedVolunteers(volunteers)
       : await countMissionSignups(missionId, orgId);
 
-    currentMissionContext = { mission, missionId, user, volunteers };
+    currentMissionContext = {
+      mission,
+      missionId,
+      user,
+      volunteers,
+      slotInfo: getMissionVolunteerCapacity(mission, volunteers),
+    };
 
     renderMissionFrame(
       container,
@@ -1343,6 +1424,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       await loadPlatformConfig();
       wireRosterStatusSuccessModal();
+      wireMissionFullModal();
       await refreshMissionDetails();
     } catch (err) {
       console.error(err);
