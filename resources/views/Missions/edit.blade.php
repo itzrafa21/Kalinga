@@ -95,6 +95,59 @@
     min-height: 1.5rem;
   }
 
+  .map-search-wrap {
+    position: relative;
+    margin-bottom: 0.75rem;
+  }
+
+  #locationSearch {
+    padding-left: 2.25rem;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
+  }
+
+  #locationSuggestions {
+    position: absolute;
+    z-index: 99999;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    display: none;
+    margin-top: 0.25rem;
+    max-height: 220px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+  }
+
+  .map-location-suggestion {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    color: #334155;
+  }
+
+  .map-location-suggestion:hover {
+    background-color: #f8fafc;
+  }
+
+  .map-location-suggestion:last-child {
+    border-bottom: none;
+  }
+
+  .map-location-suggestion--empty {
+    cursor: default;
+    color: #64748b;
+  }
+
+  .map-location-suggestion--empty:hover {
+    background: transparent;
+  }
+
   .success-modal-overlay {
     position: fixed;
     inset: 0;
@@ -280,7 +333,18 @@
 
             <div class="form-group mt-3">
               <label>Mission location</label>
-              <p class="text-muted small mb-2">Click the map to place a pin. Drag the pin to adjust.</p>
+              <p class="text-muted small mb-2">Search for a place, or click the map to place a pin. Drag the pin to adjust.</p>
+              <div class="map-search-wrap">
+                <input
+                  type="text"
+                  id="locationSearch"
+                  class="form-control"
+                  placeholder="Search for an address or place…"
+                  autocomplete="off"
+                  aria-label="Search location on map"
+                >
+                <ul id="locationSuggestions" role="listbox" aria-label="Location search results"></ul>
+              </div>
               <p id="locationDisplay" class="text-secondary mb-2">No location pinned yet</p>
 
               <input type="hidden" id="location" name="location">
@@ -356,134 +420,6 @@
 </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
-  <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    mapboxgl.accessToken = "pk.eyJ1Ijoia2FuZWVlY3Jhc2giLCJhIjoiY21nd2c4amVqMGMwMDJrc2R0ZXhxcTA2ZiJ9._ihHfQRKW2oW9wGup1yTNw";
-
-    const mapContainer = document.getElementById("map");
-    if (!mapContainer) return;
-
-    const map = new mapboxgl.Map({
-      container: "map",
-      style: "mapbox://styles/mapbox/streets-v11",
-      center: [123.9024, 10.2943],
-      zoom: 12,
-      pixelRatio: window.devicePixelRatio || 1,
-      antialias: true,
-    });
-
-    map.on("load", () => {
-      map.resize();
-      window.addEventListener("resize", () => map.resize());
-      restoreMissionMapPin();
-    });
-
-    map.on("error", (e) => console.error("[ERROR] Map error:", e));
-
-    let marker = null;
-
-    function formatPinnedLabel(lat, lng, name) {
-      if (name && String(name).trim()) return String(name).trim();
-      return `Pinned location (${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)})`;
-    }
-
-    function setLocationUI(label, lat, lng) {
-      document.getElementById("location").value = label;
-      document.getElementById("latitude").value = Number(lat).toFixed(6);
-      document.getElementById("longitude").value = Number(lng).toFixed(6);
-      const display = document.getElementById("locationDisplay");
-      if (display) display.textContent = label;
-    }
-
-    async function reverseGeocode(lng, lat) {
-      const params = new URLSearchParams({
-        access_token: mapboxgl.accessToken,
-        language: "en",
-        types: "address",
-        limit: "5",
-      });
-      const url =
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?` +
-        params.toString();
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (!res.ok) {
-        console.error("[ERROR] Mapbox geocoding:", data.message || res.status);
-        return null;
-      }
-
-      if (!data.features?.length) {
-        const params2 = new URLSearchParams({
-          access_token: mapboxgl.accessToken,
-          language: "en",
-          types: "place",
-          limit: "1",
-        });
-        const url2 =
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?` +
-          params2.toString();
-        const res2 = await fetch(url2);
-        const data2 = await res2.json();
-        if (res2.ok && data2.features?.length) {
-          return data2.features[0].place_name || data2.features[0].text;
-        }
-        return null;
-      }
-
-      const f = data.features[0];
-      return f.place_name || f.text || null;
-    }
-
-    function bindMarkerDrag(m) {
-      m.on("dragend", async () => {
-        const { lng, lat } = m.getLngLat();
-        try {
-          const picked = await reverseGeocode(lng, lat);
-          setLocationUI(formatPinnedLabel(lat, lng, picked), lat, lng);
-        } catch (err) {
-          console.error("[ERROR] reverseGeocode (drag):", err);
-          setLocationUI(formatPinnedLabel(lat, lng, null), lat, lng);
-        }
-      });
-    }
-
-    async function applyMapPoint(lng, lat, displayLabel) {
-      if (marker) marker.remove();
-      marker = new mapboxgl.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(map);
-      bindMarkerDrag(marker);
-
-      let label = displayLabel;
-      if (label == null) {
-        try {
-          label = await reverseGeocode(lng, lat);
-        } catch (err) {
-          console.error("[ERROR] reverseGeocode:", err);
-          label = null;
-        }
-      }
-      setLocationUI(formatPinnedLabel(lat, lng, label), lat, lng);
-    }
-
-    map.on("click", (e) => {
-      applyMapPoint(e.lngLat.lng, e.lngLat.lat, null);
-    });
-
-    async function restoreMissionMapPin() {
-      const existingLocation = document.getElementById("location")?.value?.trim();
-      const existingLat = parseFloat(document.getElementById("latitude")?.value);
-      const existingLng = parseFloat(document.getElementById("longitude")?.value);
-
-      if (!Number.isFinite(existingLat) || !Number.isFinite(existingLng)) return;
-
-      const label = existingLocation || null;
-      await applyMapPoint(existingLng, existingLat, label);
-      map.flyTo({ center: [existingLng, existingLat], zoom: 14 });
-    }
-
-    window.restoreMissionMapPin = restoreMissionMapPin;
-  });
-  </script>
+  @vite(['resources/js/mission-map.js'])
 </body>
 </html>

@@ -169,6 +169,11 @@ onAuthStateChanged(auth, async (user) => {
       locationDisplay.textContent = mission.location;
     }
 
+    const locationSearch = document.getElementById("locationSearch");
+    if (locationSearch && mission.location) {
+      locationSearch.value = mission.location;
+    }
+
     if (typeof window.restoreMissionMapPin === "function") {
       window.restoreMissionMapPin();
     }

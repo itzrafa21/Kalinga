@@ -218,6 +218,28 @@ function getMissionCompletionDate(mission) {
     if (fromFields) return fromFields;
 
     const endDate = mission.endDate || mission.date;
+    const endTime = mission.endTime;
+    if (endDate && endTime) {
+        try {
+            if (endTime.includes("AM") || endTime.includes("PM")) {
+                const [time, period] = endTime.split(" ");
+                const [hours, minutes] = time.split(":");
+                let hour24 = parseInt(hours, 10);
+                if (period === "AM" && hour24 === 12) hour24 = 0;
+                else if (period === "PM" && hour24 !== 12) hour24 += 12;
+                const parsed = toJsDate(
+                    `${endDate}T${hour24.toString().padStart(2, "0")}:${minutes}`
+                );
+                if (parsed) return parsed;
+            } else {
+                const parsed = toJsDate(`${endDate}T${endTime}`);
+                if (parsed) return parsed;
+            }
+        } catch {
+            /* fall through */
+        }
+    }
+
     if (!endDate) return null;
     return toJsDate(`${endDate}T12:00:00`);
 }
@@ -358,7 +380,7 @@ async function loadHistoryMissions(user) {
         let removedMissionsCount = 0;
         let totalVolunteersHelped = 0;
         let thisMonthCount = 0;
-        const rows = [];
+        const validResults = [];
 
         for (const result of results) {
             if (!result) continue;
@@ -368,7 +390,7 @@ async function loadHistoryMissions(user) {
             }
 
             validMissionsCount++;
-            rows.push(result.row);
+            validResults.push(result);
 
             if (result.status !== "rejected") {
                 totalVolunteersHelped += result.actualVolunteers;
@@ -377,6 +399,14 @@ async function loadHistoryMissions(user) {
                 }
             }
         }
+
+        validResults.sort((a, b) => {
+            const aTime = a.completedOn?.getTime() ?? 0;
+            const bTime = b.completedOn?.getTime() ?? 0;
+            return bTime - aTime;
+        });
+
+        const rows = validResults.map((result) => result.row);
 
         // Update stats
         updateStats(validMissionsCount, thisMonthCount, totalVolunteersHelped);
