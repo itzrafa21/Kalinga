@@ -523,7 +523,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="date" class="form-label">Start date</label>
-                                <input type="text" id="date" class="form-control" placeholder="MM/DD/YYYY" inputmode="numeric" autocomplete="off" maxlength="10" required>
+                                <input type="date" id="date" class="form-control" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="start_time" class="form-label">Start time</label>
@@ -531,7 +531,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label for="end_date" class="form-label">End date</label>
-                                <input type="text" id="end_date" class="form-control" placeholder="MM/DD/YYYY" inputmode="numeric" autocomplete="off" maxlength="10" required>
+                                <input type="date" id="end_date" class="form-control" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="end_time" class="form-label">End time</label>

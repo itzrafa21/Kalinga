@@ -511,14 +511,14 @@
             <div class="form-section-icon" aria-hidden="true"><i class="bi bi-calendar-event"></i></div>
             <div>
               <h2 id="section-schedule">Schedule</h2>
-              <p>When the mission starts and ends (MM/DD/YYYY).</p>
+              <p>When the mission starts and ends.</p>
             </div>
           </div>
           <div class="form-section-body">
             <div class="row g-3">
               <div class="col-md-6">
                 <label for="date" class="form-label">Start date</label>
-                <input type="text" id="date" class="form-control" placeholder="MM/DD/YYYY" inputmode="numeric" autocomplete="off" maxlength="10" required>
+                <input type="date" id="date" class="form-control" required>
               </div>
               <div class="col-md-6">
                 <label for="startTime" class="form-label">Start time</label>
@@ -526,7 +526,7 @@
               </div>
               <div class="col-md-6">
                 <label for="endDate" class="form-label">End date</label>
-                <input type="text" id="endDate" class="form-control" placeholder="MM/DD/YYYY" inputmode="numeric" autocomplete="off" maxlength="10" required>
+                <input type="date" id="endDate" class="form-control" required>
               </div>
               <div class="col-md-6">
                 <label for="endTime" class="form-label">End time</label>

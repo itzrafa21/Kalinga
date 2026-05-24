@@ -1,4 +1,4 @@
-/** US date inputs: display MM/DD/YYYY, store/read ISO YYYY-MM-DD. */
+/** Date inputs: native calendar (type="date"), store/read ISO YYYY-MM-DD. */
 
 export function isoToUsDate(iso) {
     const raw = String(iso ?? "").trim();
@@ -33,30 +33,24 @@ export function usDateToIso(us) {
     return iso;
 }
 
-function formatDateDigits(value) {
-    const digits = String(value ?? "").replace(/\D/g, "").slice(0, 8);
-    if (digits.length <= 2) return digits;
-    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+function normalizeToIsoDate(value) {
+    const raw = String(value ?? "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+    return usDateToIso(raw);
 }
 
 export function initUsDateInput(el) {
     if (!el || el.dataset.usDateInit === "1") return;
     el.dataset.usDateInit = "1";
-    el.type = "text";
-    el.placeholder = "MM/DD/YYYY";
-    el.setAttribute("inputmode", "numeric");
-    el.setAttribute("autocomplete", "off");
-    el.setAttribute("maxlength", "10");
-    el.setAttribute("pattern", "\\d{2}/\\d{2}/\\d{4}");
+    el.type = "date";
+    el.removeAttribute("placeholder");
+    el.removeAttribute("inputmode");
+    el.removeAttribute("maxlength");
+    el.removeAttribute("pattern");
 
-    if (el.value && /^\d{4}-\d{2}-\d{2}/.test(el.value.trim())) {
-        el.value = isoToUsDate(el.value);
-    }
-
-    el.addEventListener("input", () => {
-        el.value = formatDateDigits(el.value);
-    });
+    const iso = normalizeToIsoDate(el.value);
+    if (iso) el.value = iso;
 }
 
 export function initUsDateInputs(ids) {
@@ -65,26 +59,19 @@ export function initUsDateInputs(ids) {
 
 export function readUsDateInputValue(el) {
     if (!el) return "";
-    const iso = usDateToIso(el.value);
-    if (iso) return iso;
-    const raw = String(el.value ?? "").trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-    return "";
+    return normalizeToIsoDate(el.value);
 }
 
 export function setUsDateInputValue(el, value) {
     if (!el) return;
-    el.value = isoToUsDate(value);
+    const iso = normalizeToIsoDate(value);
+    el.value = iso || "";
 }
 
 export function validateUsDateInput(el, label) {
-    const text = String(el?.value ?? "").trim();
-    if (!text) {
-        return { ok: false, message: `${label} is required.` };
-    }
     const iso = readUsDateInputValue(el);
     if (!iso) {
-        return { ok: false, message: `${label} must be a valid date (MM/DD/YYYY).` };
+        return { ok: false, message: `${label} is required.` };
     }
     return { ok: true, iso };
 }
