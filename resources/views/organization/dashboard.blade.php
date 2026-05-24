@@ -156,8 +156,8 @@
     .table-wrap {
       background: #fff;
       border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
+      box-shadow: 0 2px 12px rgba(56, 107, 87, 0.08);
+      border: 1px solid #d8e8df;
       overflow-x: auto;
     }
     #missionsTable {
@@ -167,23 +167,38 @@
     }
     #missionsTable th,
     #missionsTable td {
-      padding: 12px 14px;
-      border-bottom: 1px solid #eee;
-      font-size: 0.9rem;
+      padding: 8px 10px;
+      font-size: 0.85rem;
       vertical-align: middle;
     }
-    #missionsTable th {
-      background: rgb(56, 107, 87);
+    #missionsTable thead th {
+      padding: 12px 14px;
+      background: #386b57;
       font-weight: 600;
-      color: rgb(255, 255, 255);
+      color: #ffffff;
       text-align: left;
       white-space: nowrap;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-size: 14px;
+      border-bottom: 2px solid #163d30;
+      border-right: none;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
-    #missionsTable td {
+    #missionsTable thead th:first-child {
+      border-radius: 11px 0 0 0;
+    }
+    #missionsTable thead th:last-child {
+      border-radius: 0 11px 0 0;
+    }
+    #missionsTable tbody td {
       font-weight: 400;
-      color: #333;
+      color: #374151;
       text-align: left;
       word-break: break-word;
+      background: #fff;
+      border-bottom: 1px solid #c5d9ce;
+      border-right: none;
     }
     #missionsTable th.col-volunteers,
     #missionsTable td.col-volunteers,
@@ -220,7 +235,7 @@
       font-size: 12px;
       font-weight: 400;
       color: #64748b;
-      margin-top: 0.2rem;
+      margin-top: 0.1rem;
     }
     #missionsTable td.col-date {
       font-weight: 500;
@@ -237,13 +252,13 @@
       font-size: 12px;
       font-weight: 400;
       color: #64748b;
-      margin-top: 0.2rem;
+      margin-top: 0.1rem;
     }
     .volunteers-cell {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.25rem;
+      gap: 0.15rem;
     }
     .mission-tag {
       display: inline-block;
@@ -257,6 +272,7 @@
     }
     #missionsTable td.col-type {
       font-size: 12px;
+      color: #4b5563;
     }
     .volunteer-progress {
       font-size: 12px;
@@ -347,9 +363,21 @@
       margin: 0;
       font-size: 0.88rem;
     }
-    #missionsTable tbody tr:hover { background: #f8f9fa; }
-    #missionsTable tbody tr:nth-child(even) { background: #fafafa; }
-    #missionsTable tbody tr:nth-child(even):hover { background: #f0f4f0; }
+    #missionsTable tbody tr:hover td {
+      background: #eef6f1;
+    }
+    #missionsTable tbody tr:nth-child(even) td {
+      background: #f6faf8;
+    }
+    #missionsTable tbody tr:nth-child(even):hover td {
+      background: #e8f3ec;
+    }
+    #missionsTable tbody tr:last-child td:first-child {
+      border-radius: 0 0 0 11px;
+    }
+    #missionsTable tbody tr:last-child td:last-child {
+      border-radius: 0 0 11px 0;
+    }
     .mission-status {
       display: inline-block;
       padding: 4px 10px;
