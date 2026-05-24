@@ -345,10 +345,7 @@ function renderMissionsTable(missions) {
                     <div class="missions-empty">
                         <i class="bi bi-journal-x" aria-hidden="true"></i>
                         <h4>No missions found</h4>
-                        <p>Try adjusting your search or filters, or create a new mission.</p>
-                        <button type="button" class="create-btn create-btn--sm" onclick="window.location.href='/missions/create'">
-                            <i class="bi bi-plus-lg"></i> Create New Mission
-                        </button>
+                        <p>Try adjusting your search or filters.</p>
                     </div>
                 </td>
             </tr>`;
