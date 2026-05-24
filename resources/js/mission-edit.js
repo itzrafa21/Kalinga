@@ -5,8 +5,15 @@ import {
     loadPlatformConfig,
     populateMissionTypeSelect,
     computeMissionPointsPayload,
+    updateMissionPointsDisplay,
     isPlatformConfigReady,
 } from "./mission-type-points.js";
+import {
+    initUsDateInputs,
+    readUsDateInputValue,
+    setUsDateInputValue,
+    validateUsDateInput,
+} from "./us-date-input.js";
 
 let selectedMissionImageFile = null;
 let removeMissionImage = false;
@@ -22,17 +29,62 @@ function convertToBase64(file) {
 
 function updateMissionImagePreview(src) {
   const imagePreview = document.getElementById("missionImagePreview");
+  const imageContainer = document.getElementById("missionImageContainer");
   const removeBtn = document.getElementById("removeMissionImage");
   if (!imagePreview) return;
 
   if (src) {
-    imagePreview.innerHTML = `<img src="${src}" alt="Mission preview">`;
-    if (removeBtn) removeBtn.style.display = "";
+    imagePreview.innerHTML = `<img src="${src}" alt="Mission cover preview">`;
+    imageContainer?.classList.add("has-image");
+    if (removeBtn) removeBtn.hidden = false;
   } else {
     imagePreview.innerHTML =
       '<span id="missionImagePlaceholder"><i class="bi bi-camera"></i></span>';
-    if (removeBtn) removeBtn.style.display = "none";
+    imageContainer?.classList.remove("has-image");
+    if (removeBtn) removeBtn.hidden = true;
   }
+}
+
+function setLocationPinnedLabel(label) {
+  const display = document.getElementById("locationDisplay");
+  if (!display) return;
+
+  const span = display.querySelector("span");
+  const text = label?.trim() || "No location pinned yet";
+  const isEmpty = !label?.trim();
+
+  if (span) {
+    span.textContent = isEmpty ? "No location pinned yet" : text;
+  }
+  display.classList.toggle("location-pinned--empty", isEmpty);
+}
+
+function getEditFormSchedule() {
+  return {
+    type: document.getElementById("type")?.value || "",
+    date: readUsDateInputValue(document.getElementById("date")),
+    endDate: readUsDateInputValue(document.getElementById("endDate")),
+    startTime: document.getElementById("startTime")?.value || "",
+    endTime: document.getElementById("endTime")?.value || "",
+  };
+}
+
+function initializePointsPreview() {
+  const displayEl = document.getElementById("missionPointsPreview");
+  const typeEl = document.getElementById("type");
+  if (!displayEl) return;
+
+  const refresh = async () => {
+    const textEl = displayEl.querySelector("span") || displayEl;
+    await updateMissionPointsDisplay(typeEl, textEl, getEditFormSchedule());
+  };
+
+  ["type", "date", "endDate", "startTime", "endTime"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", refresh);
+    document.getElementById(id)?.addEventListener("input", refresh);
+  });
+
+  refresh();
 }
 
 function initializeImageUpload() {
@@ -119,6 +171,7 @@ onAuthStateChanged(auth, async (user) => {
 
   initMissionEditSuccessModal();
   initializeImageUpload();
+  initUsDateInputs(["date", "endDate"]);
 
   await loadPlatformConfig();
 
@@ -150,10 +203,10 @@ onAuthStateChanged(auth, async (user) => {
 
     document.getElementById("name").value = mission.missionName || mission.name || "";
     document.getElementById("description").value = mission.description || "";
-    document.getElementById("date").value = mission.date || "";
+    setUsDateInputValue(document.getElementById("date"), mission.date || "");
     document.getElementById("startTime").value = mission.startTime || "";
     document.getElementById("endTime").value = mission.endTime || "";
-    document.getElementById("endDate").value = mission.endDate || "";
+    setUsDateInputValue(document.getElementById("endDate"), mission.endDate || "");
     document.getElementById("location").value = mission.location || "";
     document.getElementById("latitude").value = mission.latitude || "";
     document.getElementById("longitude").value = mission.longitude || "";
@@ -164,9 +217,8 @@ onAuthStateChanged(auth, async (user) => {
         autoAcceptEl.checked = mission.autoAcceptVolunteers === true;
     }
 
-    const locationDisplay = document.getElementById("locationDisplay");
-    if (locationDisplay && mission.location) {
-      locationDisplay.textContent = mission.location;
+    if (mission.location) {
+      setLocationPinnedLabel(mission.location);
     }
 
     const locationSearch = document.getElementById("locationSearch");
@@ -181,6 +233,8 @@ onAuthStateChanged(auth, async (user) => {
     if (mission.missionImage) {
       updateMissionImagePreview(mission.missionImage);
     }
+
+    initializePointsPreview();
 
     //  Removed status field access since it was removed from HTML
     // document.getElementById("status").value = mission.status || "Open";
@@ -208,10 +262,25 @@ onAuthStateChanged(auth, async (user) => {
       document.getElementById("location").value?.trim() ||
       `Pinned location (${latVal.toFixed(5)}, ${lngVal.toFixed(5)})`;
 
+    const startDateEl = document.getElementById("date");
+    const endDateEl = document.getElementById("endDate");
+    const startDateCheck = validateUsDateInput(startDateEl, "Start date");
+    if (!startDateCheck.ok) {
+      alert(startDateCheck.message);
+      startDateEl?.focus();
+      return;
+    }
+    const endDateCheck = validateUsDateInput(endDateEl, "End date");
+    if (!endDateCheck.ok) {
+      alert(endDateCheck.message);
+      endDateEl?.focus();
+      return;
+    }
+
     const schedule = {
       type: document.getElementById("type").value?.trim() || "",
-      date: document.getElementById("date").value,
-      endDate: document.getElementById("endDate").value,
+      date: readUsDateInputValue(startDateEl),
+      endDate: readUsDateInputValue(endDateEl),
       startTime: document.getElementById("startTime").value,
       endTime: document.getElementById("endTime").value,
     };

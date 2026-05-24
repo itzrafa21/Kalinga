@@ -8,6 +8,11 @@ import {
     updateMissionPointsDisplay,
     isPlatformConfigReady,
 } from "./mission-type-points.js";
+import {
+    initUsDateInputs,
+    readUsDateInputValue,
+    validateUsDateInput,
+} from "./us-date-input.js";
 
 let currentUser = null;
 let selectedMissionImageFile = null;
@@ -68,13 +73,14 @@ onAuthStateChanged(auth, async (user) => {
     initializeFormSubmission();
     initializeImageUpload();
     initMissionSuccessModal();
+    initUsDateInputs(["date", "end_date"]);
 });
 
 function getCreateFormSchedule() {
     return {
         type: document.getElementById("type")?.value || "",
-        date: document.getElementById("date")?.value || "",
-        endDate: document.getElementById("end_date")?.value || "",
+        date: readUsDateInputValue(document.getElementById("date")),
+        endDate: readUsDateInputValue(document.getElementById("end_date")),
         startTime: document.getElementById("start_time")?.value || "",
         endTime: document.getElementById("end_time")?.value || "",
     };
@@ -85,8 +91,10 @@ function initializePointsPreview() {
     const typeEl = document.getElementById("type");
     if (!displayEl) return;
 
-    const refresh = () =>
-        updateMissionPointsDisplay(typeEl, displayEl, getCreateFormSchedule());
+    const refresh = async () => {
+        const textEl = displayEl?.querySelector("span") || displayEl;
+        await updateMissionPointsDisplay(typeEl, textEl, getCreateFormSchedule());
+    };
 
     ["type", "date", "end_date", "start_time", "end_time"].forEach((id) => {
         document.getElementById(id)?.addEventListener("change", refresh);
@@ -146,6 +154,21 @@ function initializeFormSubmission() {
                 );
                 return;
             }
+            const startDateEl = document.getElementById("date");
+            const endDateEl = document.getElementById("end_date");
+            const startDateCheck = validateUsDateInput(startDateEl, "Start date");
+            if (!startDateCheck.ok) {
+                alert(startDateCheck.message);
+                startDateEl?.focus();
+                return;
+            }
+            const endDateCheck = validateUsDateInput(endDateEl, "End date");
+            if (!endDateCheck.ok) {
+                alert(endDateCheck.message);
+                endDateEl?.focus();
+                return;
+            }
+
             const schedule = getCreateFormSchedule();
             schedule.type = missionType;
             const pointsFields = await computeMissionPointsPayload(schedule);
@@ -156,7 +179,7 @@ function initializeFormSubmission() {
                 type: missionType,
                 ...pointsFields,
                 status: "Pending",
-                date: document.getElementById("date")?.value || "",
+                date: schedule.date,
                 startTime: document.getElementById("start_time")?.value || "",
                 endTime: document.getElementById("end_time")?.value || "",
                 location: location || "N/A",
@@ -170,7 +193,7 @@ function initializeFormSubmission() {
                 createdAt: new Date(),
                 submittedAt: new Date(),
                 submittedBy: currentUser.email,
-                endDate: document.getElementById("end_date")?.value || "",
+                endDate: schedule.endDate,
             };
 
             // Handle mission image upload with Base64
@@ -222,28 +245,41 @@ function initializeFormSubmission() {
 
 // Initialize image upload functionality
 function initializeImageUpload() {
-    const missionImageInput = document.getElementById("missionImageInput"); // Match your HTML
-    const imagePreview = document.getElementById("missionImagePreview"); // Match your HTML
-    const imagePlaceholder = document.getElementById("missionImagePlaceholder"); // Match your HTML
+    const missionImageInput = document.getElementById("missionImageInput");
+    const imagePreview = document.getElementById("missionImagePreview");
+    const imageContainer = document.getElementById("missionImageContainer");
+    const removeBtn = document.getElementById("removeMissionImage");
 
     if (missionImageInput) {
         missionImageInput.addEventListener("change", (e) => {
             const file = e.target.files[0];
-            if (file) {
-                selectedMissionImageFile = file;
-                console.log("[INFO] Mission image selected:", file.name);
-                
-                // Create preview
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    if (imagePreview) {
-                        imagePreview.innerHTML = `<img src="${e.target.result}" style="max-width: 100%; max-height: 200px; border-radius: 8px;">`;
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
+            if (!file) return;
+
+            selectedMissionImageFile = file;
+            console.log("[INFO] Mission image selected:", file.name);
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                if (imagePreview) {
+                    imagePreview.innerHTML = `<img src="${ev.target.result}" alt="Mission cover preview">`;
+                }
+                imageContainer?.classList.add("has-image");
+                if (removeBtn) removeBtn.hidden = false;
+            };
+            reader.readAsDataURL(file);
         });
     }
+
+    removeBtn?.addEventListener("click", () => {
+        selectedMissionImageFile = null;
+        if (missionImageInput) missionImageInput.value = "";
+        if (imagePreview) {
+            imagePreview.innerHTML =
+                '<span id="missionImagePlaceholder"><i class="bi bi-camera"></i></span>';
+        }
+        imageContainer?.classList.remove("has-image");
+        removeBtn.hidden = true;
+    });
 }
 
 // Helper function to convert file to Base64
