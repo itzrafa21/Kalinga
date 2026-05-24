@@ -299,7 +299,6 @@ function updateDashboardStats(missions) {
     const totalEl = document.getElementById("totalMissions");
     const ongoingEl = document.getElementById("ongoingMissions");
     const pendingEl = document.getElementById("pendingMissions");
-    const tableCountEl = document.getElementById("missionsTableCount");
 
     const ongoingCount = missions.filter(
         (m) => normalizeMissionStatus(m.status) === "ongoing"
@@ -312,10 +311,6 @@ function updateDashboardStats(missions) {
     if (totalEl) totalEl.textContent = String(missions.length);
     if (ongoingEl) ongoingEl.textContent = String(ongoingCount);
     if (pendingEl) pendingEl.textContent = String(pendingCount);
-    if (tableCountEl) {
-        tableCountEl.textContent =
-            missions.length === 1 ? "1 mission" : `${missions.length} missions`;
-    }
 }
 
 function renderMissionsTable(missions) {
@@ -399,12 +394,6 @@ function applyMissionFilters() {
                 .toLowerCase();
             return haystack.includes(term);
         });
-    }
-
-    const tableCountEl = document.getElementById("missionsTableCount");
-    if (tableCountEl) {
-        tableCountEl.textContent =
-            list.length === 1 ? "1 mission" : `${list.length} missions`;
     }
 
     renderMissionsTable(list);

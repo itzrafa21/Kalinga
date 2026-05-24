@@ -148,35 +148,6 @@
       font-size: 0.95rem;
       background: #fff;
     }
-    .missions-table-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.85rem 1rem;
-      border-bottom: 1px solid #eee;
-      background: #fafbfa;
-    }
-    .missions-table-head h3,
-    .missions-table-head .missions-table-title {
-      margin: 0;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #1e3a2f;
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-    }
-    .missions-table-count {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.2rem 0.55rem;
-      border-radius: 999px;
-      background: #e8f5ec;
-      color: #166534;
-      font-size: 0.78rem;
-      font-weight: 600;
-    }
     .create-btn--sm {
       padding: 8px 14px;
       font-size: 0.85rem;
@@ -430,10 +401,6 @@
       </div>
 
       <div class="table-wrap">
-        <div class="missions-table-head">
-          <h2 class="missions-table-title">Your Missions</h2>
-          <span class="missions-table-count" id="missionsTableCount">0 missions</span>
-        </div>
         <table id="missionsTable">
           <colgroup>
             <col style="width: 22%">
