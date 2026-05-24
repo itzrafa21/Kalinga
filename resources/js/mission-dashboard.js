@@ -340,7 +340,6 @@ function renderMissionsTable(missions) {
             const needed = Math.max(0, parseInt(m.volunteersNeeded, 10) || 0);
             const signedUp = m.signedUp ?? 0;
             const detailsUrl = `/missions/details?id=${encodeURIComponent(m.id)}`;
-            const editUrl = `/missions/edit?id=${encodeURIComponent(m.id)}`;
             const autoAcceptBadge = m.autoAcceptVolunteers
                 ? `<span class="mission-tag" title="Auto-accept volunteers">Auto-accept</span>`
                 : "";
@@ -361,7 +360,7 @@ function renderMissionsTable(missions) {
                         <span class="mission-status ${getMissionStatusClass(statusLabel)}">${escapeMissionCell(statusLabel)}</span>
                     </td>
                     <td class="col-actions">
-                        <a href="${editUrl}" class="mission-action-btn">Edit</a>
+                        <a href="${detailsUrl}" class="mission-action-btn">View details</a>
                     </td>
                 </tr>`;
         })

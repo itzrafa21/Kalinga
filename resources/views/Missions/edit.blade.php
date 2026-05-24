@@ -154,6 +154,70 @@
   .success-modal-confirm:hover {
     background: #218838;
   }
+
+  .mission-image-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    background: #f8f9fa;
+  }
+
+  .mission-image-preview {
+    width: 200px;
+    height: 150px;
+    border-radius: 8px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .mission-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+
+  .mission-image-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  .mission-image-actions .btn {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .mission-image-container {
+      padding: 0.5rem;
+    }
+
+    .mission-image-preview {
+      width: 150px;
+      height: 120px;
+    }
+
+    .mission-image-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .mission-image-actions .btn {
+      width: 100%;
+    }
+  }
   </style>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
 </head>
@@ -237,6 +301,24 @@
                 <label class="form-check-label" for="autoAcceptVolunteers">Auto-accept volunteers</label>
               </div>
               <p class="text-muted small mb-0 mt-1">When enabled, new volunteer applications are approved automatically.</p>
+            </div>
+
+            <div class="form-group">
+              <label for="missionImage">Mission Image (Optional)</label>
+              <div class="mission-image-container">
+                <div class="mission-image-preview" id="missionImagePreview">
+                  <span id="missionImagePlaceholder"><i class="bi bi-camera"></i></span>
+                </div>
+                <div class="mission-image-actions">
+                  <input type="file" id="missionImageInput" accept="image/*" style="display: none;">
+                  <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('missionImageInput').click()">
+                    <i class="bi bi-folder2-open"></i> Upload Image
+                  </button>
+                  <button type="button" class="btn btn-outline-danger" id="removeMissionImage" style="display: none;">
+                    <i class="bi bi-trash"></i> Remove Image
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="d-flex justify-content-end gap-3 mt-4">

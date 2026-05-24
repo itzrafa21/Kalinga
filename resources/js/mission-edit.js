@@ -8,6 +8,57 @@ import {
     isPlatformConfigReady,
 } from "./mission-type-points.js";
 
+let selectedMissionImageFile = null;
+let removeMissionImage = false;
+
+function convertToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function updateMissionImagePreview(src) {
+  const imagePreview = document.getElementById("missionImagePreview");
+  const removeBtn = document.getElementById("removeMissionImage");
+  if (!imagePreview) return;
+
+  if (src) {
+    imagePreview.innerHTML = `<img src="${src}" alt="Mission preview">`;
+    if (removeBtn) removeBtn.style.display = "";
+  } else {
+    imagePreview.innerHTML =
+      '<span id="missionImagePlaceholder"><i class="bi bi-camera"></i></span>';
+    if (removeBtn) removeBtn.style.display = "none";
+  }
+}
+
+function initializeImageUpload() {
+  const missionImageInput = document.getElementById("missionImageInput");
+  const removeBtn = document.getElementById("removeMissionImage");
+
+  missionImageInput?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    selectedMissionImageFile = file;
+    removeMissionImage = false;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => updateMissionImagePreview(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+
+  removeBtn?.addEventListener("click", () => {
+    selectedMissionImageFile = null;
+    removeMissionImage = true;
+    if (missionImageInput) missionImageInput.value = "";
+    updateMissionImagePreview(null);
+  });
+}
+
 function openMissionEditSuccessModal(missionName) {
   const overlay = document.getElementById("missionEditSuccessModal");
   const messageEl = document.getElementById("missionEditSuccessModalMessage");
@@ -67,6 +118,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   initMissionEditSuccessModal();
+  initializeImageUpload();
 
   await loadPlatformConfig();
 
@@ -119,6 +171,10 @@ onAuthStateChanged(auth, async (user) => {
 
     if (typeof window.restoreMissionMapPin === "function") {
       window.restoreMissionMapPin();
+    }
+
+    if (mission.missionImage) {
+      updateMissionImagePreview(mission.missionImage);
     }
 
     //  Removed status field access since it was removed from HTML
@@ -183,6 +239,18 @@ onAuthStateChanged(auth, async (user) => {
       autoAcceptVolunteers:
         document.getElementById("autoAcceptVolunteers")?.checked === true,
     };
+
+    if (selectedMissionImageFile) {
+      try {
+        updatedData.missionImage = await convertToBase64(selectedMissionImageFile);
+      } catch (conversionError) {
+        console.error("[ERROR] Error converting mission image:", conversionError);
+        alert(`Failed to process mission image: ${conversionError.message}`);
+        return;
+      }
+    } else if (removeMissionImage) {
+      updatedData.missionImage = deleteField();
+    }
 
     console.log("[INFO] Updating mission with data:", updatedData);
 
