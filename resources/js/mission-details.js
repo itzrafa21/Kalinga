@@ -16,6 +16,7 @@ import {
   userHasApplicationForMission,
   upsertMissionVolunteer,
   syncMissionVolunteerRoster,
+  getApplicationDocRef,
   STORAGE_MISSIONS_SUB,
   STORAGE_USERS_SUB,
   STORAGE_ORG_ROSTER,
@@ -277,21 +278,46 @@ function missionHasAutoAccept(mission) {
 
 function pickMergedApplicationStatus(a, b, { autoAccept = false } = {}) {
   const statuses = [(a || "").toLowerCase(), (b || "").toLowerCase()];
-  if (autoAccept) {
-    if (statuses.every((s) => s === "rejected")) return "rejected";
-    if (statuses.includes("rejected") && !statuses.includes("pending")) {
-      return "rejected";
-    }
-    if (
-      statuses.some((s) => s === "approved" || s === "accepted") ||
-      statuses.includes("pending")
-    ) {
-      return "approved";
-    }
+  if (statuses.some((s) => s === "approved" || s === "accepted")) {
+    return (
+      statuses.find((s) => s === "approved" || s === "accepted") || "approved"
+    );
   }
+  if (autoAccept && statuses.includes("pending")) return "approved";
   if (statuses.includes("pending")) return "pending";
+  if (statuses.every((s) => s === "rejected")) return "rejected";
   if (statuses.includes("rejected")) return "rejected";
-  return a || b || "approved";
+  return a || b || "pending";
+}
+
+/** Match the exact roster row — never fall back to userId alone (avoids wrong-row updates). */
+function findVolunteerForRosterAction(volunteers, btn) {
+  const row = btn.closest("tr[data-volunteer-id]");
+  const appId = (
+    row?.getAttribute("data-volunteer-id") ||
+    btn.getAttribute("data-app-id") ||
+    ""
+  ).trim();
+  const userId = (
+    row?.getAttribute("data-user-id") ||
+    btn.getAttribute("data-user-id") ||
+    ""
+  ).trim();
+
+  if (!appId && !userId) return null;
+
+  const matches = volunteers.filter((v) => {
+    const idOk = appId ? String(v.id || "") === appId : true;
+    const userOk = userId ? String(v.userId || "") === userId : true;
+    return idOk && userOk;
+  });
+
+  if (matches.length === 1) return matches[0];
+  if (appId) {
+    const byId = volunteers.filter((v) => String(v.id || "") === appId);
+    if (byId.length === 1) return byId[0];
+  }
+  return null;
 }
 
 function mergeVolunteerEntries(existing, incoming, options = {}) {
@@ -301,21 +327,37 @@ function mergeVolunteerEntries(existing, incoming, options = {}) {
       : incoming.storage === STORAGE_MISSIONS_SUB
         ? incoming
         : null;
+  const userApp =
+    existing.storage === STORAGE_USERS_SUB
+      ? existing
+      : incoming.storage === STORAGE_USERS_SUB
+        ? incoming
+        : null;
   const base = missionApp || existing;
   const other = base === existing ? incoming : existing;
+
+  const userApplicationId =
+    userApp?.id ||
+    base.userApplicationId ||
+    other.userApplicationId ||
+    (base.storage === STORAGE_USERS_SUB ? base.id : "") ||
+    (other.storage === STORAGE_USERS_SUB ? other.id : "") ||
+    "";
 
   return {
     ...other,
     ...base,
     status: pickMergedApplicationStatus(existing.status, incoming.status, options),
     missionPoints: other.missionPoints ?? base.missionPoints,
-    userApplicationId:
-      base.userApplicationId || other.userApplicationId || "",
-    id: missionApp ? missionApp.id : base.id || other.id,
+    userApplicationId,
+    applicationId:
+      missionApp?.id || base.applicationId || other.applicationId || "",
+    id: missionApp?.id || base.id || other.id,
     storage: missionApp ? STORAGE_MISSIONS_SUB : base.storage || incoming.storage,
     appliedAt: base.appliedAt || other.appliedAt || null,
     name: base.name || other.name,
     email: base.email || other.email,
+    userId: base.userId || other.userId || "",
   };
 }
 
@@ -351,6 +393,7 @@ async function pushApplicationRecord(docSnap, missionId, orgId, storage, upsert)
 
   upsert({
     id: docSnap.id,
+    applicationId: storage === STORAGE_MISSIONS_SUB ? docSnap.id : data.applicationId || "",
     storage,
     userId,
     userApplicationId:
@@ -474,6 +517,7 @@ async function loadMissionVolunteers(missionId, orgId, mission = null) {
         }
         upsert({
           id: data.applicationId || data.userApplicationId || docSnap.id,
+          applicationId: data.applicationId || "",
           userApplicationId: data.userApplicationId || "",
           storage: STORAGE_ORG_ROSTER,
           userId,
@@ -504,9 +548,44 @@ async function resolveApplicationDocRefs(volunteer, missionId) {
     refs.push(ref);
   };
 
+  const v = { ...volunteer, missionId };
+
   if (volunteer.storage === STORAGE_MISSIONS_SUB && volunteer.id) {
     addRef(doc(db, "missions", missionId, "applications", volunteer.id));
+    if (volunteer.userId && volunteer.userApplicationId) {
+      addRef(
+        doc(
+          db,
+          "users",
+          volunteer.userId,
+          "applications",
+          volunteer.userApplicationId
+        )
+      );
+    }
+  } else if (volunteer.storage === STORAGE_USERS_SUB && volunteer.userId && volunteer.id) {
+    addRef(doc(db, "users", volunteer.userId, "applications", volunteer.id));
+  } else if (volunteer.storage === STORAGE_ORG_ROSTER && volunteer.userId) {
+    if (volunteer.userApplicationId) {
+      addRef(
+        doc(
+          db,
+          "users",
+          volunteer.userId,
+          "applications",
+          volunteer.userApplicationId
+        )
+      );
+    }
+    const missionAppId = volunteer.applicationId || "";
+    if (missionAppId) {
+      addRef(doc(db, "missions", missionId, "applications", missionAppId));
+    }
+  } else {
+    addRef(getApplicationDocRef(v));
   }
+
+  if (refs.length > 0) return refs;
 
   if (volunteer.userId) {
     try {
@@ -517,11 +596,7 @@ async function resolveApplicationDocRefs(volunteer, missionId) {
         )
       );
       missionSnap.docs.forEach((d) => addRef(d.ref));
-    } catch (err) {
-      console.warn("[WARN] resolve mission applications:", err);
-    }
 
-    try {
       const userSnap = await getDocs(
         query(
           collection(db, "users", volunteer.userId, "applications"),
@@ -530,7 +605,7 @@ async function resolveApplicationDocRefs(volunteer, missionId) {
       );
       userSnap.docs.forEach((d) => addRef(d.ref));
     } catch (err) {
-      console.warn("[WARN] resolve user applications:", err);
+      console.warn("[WARN] resolve application refs:", err);
     }
   }
 
@@ -538,6 +613,37 @@ async function resolveApplicationDocRefs(volunteer, missionId) {
 }
 
 async function syncApplicationStatusToCopies(volunteer, missionId, payload, orgId) {
+  if (volunteer.userId) {
+    try {
+      if (
+        volunteer.storage === STORAGE_USERS_SUB ||
+        volunteer.storage === STORAGE_ORG_ROSTER
+      ) {
+        const missionSnap = await getDocs(
+          query(
+            collection(db, "missions", missionId, "applications"),
+            where("userId", "==", volunteer.userId)
+          )
+        );
+        for (const mDoc of missionSnap.docs) {
+          await updateDoc(mDoc.ref, payload);
+        }
+      } else {
+        const userSnap = await getDocs(
+          query(
+            collection(db, "users", volunteer.userId, "applications"),
+            where("missionId", "==", missionId)
+          )
+        );
+        for (const uDoc of userSnap.docs) {
+          await updateDoc(uDoc.ref, payload);
+        }
+      }
+    } catch (syncErr) {
+      console.warn("[WARN] sync application status copies:", syncErr);
+    }
+  }
+
   if (!volunteer.userId) return;
 
   const resolvedOrgId = orgId || volunteer.orgId || "";
@@ -547,7 +653,7 @@ async function syncApplicationStatusToCopies(volunteer, missionId, payload, orgI
     volunteer.userId,
     payload.status,
     { ...volunteer, ...payload },
-    { applicationId: volunteer.id }
+    { applicationId: volunteer.applicationId || volunteer.id }
   );
 }
 
@@ -566,11 +672,20 @@ async function updateApplicationStatus(volunteer, missionId, newStatus, options 
   }
 
   const refs = await resolveApplicationDocRefs(volunteer, missionId);
-  if (refs.length === 0) {
-    throw new Error("Application record not found");
-  }
+  let updated = false;
   for (const ref of refs) {
-    await updateDoc(ref, payload);
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        await updateDoc(ref, payload);
+        updated = true;
+      }
+    } catch (err) {
+      console.warn("[WARN] update application ref:", ref.path, err);
+    }
+  }
+  if (!updated) {
+    throw new Error("Application record not found");
   }
 
   const orgId =
@@ -597,6 +712,74 @@ async function autoAcceptPendingMissionApplications(missionId, mission, voluntee
     }
   }
   return changed;
+}
+
+function getRosterStatusSuccessCopy(status) {
+  const s = (status || "").toLowerCase();
+  if (s === "approved" || s === "accepted") {
+    return {
+      title: "Application accepted",
+      message: "The volunteer has been confirmed for this mission.",
+      iconClass: "is-approved",
+      iconHtml: '<i class="ti ti-circle-check"></i>',
+    };
+  }
+  if (s === "rejected") {
+    return {
+      title: "Application rejected",
+      message: "The volunteer application was rejected.",
+      iconClass: "is-rejected",
+      iconHtml: '<i class="ti ti-circle-x"></i>',
+    };
+  }
+  return {
+    title: "Status updated",
+    message: "The volunteer application was updated successfully.",
+    iconClass: "is-approved",
+    iconHtml: '<i class="ti ti-circle-check"></i>',
+  };
+}
+
+function openRosterStatusSuccessModal(status) {
+  const overlay = document.getElementById("rosterStatusSuccessModal");
+  const titleEl = document.getElementById("rosterStatusSuccessTitle");
+  const messageEl = document.getElementById("rosterStatusSuccessMessage");
+  const iconEl = document.getElementById("rosterStatusSuccessIcon");
+  if (!overlay || !titleEl || !messageEl) return;
+
+  const copy = getRosterStatusSuccessCopy(status);
+  titleEl.textContent = copy.title;
+  messageEl.textContent = copy.message;
+  if (iconEl) {
+    iconEl.className = `roster-success-modal-icon ${copy.iconClass}`;
+    iconEl.innerHTML = copy.iconHtml;
+  }
+
+  overlay.hidden = false;
+  overlay.classList.add("is-open");
+  document.getElementById("rosterStatusSuccessOk")?.focus();
+}
+
+function closeRosterStatusSuccessModal() {
+  const overlay = document.getElementById("rosterStatusSuccessModal");
+  if (!overlay) return;
+  overlay.classList.remove("is-open");
+  overlay.hidden = true;
+}
+
+function wireRosterStatusSuccessModal() {
+  const overlay = document.getElementById("rosterStatusSuccessModal");
+  if (!overlay || overlay.dataset.wired === "1") return;
+  overlay.dataset.wired = "1";
+
+  const close = () => closeRosterStatusSuccessModal();
+  document.getElementById("rosterStatusSuccessOk")?.addEventListener("click", close);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay.classList.contains("is-open")) close();
+  });
 }
 
 function openRejectModal(volunteer) {
@@ -650,6 +833,7 @@ function wireRejectModal(missionId) {
       });
       closeRejectModal();
       await refreshMissionDetails();
+      openRosterStatusSuccessModal("rejected");
     } catch (e) {
       console.error(e);
       alert("Could not reject application. Try again.");
@@ -676,10 +860,10 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner) {
 
   const actionButtons = showActions
     ? `<div class="md-action-group">
-        <button type="button" class="md-btn md-btn-outline-g md-btn-xs md-approve-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
-          <i class="ti ti-check" aria-hidden="true"></i> Approve
+        <button type="button" class="md-btn md-btn-outline-g md-btn-xs md-roster-accept-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+          <i class="ti ti-check" aria-hidden="true"></i> Accept
         </button>
-        <button type="button" class="md-btn md-btn-r md-btn-xs md-reject-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+        <button type="button" class="md-btn md-btn-r md-btn-xs md-roster-decline-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
           <i class="ti ti-x" aria-hidden="true"></i> Reject
         </button>
       </div>`
@@ -692,7 +876,7 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner) {
     </div>`;
 
   return `
-    <tr data-volunteer-id="${escapeHtml(v.id)}">
+    <tr data-volunteer-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
       <td>
         <div class="md-name-cell">
           <div class="md-av">${escapeHtml(initials(v.name))}</div>
@@ -873,38 +1057,49 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
     });
   }
 
-  container.querySelectorAll(".md-approve-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const appId = btn.getAttribute("data-app-id");
-      const userId = btn.getAttribute("data-user-id");
-      const volunteer =
-        volunteers.find((v) => v.id === appId) ||
-        volunteers.find((v) => v.userId && v.userId === userId);
-      if (!volunteer) return;
-      btn.disabled = true;
-      try {
-        await updateApplicationStatus(volunteer, missionId, "approved");
-        await refreshMissionDetails();
-      } catch (e) {
-        console.error(e);
-        alert("Could not approve application.");
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  });
+  const rosterTable = container.querySelector(".md-table tbody");
+  if (!rosterTable || !isOwner) return;
 
-  container.querySelectorAll(".md-reject-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const appId = btn.getAttribute("data-app-id");
-      const userId = btn.getAttribute("data-user-id");
-      const volunteer =
-        volunteers.find((v) => v.id === appId) ||
-        volunteers.find((v) => v.userId && v.userId === userId);
-      if (volunteer) openRejectModal(volunteer);
-    });
-  });
+  rosterTable.addEventListener("click", async (e) => {
+    const acceptBtn = e.target.closest(".md-roster-accept-btn");
+    const declineBtn = e.target.closest(".md-roster-decline-btn");
+    const btn = acceptBtn || declineBtn;
+    if (!btn) return;
 
+    const roster =
+      currentMissionContext?.volunteers?.length > 0
+        ? currentMissionContext.volunteers
+        : volunteers;
+    const volunteer = findVolunteerForRosterAction(roster, btn);
+    if (!volunteer) {
+      console.warn("[WARN] roster action: volunteer not found for row", {
+        appId: btn.getAttribute("data-app-id"),
+        userId: btn.getAttribute("data-user-id"),
+      });
+      return;
+    }
+
+    if (declineBtn) {
+      openRejectModal(volunteer);
+      return;
+    }
+
+    btn.disabled = true;
+    try {
+      await updateApplicationStatus(volunteer, missionId, "approved");
+      await refreshMissionDetails();
+      openRosterStatusSuccessModal("approved");
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.message === "Application record not found"
+          ? "Application record not found. Refresh the page and try again."
+          : "Could not approve application."
+      );
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 function renderRejectedMissionPage(container, mission, missionId, user) {
@@ -1087,7 +1282,6 @@ async function refreshMissionDetails() {
       return;
     }
     const mission = loaded.mission;
-    currentMissionContext = { mission, missionId, user };
     const orgId =
       mission.orgId || mission.organizationId || user?.uid || "";
     const status = (mission.status || "").toLowerCase();
@@ -1114,6 +1308,8 @@ async function refreshMissionDetails() {
     const signedUp = isOwner
       ? countApprovedVolunteers(volunteers)
       : await countMissionSignups(missionId, orgId);
+
+    currentMissionContext = { mission, missionId, user, volunteers };
 
     renderMissionFrame(
       container,
@@ -1146,6 +1342,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     try {
       await loadPlatformConfig();
+      wireRosterStatusSuccessModal();
       await refreshMissionDetails();
     } catch (err) {
       console.error(err);

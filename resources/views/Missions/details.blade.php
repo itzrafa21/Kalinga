@@ -441,6 +441,57 @@
       background: #fff;
     }
     .reject-modal-confirm { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+  .roster-success-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 36, 25, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 3100;
+      padding: 1rem;
+    }
+    .roster-success-modal-overlay.is-open { display: flex !important; }
+    .roster-success-modal-overlay[hidden] { display: none !important; }
+    .roster-success-modal {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 420px;
+      width: 100%;
+      padding: 1.75rem 1.5rem 1.25rem;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    .roster-success-modal-icon {
+      font-size: 3rem;
+      margin-bottom: 0.75rem;
+      line-height: 1;
+    }
+    .roster-success-modal-icon.is-approved { color: #2d6a4f; }
+    .roster-success-modal-icon.is-rejected { color: #b91c1c; }
+    .roster-success-modal h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      color: #0f2419;
+    }
+    .roster-success-modal-message {
+      margin: 0 0 1.25rem;
+      font-size: 0.95rem;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .roster-success-modal-actions { display: flex; justify-content: center; }
+    .roster-success-modal-confirm {
+      border: none;
+      border-radius: 10px;
+      padding: 0.6rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #2d6a4f;
+      color: #fff;
+    }
+    .roster-success-modal-confirm:hover { background: #245a42; }
   </style>
 </head>
 <body class="org-app">
@@ -472,6 +523,26 @@
       <div class="reject-modal-actions">
         <button type="button" class="reject-modal-cancel" id="rejectModalCancel">Cancel</button>
         <button type="button" class="reject-modal-confirm" id="rejectModalConfirm">Reject application</button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="rosterStatusSuccessModal"
+    class="roster-success-modal-overlay"
+    hidden
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="rosterStatusSuccessTitle"
+  >
+    <div class="roster-success-modal" role="document">
+      <div class="roster-success-modal-icon is-approved" id="rosterStatusSuccessIcon" aria-hidden="true">
+        <i class="ti ti-circle-check"></i>
+      </div>
+      <h2 id="rosterStatusSuccessTitle">Success</h2>
+      <p class="roster-success-modal-message" id="rosterStatusSuccessMessage"></p>
+      <div class="roster-success-modal-actions">
+        <button type="button" class="roster-success-modal-confirm" id="rosterStatusSuccessOk">OK</button>
       </div>
     </div>
   </div>
