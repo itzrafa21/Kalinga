@@ -79,8 +79,8 @@ function filterHistoryMissionsTable() {
         const rowPeriod = tr.dataset.period || "older";
         const periodMatch = period === "all" || rowPeriod === period;
 
-        const name = (tr.cells[0]?.textContent || "").toLowerCase();
-        const date = (tr.cells[1]?.textContent || "").toLowerCase();
+        const date = (tr.cells[0]?.textContent || "").toLowerCase();
+        const name = (tr.cells[1]?.textContent || "").toLowerCase();
         const loc = (tr.cells[2]?.textContent || "").toLowerCase();
         const haystack = `${name} ${date} ${loc}`;
         const searchMatch = !q || haystack.includes(q);
@@ -210,6 +210,56 @@ function toJsDate(value) {
     return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function formatHistoryTimeLabel(t) {
+    if (!t || t === "N/A") return "";
+    const raw = String(t).trim();
+    if (/am|pm/i.test(raw)) return raw;
+    const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!match) return raw;
+    let h = parseInt(match[1], 10);
+    const minutes = match[2];
+    if (Number.isNaN(h) || h < 0 || h > 23) return raw;
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${minutes} ${period}`;
+}
+
+function getHistoryDateParts(mission) {
+    const rawDate = mission.date || mission.endDate;
+    if (!rawDate) {
+        return { datePart: "N/A", timePart: "" };
+    }
+
+    const datePart = (() => {
+        const d = new Date(`${rawDate}T12:00:00`);
+        if (Number.isNaN(d.getTime())) return String(rawDate);
+        return d.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
+    })();
+
+    const start = formatHistoryTimeLabel(mission.startTime);
+    const end = formatHistoryTimeLabel(mission.endTime);
+    let timePart = "";
+    if (start && end) timePart = `${start} – ${end}`;
+    else if (start) timePart = start;
+    else if (end) timePart = end;
+
+    return { datePart, timePart };
+}
+
+function renderHistoryDateCellHtml(mission) {
+    const { datePart, timePart } = getHistoryDateParts(mission);
+    if (!timePart) {
+        return `<div class="history-date-main">${escapeHtml(datePart)}</div>`;
+    }
+    return `
+        <div class="history-date-main">${escapeHtml(datePart)}</div>
+        <div class="history-time-sub">${escapeHtml(timePart)}</div>`;
+}
+
 function getMissionCompletionDate(mission) {
     const fromFields = toJsDate(mission.movedToHistoryAt)
         || toJsDate(mission.completedAt)
@@ -311,8 +361,8 @@ async function processHistoryMission(docSnap, userId) {
 
     const row = `
         <tr class="history-mission-row" data-period="${periodBucket}">
+            <td class="col-date">${renderHistoryDateCellHtml(mission)}</td>
             <td>${escapeHtml(mission.missionName || mission.name || "Untitled")}</td>
-            <td>${escapeHtml(mission.date || "N/A")}</td>
             <td>${escapeHtml(mission.location || "N/A")}</td>
             <td>${escapeHtml(volunteerDisplay)}</td>
             <td><span class="status-badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>

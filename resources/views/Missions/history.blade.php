@@ -195,6 +195,22 @@
     tr.history-mission-row.history-row-paged-out {
       display: none !important;
     }
+    #missionsTable td.col-date {
+      white-space: normal;
+      vertical-align: middle;
+    }
+    .history-date-main {
+      font-weight: 500;
+      color: #1e3a2f;
+      line-height: 1.35;
+    }
+    .history-time-sub {
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: #64748b;
+      margin-top: 0.2rem;
+      line-height: 1.3;
+    }
 
     .missions table {
       width: 100%;
@@ -297,8 +313,8 @@
         <table id="missionsTable">
           <thead>
             <tr>
-              <th>Mission Name</th>
               <th>Date</th>
+              <th>Mission Name</th>
               <th>Location</th>
               <th>Volunteers</th>
               <th>Status</th>
