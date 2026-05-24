@@ -45,20 +45,6 @@ function updateMissionImagePreview(src) {
   }
 }
 
-function setLocationPinnedLabel(label) {
-  const display = document.getElementById("locationDisplay");
-  if (!display) return;
-
-  const span = display.querySelector("span");
-  const text = label?.trim() || "No location pinned yet";
-  const isEmpty = !label?.trim();
-
-  if (span) {
-    span.textContent = isEmpty ? "No location pinned yet" : text;
-  }
-  display.classList.toggle("location-pinned--empty", isEmpty);
-}
-
 function getEditFormSchedule() {
   return {
     type: document.getElementById("type")?.value || "",
@@ -215,10 +201,6 @@ onAuthStateChanged(auth, async (user) => {
     const autoAcceptEl = document.getElementById("autoAcceptVolunteers");
     if (autoAcceptEl) {
         autoAcceptEl.checked = mission.autoAcceptVolunteers === true;
-    }
-
-    if (mission.location) {
-      setLocationPinnedLabel(mission.location);
     }
 
     const locationSearch = document.getElementById("locationSearch");

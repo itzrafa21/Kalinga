@@ -297,6 +297,44 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;");
 }
 
+/** Geolocate + zoom controls (top-right stack, Mapbox default UI). */
+function attachMapNavigationControls(map) {
+    map.addControl(
+        new mapboxgl.GeolocateControl({
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: false,
+            showUserHeading: false,
+        }),
+        "top-right"
+    );
+    map.addControl(
+        new mapboxgl.NavigationControl({ showCompass: false }),
+        "top-right"
+    );
+}
+
+/** Top-left pill: click map or drag marker to set location. */
+function ensureMapWrapWithHint(mapContainer) {
+    let wrap = mapContainer.closest(".map-wrap");
+    if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.className = "map-wrap";
+        mapContainer.parentNode.insertBefore(wrap, mapContainer);
+        wrap.appendChild(mapContainer);
+    }
+
+    if (!wrap.querySelector(".map-pin-hint")) {
+        const hint = document.createElement("div");
+        hint.className = "map-pin-hint";
+        hint.setAttribute("role", "status");
+        hint.innerHTML =
+            '<i class="bi bi-geo-alt" aria-hidden="true"></i> Click map or drag pin to set location';
+        wrap.appendChild(hint);
+    }
+
+    return wrap;
+}
+
 function initMissionLocationMap() {
     if (typeof mapboxgl === "undefined") {
         console.error("[ERROR] mapboxgl is not loaded");
@@ -305,6 +343,8 @@ function initMissionLocationMap() {
 
     const mapContainer = document.getElementById("map");
     if (!mapContainer) return;
+
+    ensureMapWrapWithHint(mapContainer);
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -317,29 +357,19 @@ function initMissionLocationMap() {
         antialias: true,
     });
 
+    attachMapNavigationControls(map);
+
     let marker = null;
 
     function setLocationUI(label, lat, lng) {
         const locationEl = document.getElementById("location");
         const latEl = document.getElementById("latitude");
         const lngEl = document.getElementById("longitude");
-        const display = document.getElementById("locationDisplay");
         const searchEl = document.getElementById("locationSearch");
 
         if (locationEl) locationEl.value = label;
         if (latEl) latEl.value = Number(lat).toFixed(6);
         if (lngEl) lngEl.value = Number(lng).toFixed(6);
-        if (display) {
-            const span = display.querySelector("span");
-            const text = label || "No location pinned yet";
-            const isEmpty = !label || text === "No location pinned yet";
-            if (span) {
-                span.textContent = isEmpty ? "No location pinned yet" : text;
-            } else {
-                display.textContent = text;
-            }
-            display.classList.toggle("location-pinned--empty", isEmpty);
-        }
         if (searchEl && label && !label.startsWith("Pinned location")) {
             searchEl.value = label;
         }

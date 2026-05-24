@@ -168,36 +168,6 @@
             font-size: 0.95rem;
         }
 
-        .location-pinned {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.6rem;
-            padding: 0.65rem 0.85rem;
-            margin-bottom: 0.75rem;
-            border-radius: 10px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            font-size: 0.9rem;
-            color: #475569;
-            min-height: 2.75rem;
-        }
-
-        .location-pinned i {
-            color: #94a3b8;
-            margin-top: 0.1rem;
-            flex-shrink: 0;
-        }
-
-        .location-pinned:not(.location-pinned--empty) {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-            color: #166534;
-        }
-
-        .location-pinned:not(.location-pinned--empty) i {
-            color: #22c55e;
-        }
-
         .map-search-wrap {
             position: relative;
             margin-bottom: 0.75rem;
@@ -264,6 +234,42 @@
             overflow: hidden;
             image-rendering: -webkit-optimize-contrast;
             transform: translateZ(0);
+        }
+
+        .map-wrap {
+            position: relative;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .map-wrap #map {
+            margin-top: 0;
+        }
+
+        .map-pin-hint {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 2;
+            pointer-events: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.3;
+            color: #1e3a2f;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(30, 58, 47, 0.12);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+        }
+
+        .map-pin-hint .bi {
+            font-size: 13px;
+            color: #16a34a;
+            flex-shrink: 0;
         }
 
         .option-card {
@@ -559,8 +565,8 @@
                     <div class="form-section-head">
                         <div class="form-section-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></div>
                         <div>
-                            <h2 id="section-location">Location</h2>
-                            <p>Search for a school, mall, or place—or click the map to drop a pin.</p>
+                            <h2 id="section-location">Set Location</h2>
+                            <!-- <p>Search for a school, mall, or place—or click the map to drop a pin.</p> -->
                         </div>
                     </div>
                     <div class="form-section-body">
@@ -575,10 +581,6 @@
                             >
                             <ul id="locationSuggestions" role="listbox" aria-label="Location search results"></ul>
                         </div>
-                        <p id="locationDisplay" class="location-pinned location-pinned--empty mb-0">
-                            <i class="bi bi-geo-alt" aria-hidden="true"></i>
-                            <span>No location pinned yet</span>
-                        </p>
                         <input type="hidden" id="location" name="location">
                         <input type="hidden" id="latitude" name="latitude">
                         <input type="hidden" id="longitude" name="longitude">
