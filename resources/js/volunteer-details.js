@@ -405,7 +405,7 @@ function renderProfile(profile) {
         "Volunteer";
     const email = profile?.email || first?.email || "—";
     const phone = profile?.phone || first?.phone || "—";
-    const photoURL = profile?.photoURL || "";
+    const photoUrl = profile?.photoUrl || "";
 
     nameEl.textContent = profileName;
     emailEl.textContent = email || "—";
@@ -417,16 +417,16 @@ function renderProfile(profile) {
 
     if (avatarWrap && avatarImg) {
         avatarImg.onerror = () => {
-            console.warn("[WARN] Failed to load photoURL image");
+            console.warn("[WARN] Failed to load photoUrl image");
             avatarImg.removeAttribute("src");
             avatarImg.setAttribute("hidden", "");
             avatarWrap.classList.remove("has-photo");
         };
 
-        if (photoURL) {
+        if (photoUrl) {
             avatarImg.removeAttribute("crossorigin");
             avatarImg.removeAttribute("referrerpolicy");
-            avatarImg.src = photoURL;
+            avatarImg.src = photoUrl;
             avatarImg.removeAttribute("hidden");
             avatarWrap.classList.add("has-photo");
         } else {
@@ -474,9 +474,9 @@ function renderAttendedMissionsTable() {
         .join("");
 }
 
-/** photoURL from users/{id} — Cloudinary (or any https) URL used as-is after normalize. */
-function normalizePhotoURL(photoURL) {
-    let raw = String(photoURL ?? "").trim();
+/** photoUrl from users/{id} — Cloudinary (or any https) URL used as-is after normalize. */
+function normalizephotoUrl(photoUrl) {
+    let raw = String(photoUrl ?? "").trim();
     if (!raw) return "";
 
     // Protocol-relative Cloudinary URLs: //res.cloudinary.com/...
@@ -504,14 +504,14 @@ async function loadApplicantProfile(userId) {
             return null;
         }
         const u = snap.data();
-        const photoURL = normalizePhotoURL(u.photoURL);
+        const photoUrl = normalizephotoUrl(u.photoUrl);
 
         return {
             name: u.name || u.displayName || "Volunteer",
             email: u.email || "",
             phone: u.phone || u.mobileNumber || u.mobile || "",
             occupation: u.occupation || "",
-            photoURL,
+            photoUrl,
         };
     } catch (err) {
         console.error("[ERROR] loadApplicantProfile:", err);
