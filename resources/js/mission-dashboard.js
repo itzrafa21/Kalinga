@@ -227,6 +227,27 @@ function formatMissionDate(mission) {
     });
 }
 
+function formatMissionTimeLabel(t) {
+    if (!t || t === "N/A") return "";
+    const raw = String(t).trim();
+    if (/am|pm/i.test(raw)) return raw;
+    const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!match) return raw;
+    let h = parseInt(match[1], 10);
+    const minutes = match[2];
+    if (Number.isNaN(h) || h < 0 || h > 23) return raw;
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${minutes} ${period}`;
+}
+
+function formatMissionTimeRange(mission) {
+    const start = formatMissionTimeLabel(mission.startTime);
+    const end = formatMissionTimeLabel(mission.endTime);
+    if (start && end) return `${start} – ${end}`;
+    return start || end || "";
+}
+
 function formatLocationShort(mission) {
     const raw = String(mission.location || "").trim();
     if (!raw) return "—";
@@ -344,14 +365,21 @@ function renderMissionsTable(missions) {
                 ? `<span class="mission-tag" title="Auto-accept volunteers">Auto-accept</span>`
                 : "";
 
+            const timeSub = m.timeLabel
+                ? `<div class="mission-time-sub">${escapeMissionCell(m.timeLabel)}</div>`
+                : "";
+
             return `
                 <tr data-status="${escapeMissionCell(normalizeMissionStatus(statusLabel))}">
+                    <td class="col-date">
+                        <div class="mission-date-main">${escapeMissionCell(m.dateLabel)}</div>
+                        ${timeSub}
+                    </td>
                     <td class="col-mission">
                         <a href="${detailsUrl}" class="mission-name-link">${escapeMissionCell(m.missionName || "Untitled")}</a>
                         ${autoAcceptBadge}
                         <div class="mission-location-sub">${escapeMissionCell(m.locationShort)}</div>
                     </td>
-                    <td class="col-date">${escapeMissionCell(m.dateLabel)}</td>
                     <td class="col-type">${escapeMissionCell(m.type || "—")}</td>
                     <td class="col-volunteers">
                         <span class="volunteer-progress">${signedUp} / ${needed}</span>
@@ -438,6 +466,7 @@ async function buildDashboardMission(user, docSnap, today) {
         volunteersNeeded: mission.volunteers ?? 0,
         signedUp,
         dateLabel: formatMissionDate(mission),
+        timeLabel: formatMissionTimeRange(mission),
         locationShort: formatLocationShort(mission),
         autoAcceptVolunteers: mission.autoAcceptVolunteers === true,
     };

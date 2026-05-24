@@ -218,6 +218,22 @@
       color: #64748b;
       margin-top: 0.2rem;
     }
+    #missionsTable td.col-date {
+      font-weight: 500;
+      color: #1e3a2f;
+      white-space: normal;
+      max-width: none;
+    }
+    .mission-date-main {
+      font-weight: 500;
+      color: #1e3a2f;
+    }
+    .mission-time-sub {
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: #64748b;
+      margin-top: 0.2rem;
+    }
     .mission-tag {
       display: inline-block;
       margin-left: 0.35rem;
@@ -403,8 +419,8 @@
       <div class="table-wrap">
         <table id="missionsTable">
           <colgroup>
-            <col style="width: 22%">
             <col style="width: 14%">
+            <col style="width: 22%">
             <col style="width: 14%">
             <col style="width: 12%">
             <col style="width: 12%">
@@ -412,8 +428,8 @@
           </colgroup>
           <thead>
             <tr>
-              <th>Mission</th>
               <th>Date</th>
+              <th>Mission</th>
               <th>Type</th>
               <th class="col-volunteers">Volunteers</th>
               <th class="col-status">Status</th>
