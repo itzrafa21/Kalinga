@@ -285,9 +285,12 @@ function showMissionsLoading() {
     const tbody = document.getElementById("missionsBody");
     if (!tbody) return;
     tbody.innerHTML = `
-        <tr>
-            <td colspan="6" class="missions-loading">
-                <i class="bi bi-arrow-repeat"></i> Loading missions…
+        <tr class="missions-loading-row">
+            <td colspan="6">
+                <div class="missions-loading">
+                    <div class="missions-loading-spinner" aria-hidden="true"></div>
+                    <span>Loading missions…</span>
+                </div>
             </td>
         </tr>`;
 }
@@ -491,7 +494,7 @@ async function loadMissions(user) {
         console.error("Error fetching missions: ", error);
         missionsTableBody.innerHTML = `
             <tr>
-                <td colspan="6" class="missions-error">Could not load missions. Please refresh the page.</td>
+                <td colspan="6" class="missions-error-cell">Could not load missions. Please refresh the page.</td>
             </tr>`;
     }
 }

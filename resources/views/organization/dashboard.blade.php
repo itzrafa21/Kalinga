@@ -279,17 +279,26 @@
       background: #1d923e;
       color: #fff;
     }
+    #missionsTable tbody tr.missions-loading-row td,
+    #missionsTable tbody td.missions-error-cell {
+      text-align: center !important;
+      padding: 2rem 1rem !important;
+      color: #64748b;
+    }
     .missions-loading,
     .missions-error {
       text-align: center;
       color: #64748b;
-      padding: 2rem 1rem !important;
     }
     .missions-loading {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 0.5rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0.5rem 0;
     }
     .missions-loading-spinner {
       width: 1.25rem;
@@ -307,10 +316,20 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+    #missionsTable tbody tr:has(.missions-empty) td {
+      text-align: center !important;
+      padding: 2rem 1rem !important;
+    }
     .missions-empty {
       text-align: center;
       padding: 2rem 1rem;
       color: #64748b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      margin: 0 auto;
     }
     .missions-empty i {
       font-size: 2rem;
