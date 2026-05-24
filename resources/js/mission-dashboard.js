@@ -301,10 +301,9 @@ function updateDashboardStats(missions) {
     const pendingEl = document.getElementById("pendingMissions");
     const tableCountEl = document.getElementById("missionsTableCount");
 
-    const ongoingCount = missions.filter((m) => {
-        const st = normalizeMissionStatus(m.status);
-        return st === "open" || st === "ongoing";
-    }).length;
+    const ongoingCount = missions.filter(
+        (m) => normalizeMissionStatus(m.status) === "ongoing"
+    ).length;
 
     const pendingCount = missions.filter(
         (m) => normalizeMissionStatus(m.status) === "pending"
