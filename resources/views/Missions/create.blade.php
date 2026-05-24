@@ -20,9 +20,19 @@
 
     <style>
         .create-mission-page {
-            max-width: 920px;
-            margin: 0 auto;
+            width: 100%;
+            max-width: none;
+            margin: 0;
             padding: 0 0 2.5rem;
+            min-width: 0;
+        }
+
+        .create-mission-page .main-container {
+            width: 100%;
+            max-width: 100%;
+            padding-left: 0;
+            padding-right: 0;
+            overflow-x: hidden;
         }
 
         .create-mission-hero {
@@ -67,16 +77,18 @@
             font-size: 0.95rem;
             color: #64748b;
             line-height: 1.5;
-            max-width: 36rem;
+        }
+
+        .create-mission-hero-text {
+            flex: 1;
+            min-width: 0;
         }
 
         .create-mission-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
+            display: block;
         }
 
-        .form-section {
+        .create-mission-panel {
             background: #fff;
             border: 1px solid #e8ecef;
             border-radius: 14px;
@@ -84,44 +96,24 @@
             overflow: hidden;
         }
 
-        .form-section-head {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.85rem;
-            padding: 1rem 1.25rem;
-            background: linear-gradient(180deg, #f8faf9 0%, #fff 100%);
+        .form-block {
+            padding: 0.75rem 1rem;
             border-bottom: 1px solid #eef2f0;
         }
 
-        .form-section-icon {
-            flex-shrink: 0;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: #ecfdf5;
-            color: #15803d;
+        .form-block-title {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.15rem;
-        }
-
-        .form-section-head h2 {
-            margin: 0 0 0.2rem;
+            gap: 0.5rem;
+            margin: 0 0 0.65rem;
             font-size: 1rem;
             font-weight: 600;
             color: #1e3a2f;
         }
 
-        .form-section-head p {
-            margin: 0;
-            font-size: 0.82rem;
-            color: #64748b;
-            line-height: 1.45;
-        }
-
-        .form-section-body {
-            padding: 1.25rem;
+        .form-block-title i {
+            color: #15803d;
+            font-size: 1.05rem;
         }
 
         .create-mission-form .form-label {
@@ -168,9 +160,14 @@
             font-size: 0.95rem;
         }
 
-        .map-search-wrap {
+        .form-block .map-search-wrap {
             position: relative;
             margin-bottom: 0.75rem;
+        }
+
+        .form-block #map,
+        .form-block .map-wrap {
+            margin-top: 0.5rem;
         }
 
         #locationSearch {
@@ -239,7 +236,16 @@
         .map-wrap {
             position: relative;
             width: 100%;
+            max-width: 100%;
             margin-top: 0.5rem;
+            min-width: 0;
+        }
+
+        .map-wrap #map,
+        .form-block > #map,
+        .form-block .map-wrap #map {
+            width: 100%;
+            max-width: 100%;
         }
 
         .map-wrap #map {
@@ -273,7 +279,7 @@
         }
 
         .option-card {
-            padding: 1rem 1.1rem;
+            padding: 0.65rem 0.75rem;
             border-radius: 12px;
             background: #f8fafc;
             border: 1px solid #e8ecef;
@@ -300,8 +306,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1rem;
-            padding: 1.5rem;
+            gap: 0.75rem;
+            padding: 0.75rem;
             border: 2px dashed #cbd5e1;
             border-radius: 12px;
             background: #f8fafc;
@@ -354,34 +360,59 @@
             padding: 0.45rem 1rem;
         }
 
-        .form-actions-bar {
+        .form-panel-actions {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
             align-items: center;
-            gap: 0.75rem;
-            padding: 1.15rem 1.25rem;
-            background: #fff;
-            border: 1px solid #e8ecef;
-            border-radius: 14px;
-            box-shadow: 0 4px 14px rgba(15, 36, 25, 0.06);
+            gap: 0.35rem;
+            padding: 0.5rem 0.75rem;
+            background: #f8faf9;
+            border-top: 1px solid #eef2f0;
         }
 
-        .form-actions-bar .btn {
-            border-radius: 10px;
+        .form-panel-actions .btn {
+            border-radius: 8px;
+            font-size: 0.85rem;
+            /* border 1px solid #275735; */
             font-weight: 600;
-            padding: 0.55rem 1.35rem;
-            min-width: 120px;
+            padding: 0.4rem 0.85rem;
+            min-width: 0;
+            line-height: 1.25;
+        }
+
+        .form-panel-actions .btn i {
+            font-size: 0.9rem;
+        }
+
+        .volunteers-input {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .form-block-split .form-split-col {
+            min-width: 0;
+        }
+
+        @media (min-width: 768px) {
+            .form-block-split .form-split-col + .form-split-col {
+                border-left: 1px solid #eef2f0;
+                padding-left: 1rem;
+            }
+
+            .form-block-split .form-split-col:first-child {
+                padding-right: 1rem;
+            }
         }
 
         .btn-create-mission {
-            background: #22a447;
+            background: #275735;
             border-color: #22a447;
             color: #fff;
         }
 
         .btn-create-mission:hover {
-            background: #1d8f3c;
+            background: #22a447;
             border-color: #1d8f3c;
             color: #fff;
         }
@@ -454,21 +485,143 @@
             image-rendering: -webkit-optimize-contrast !important;
         }
 
+        @media (max-width: 992px) {
+            .org-main-content:has(.create-mission-page) {
+                padding: 1.25rem 1rem 1.75rem;
+            }
+        }
+
         @media (max-width: 768px) {
+            .org-main-content:has(.create-mission-page) {
+                padding: 1rem 0.75rem 1.5rem;
+            }
+
             .create-mission-hero {
-                flex-direction: column;
+                flex-direction: row;
+                align-items: center;
+                gap: 0.75rem;
             }
 
-            .form-actions-bar {
+            .create-mission-hero-text h1 {
+                font-size: 1.35rem;
+            }
+
+            .create-mission-hero-text p {
+                font-size: 0.88rem;
+            }
+
+            .form-block {
+                padding: 0.65rem 0.75rem;
+            }
+
+            .form-block-split .form-split-col + .form-split-col {
+                border-left: none;
+                padding-left: 0;
+                padding-top: 0.75rem;
+                margin-top: 0.15rem;
+                border-top: 1px solid #eef2f0;
+            }
+
+            .form-block-split .form-split-col:first-child {
+                padding-right: 0;
+            }
+
+            .form-block-title {
+                font-size: 0.95rem;
+            }
+
+            .form-panel-actions {
                 flex-direction: column-reverse;
+                align-items: stretch;
+                padding: 0.45rem 0.65rem;
+                gap: 0.3rem;
             }
 
-            .form-actions-bar .btn {
+            .form-panel-actions .btn {
                 width: 100%;
+                min-width: 0;
+                padding: 0.45rem 0.75rem;
+            }
+
+            .volunteers-input {
+                max-width: 100%;
+            }
+
+            .mission-image-preview {
+                max-width: 100%;
+            }
+
+            .mission-image-actions {
+                width: 100%;
+            }
+
+            .mission-image-actions .btn {
+                flex: 1 1 auto;
+                min-width: min(100%, 140px);
+            }
+
+            .points-preview {
+                max-width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .map-pin-hint {
+                left: 8px;
+                right: 8px;
+                top: 8px;
+                max-width: calc(100% - 16px);
+                font-size: 11px;
+                padding: 6px 10px;
             }
 
             #map {
                 height: 260px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .create-mission-hero {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .create-mission-back {
+                width: 38px;
+                height: 38px;
+            }
+
+            .create-mission-hero-text h1 {
+                font-size: 1.2rem;
+            }
+
+            .create-mission-panel {
+                border-radius: 12px;
+            }
+
+            .option-card {
+                padding: 0.6rem 0.65rem;
+            }
+
+            .mission-image-container {
+                padding: 0.65rem;
+            }
+
+            .mission-image-preview {
+                height: 140px;
+            }
+
+            #map {
+                height: 220px;
+                border-radius: 10px;
+            }
+
+            .map-search-wrap #locationSearch {
+                font-size: 16px;
+            }
+
+            .create-mission-form .form-control,
+            .create-mission-form .form-select {
+                font-size: 16px;
             }
         }
     </style>
@@ -491,15 +644,11 @@
             <form id="createMissionForm" class="create-mission-form">
                 @csrf
 
-                <section class="form-section" aria-labelledby="section-basics">
-                    <div class="form-section-head">
-                        <div class="form-section-icon" aria-hidden="true"><i class="bi bi-card-text"></i></div>
-                        <div>
-                            <h2 id="section-basics">Basic details</h2>
-                            <p>Name and describe what volunteers will be doing.</p>
-                        </div>
-                    </div>
-                    <div class="form-section-body">
+                <div class="create-mission-panel">
+                    <div class="form-block" aria-labelledby="section-basics">
+                        <h2 class="form-block-title" id="section-basics">
+                            <i class="bi bi-card-text" aria-hidden="true"></i> Enter Mission Details
+                        </h2>
                         <div class="mb-3">
                             <label for="name" class="form-label">Mission name</label>
                             <input type="text" id="name" class="form-control" placeholder="e.g. Coastal cleanup drive" required>
@@ -509,17 +658,11 @@
                             <textarea id="description" class="form-control" rows="4" placeholder="Goals, tasks, what volunteers should bring…" required></textarea>
                         </div>
                     </div>
-                </section>
 
-                <section class="form-section" aria-labelledby="section-schedule">
-                    <div class="form-section-head">
-                        <div class="form-section-icon" aria-hidden="true"><i class="bi bi-calendar-event"></i></div>
-                        <div>
-                            <h2 id="section-schedule">Schedule</h2>
-                            <p>When the mission starts and ends.</p>
-                        </div>
-                    </div>
-                    <div class="form-section-body">
+                    <div class="form-block" aria-labelledby="section-schedule">
+                        <h2 class="form-block-title" id="section-schedule">
+                            <i class="bi bi-calendar-event" aria-hidden="true"></i> Schedule
+                        </h2>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="date" class="form-label">Start date</label>
@@ -539,37 +682,43 @@
                             </div>
                         </div>
                     </div>
-                </section>
 
-                <section class="form-section" aria-labelledby="section-type">
-                    <div class="form-section-head">
-                        <div class="form-section-icon" aria-hidden="true"><i class="bi bi-tag"></i></div>
-                        <div>
-                            <h2 id="section-type">Mission type</h2>
-                            <p>Category affects volunteer points for this mission.</p>
+                    <div class="form-block form-block-split">
+                        <div class="row g-4">
+                            <div class="col-md-6 form-split-col" aria-labelledby="section-type">
+                                <h2 class="form-block-title" id="section-type">
+                                    <i class="bi bi-tag" aria-hidden="true"></i> Mission type
+                                </h2>
+                                <label for="type" class="form-label">Type</label>
+                                <select id="type" class="form-select" required>
+                                    <option value="" disabled selected>Loading mission types…</option>
+                                </select>
+                                <p id="missionPointsPreview" class="points-preview mb-0">
+                                    <i class="bi bi-star-fill" aria-hidden="true"></i>
+                                    <span>Select a type and schedule to see earned points</span>
+                                </p>
+                            </div>
+                            <div class="col-md-6 form-split-col" aria-labelledby="section-volunteers">
+                                <h2 class="form-block-title" id="section-volunteers">
+                                    <i class="bi bi-people" aria-hidden="true"></i> Volunteers
+                                </h2>
+                                <label for="volunteers" class="form-label">Volunteers needed</label>
+                                <input type="number" id="volunteers" class="form-control volunteers-input" min="1" placeholder="e.g. 10" required>
+                                <div class="option-card mt-3">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="autoAcceptVolunteers" role="switch">
+                                        <label class="form-check-label" for="autoAcceptVolunteers">Auto-accept volunteers</label>
+                                    </div>
+                                    <p class="text-muted small mb-0 mt-2">When enabled, new applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-section-body">
-                        <label for="type" class="form-label">Type</label>
-                        <select id="type" class="form-select" required>
-                            <option value="" disabled selected>Loading mission types…</option>
-                        </select>
-                        <p id="missionPointsPreview" class="points-preview mb-0">
-                            <i class="bi bi-star-fill" aria-hidden="true"></i>
-                            <span>Select a type and schedule to see earned points</span>
-                        </p>
-                    </div>
-                </section>
 
-                <section class="form-section" aria-labelledby="section-location">
-                    <div class="form-section-head">
-                        <div class="form-section-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></div>
-                        <div>
-                            <h2 id="section-location">Set Location</h2>
-                            <!-- <p>Search for a school, mall, or place—or click the map to drop a pin.</p> -->
-                        </div>
-                    </div>
-                    <div class="form-section-body">
+                    <div class="form-block" aria-labelledby="section-location">
+                        <h2 class="form-block-title" id="section-location">
+                            <i class="bi bi-geo-alt" aria-hidden="true"></i> Set location
+                        </h2>
                         <div class="map-search-wrap">
                             <input
                                 type="text"
@@ -586,38 +735,11 @@
                         <input type="hidden" id="longitude" name="longitude">
                         <div id="map"></div>
                     </div>
-                </section>
 
-                <section class="form-section" aria-labelledby="section-volunteers">
-                    <div class="form-section-head">
-                        <div class="form-section-icon" aria-hidden="true"><i class="bi bi-people"></i></div>
-                        <div>
-                            <h2 id="section-volunteers">Volunteers</h2>
-                            <p>How many people you need for this mission.</p>
-                        </div>
-                    </div>
-                    <div class="form-section-body">
-                        <label for="volunteers" class="form-label">Volunteers needed</label>
-                        <input type="number" id="volunteers" class="form-control" min="1" placeholder="e.g. 10" required style="max-width: 200px;">
-                        <div class="option-card mt-3">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" id="autoAcceptVolunteers" role="switch">
-                                <label class="form-check-label" for="autoAcceptVolunteers">Auto-accept volunteers</label>
-                            </div>
-                            <p class="text-muted small mb-0 mt-2">When enabled, new applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="form-section" aria-labelledby="section-image">
-                    <div class="form-section-head">
-                        <div class="form-section-icon" aria-hidden="true"><i class="bi bi-image"></i></div>
-                        <div>
-                            <h2 id="section-image">Cover image</h2>
-                            <p>Optional photo shown on the mission listing.</p>
-                        </div>
-                    </div>
-                    <div class="form-section-body">
+                    <div class="form-block" aria-labelledby="section-image">
+                        <h2 class="form-block-title" id="section-image">
+                            <i class="bi bi-image" aria-hidden="true"></i> Upload poster
+                        </h2>
                         <div class="mission-image-container" id="missionImageContainer">
                             <div class="mission-image-preview" id="missionImagePreview">
                                 <span id="missionImagePlaceholder"><i class="bi bi-camera"></i></span>
@@ -633,13 +755,13 @@
                             </div>
                         </div>
                     </div>
-                </section>
 
-                <div class="form-actions-bar">
-                    <button type="button" class="btn btn-light" onclick="window.location.href='/organization/dashboard'">Cancel</button>
-                    <button type="submit" class="btn btn-primary btn-create-mission">
-                        <i class="bi bi-send"></i> Submit mission
-                    </button>
+                    <div class="form-panel-actions">
+                        <button type="button" class="btn btn-light" onclick="window.location.href='/organization/dashboard'">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-create-mission">
+                            <i class="bi bi-send"></i> Submit mission
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

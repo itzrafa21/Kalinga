@@ -466,7 +466,7 @@
             <col style="width: 14%">
             <col style="width: 12%">
             <col style="width: 12%">
-            <col style="width: 12%">
+            <col style="width: 13%">
           </colgroup>
           <thead>
             <tr>
