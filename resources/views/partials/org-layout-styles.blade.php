@@ -26,26 +26,11 @@
     margin-bottom: 1rem;
   }
   .org-sidebar-logo-link {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: block;
     text-decoration: none;
     color: inherit;
   }
-  .kalinga-logo,
-  .org-sidebar-logo-img {
-    width: 42px;
-    height: 42px;
-    object-fit: contain;
-    flex-shrink: 0;
-    display: block;
-  }
-  .org-sidebar-logo span {
-    font-weight: 700;
-    font-size: 1.05rem;
-    letter-spacing: 0.12em;
-    color: #000000;
-  }
+  @include('partials.sidebar-logo-mark-styles')
   .org-sidebar-nav {
     padding: 0 0.75rem;
     display: flex;
@@ -78,9 +63,8 @@
     color: #000000;
   }
   .org-sidebar a.active {
-    background: #28a745;
+    background: #aaf0ba;
     color: #000000;
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.35);
   }
   .org-sidebar a i {
     font-size: 1.05rem;

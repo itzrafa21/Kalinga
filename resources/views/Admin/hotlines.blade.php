@@ -31,12 +31,7 @@
       display: flex; flex-direction: column;
     }
     .sb-header { padding: 20px 16px 16px; border-bottom: 1px solid #f0f2f5; }
-    .sb-brand { display: flex; align-items: center; gap: 10px; }
-    .sb-logo-img {
-      width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; display: block;
-    }
-    .sb-title { font-size: 14px; font-weight: 600; }
-    .sb-sub { font-size: 10px; color: #b0b0b0; margin-top: 1px; }
+    @include('partials.sidebar-logo-mark-styles')
     .sb-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
     .sb-section {
       font-size: 10px; color: #c8c8c8; padding: 10px 8px 5px;
@@ -48,7 +43,7 @@
       text-decoration: none; margin-bottom: 2px;
     }
     .nav-item:hover { background: #f4f5f7; color: #222; }
-    .nav-item.active { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 500; }
+    .nav-item.active { background: #aaf0ba; color: #000000; font-weight: 500; }
     .nav-item i { font-size: 17px; }
     .sb-footer { padding: 14px; border-top: 1px solid #f0f2f5; }
     .sb-user { font-size: 11px; color: #b0b0b0; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -222,11 +217,7 @@
   <aside class="sidebar">
     <div class="sb-header">
       <div class="sb-brand">
-        @include('partials.kalinga-logo', ['size' => 32, 'class' => 'sb-logo-img'])
-        <div>
-          <div class="sb-title">Kalinga</div>
-          <div class="sb-sub">Management System</div>
-        </div>
+        @include('partials.sidebar-logo-mark')
       </div>
     </div>
     <nav class="sb-nav">

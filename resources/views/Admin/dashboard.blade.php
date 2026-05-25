@@ -321,12 +321,7 @@
       display: flex; flex-direction: column; height: 100vh;
     }
     .sb-header { padding: 20px 16px 16px; border-bottom: 1px solid #f0f2f5; }
-    .sb-brand { display: flex; align-items: center; gap: 10px; }
-    .sb-logo-img {
-      width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; display: block;
-    }
-    .sb-title { font-size: 14px; font-weight: 600; color: #111; }
-    .sb-sub { font-size: 10px; color: #b0b0b0; margin-top: 1px; }
+    @include('partials.sidebar-logo-mark-styles')
     .sb-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
     .sb-section {
       font-size: 10px; color: #c8c8c8; padding: 10px 8px 5px;
@@ -339,7 +334,7 @@
       transition: background .12s, color .12s;
     }
     .nav-item:hover { background: #f4f5f7; color: #222; }
-    .nav-item.active { background: #f0fdf4; color: #16a34a; font-weight: 500; }
+    .nav-item.active { background: #aaf0ba; color: #000000; font-weight: 500; }
     .nav-item i { font-size: 17px; }
     .sb-footer { padding: 14px; border-top: 1px solid #f0f2f5; }
     .sb-user {
@@ -390,6 +385,30 @@
       border-radius: 10px; padding: 18px;
     }
     .chart-title { font-size: 13px; font-weight: 500; color: #444; margin-bottom: 10px; }
+
+    .dashboard-chart-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .dashboard-chart-card .card-body {
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+      padding: 1rem 1.25rem 1.15rem;
+    }
+    .dashboard-chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      min-height: 220px;
+      max-height: 220px;
+    }
+    .dashboard-chart-wrap canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
 
     .admin-card {
       border: 1px solid #eaecef; border-radius: 10px;
@@ -463,11 +482,7 @@
   <aside class="sidebar">
     <div class="sb-header">
       <div class="sb-brand">
-        @include('partials.kalinga-logo', ['size' => 32, 'class' => 'sb-logo-img'])
-        <div>
-          <div class="sb-title">Kalinga</div>
-          <div class="sb-sub">Management System</div>
-        </div>
+        @include('partials.sidebar-logo-mark')
       </div>
     </div>
     <nav class="sb-nav">
@@ -531,24 +546,28 @@
         </div>
       </div>
 
-      <div class="row mt-2">
-        <div class="col-md-6 mb-4">
-          <div class="card admin-card">
+      <div class="row mt-2 align-items-stretch">
+        <div class="col-md-6 mb-4 d-flex">
+          <div class="card admin-card dashboard-chart-card flex-fill">
             <div class="card-header">
               <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Activity Analytics</h5>
             </div>
             <div class="card-body">
-              <canvas id="activityChart" width="400" height="200"></canvas>
+              <div class="dashboard-chart-wrap">
+                <canvas id="activityChart"></canvas>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-6 mb-4">
-          <div class="card admin-card">
+        <div class="col-md-6 mb-4 d-flex">
+          <div class="card admin-card dashboard-chart-card flex-fill">
             <div class="card-header">
               <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Mission Types</h5>
             </div>
             <div class="card-body">
-              <canvas id="missionTypesChart" width="400" height="200"></canvas>
+              <div class="dashboard-chart-wrap">
+                <canvas id="missionTypesChart"></canvas>
+              </div>
             </div>
           </div>
         </div>

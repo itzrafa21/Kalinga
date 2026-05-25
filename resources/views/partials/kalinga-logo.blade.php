@@ -1,8 +1,8 @@
 <img
-  src="{{ asset('images/kalinga-logo.png') }}"
-  alt="Kalinga"
+  src="{{ asset('images/logo-kalinga.svg') }}"
+  alt=""
   class="kalinga-logo {{ $class ?? '' }}"
-  width="{{ $size ?? 40 }}"
-  height="{{ $size ?? 40 }}"
+  @if(!empty($size)) width="{{ $size }}" height="{{ $size }}" @endif
   decoding="async"
+  aria-hidden="true"
 >

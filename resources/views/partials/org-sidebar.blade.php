@@ -21,9 +21,8 @@
 @endphp
 <aside class="org-sidebar sidebar" id="sidebar" aria-label="Organization navigation">
   <div class="org-sidebar-logo sidebar-logo">
-    <a href="/organization/dashboard" class="org-sidebar-logo-link">
-      @include('partials.kalinga-logo', ['size' => 42, 'class' => 'org-sidebar-logo-img'])
-      <span>KALINGA</span>
+    <a href="/organization/dashboard" class="org-sidebar-logo-link" aria-label="Kalinga — dashboard">
+      @include('partials.sidebar-logo-mark')
     </a>
   </div>
 

@@ -32,6 +32,7 @@ import {
     readStoredProfileStats,
     buildGlobalVolunteerStatsIndex,
 } from "./volunteer-stats.js";
+import { resolveMissionIdFromApplication } from "./application-storage.js";
 
 let allAdminMissions = [];
 let allAdminVolunteers = [];
@@ -203,10 +204,10 @@ function toJsDate(value) {
     return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function getLastSixMonthBuckets() {
+function getLastTwelveMonthBuckets() {
     const buckets = [];
     const now = new Date();
-    for (let i = 5; i >= 0; i--) {
+    for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         buckets.push({
             key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
@@ -226,36 +227,63 @@ function incrementActivityBucket(buckets, dateValue, field) {
     if (bucket) bucket[field] += 1;
 }
 
-function applicationActivityDate(data) {
-    return (
-        data?.approvedAt ||
-        data?.appliedAt ||
-        data?.createdAt ||
-        data?.updatedAt ||
-        null
-    );
+function missionSubmissionDate(data) {
+    return data?.submittedAt || data?.createdAt || null;
 }
 
-function isCountableVolunteerApplication(data) {
+function applicationActivityDate(data) {
+    return data?.approvedAt || data?.appliedAt || data?.createdAt || null;
+}
+
+function userIdFromApplicationPath(refPath = "") {
+    const parts = refPath.split("/");
+    if (parts[0] === "users" && parts[2] === "applications") {
+        return parts[1];
+    }
+    return "";
+}
+
+function applicationDedupeKey(docSnap) {
+    const data = docSnap.data();
+    const userId =
+        data.userId || userIdFromApplicationPath(docSnap.ref?.path || "");
+    let missionId = resolveMissionIdFromApplication(
+        data,
+        docSnap.ref?.path || ""
+    );
+    if (!missionId && docSnap.id) {
+        missionId = docSnap.id;
+    }
+    return `${userId}:${missionId}`;
+}
+
+function isApprovedVolunteerApplication(data) {
     const status = String(data?.status || "pending").toLowerCase();
-    return status !== "rejected" && status !== "closed";
+    return (
+        status === "approved" ||
+        status === "accepted" ||
+        status === "completed"
+    );
 }
 
 async function fetchMissionMonthlyCounts(buckets) {
     const seenMissionIds = new Set();
 
     const addMission = (docId, data) => {
-        if (docId && seenMissionIds.has(docId)) return;
-        if (docId) seenMissionIds.add(docId);
+        const id = data?.submissionId || docId;
+        if (!id || seenMissionIds.has(id)) return;
+        seenMissionIds.add(id);
         incrementActivityBucket(
             buckets,
-            data?.submittedAt || data?.createdAt || data?.updatedAt,
+            missionSubmissionDate(data),
             "missions"
         );
     };
 
     try {
-        const submissionsSnap = await getDocs(collection(db, "mission_submissions"));
+        const submissionsSnap = await getDocs(
+            collection(db, "mission_submissions")
+        );
         submissionsSnap.docs.forEach((docSnap) =>
             addMission(docSnap.id, docSnap.data())
         );
@@ -264,29 +292,61 @@ async function fetchMissionMonthlyCounts(buckets) {
     }
 
     try {
-        const missionsSnap = await getDocs(collection(db, "missions"));
-        missionsSnap.docs.forEach((docSnap) =>
-            addMission(docSnap.id, docSnap.data())
-        );
+        const orgsSnap = await getDocs(collection(db, "organizations"));
+        for (const orgDoc of orgsSnap.docs) {
+            for (const sub of ["missions", "history"]) {
+                try {
+                    const snap = await getDocs(
+                        collection(
+                            db,
+                            "organizations",
+                            orgDoc.id,
+                            sub
+                        )
+                    );
+                    snap.docs.forEach((docSnap) =>
+                        addMission(docSnap.id, docSnap.data())
+                    );
+                } catch (subErr) {
+                    console.warn(
+                        `[WARN] organizations/${orgDoc.id}/${sub} activity:`,
+                        subErr
+                    );
+                }
+            }
+        }
     } catch (err) {
-        console.warn("[WARN] missions collection for activity chart:", err);
+        console.warn("[WARN] organizations missions for activity chart:", err);
     }
 }
 
 async function fetchVolunteerMonthlyCounts(buckets) {
     const seenApplications = new Set();
+    const seenVolunteerMonths = new Set();
 
     const addApplication = (docSnap) => {
         const data = docSnap.data();
-        if (!isCountableVolunteerApplication(data)) return;
-        const path = docSnap.ref?.path || docSnap.id;
-        if (seenApplications.has(path)) return;
-        seenApplications.add(path);
-        incrementActivityBucket(
-            buckets,
-            applicationActivityDate(data),
-            "volunteers"
-        );
+        if (!isApprovedVolunteerApplication(data)) return;
+
+        const appKey = applicationDedupeKey(docSnap);
+        if (!appKey || appKey === ":" || seenApplications.has(appKey)) return;
+        seenApplications.add(appKey);
+
+        const userId =
+            data.userId ||
+            userIdFromApplicationPath(docSnap.ref?.path || "");
+        if (!userId) return;
+
+        const date = applicationActivityDate(data);
+        const dateObj = toJsDate(date);
+        if (!dateObj) return;
+
+        const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+        const monthUserKey = `${monthKey}:${userId}`;
+        if (seenVolunteerMonths.has(monthUserKey)) return;
+        seenVolunteerMonths.add(monthUserKey);
+
+        incrementActivityBucket(buckets, date, "volunteers");
     };
 
     try {
@@ -294,20 +354,6 @@ async function fetchVolunteerMonthlyCounts(buckets) {
         cgSnap.docs.forEach(addApplication);
     } catch (err) {
         console.warn("[WARN] collectionGroup(applications) for activity chart:", err);
-    }
-
-    if (seenApplications.size === 0) {
-        try {
-            const missionsSnap = await getDocs(collection(db, "missions"));
-            for (const missionDoc of missionsSnap.docs) {
-                const appsSnap = await getDocs(
-                    collection(db, "missions", missionDoc.id, "applications")
-                );
-                appsSnap.docs.forEach(addApplication);
-            }
-        } catch (err) {
-            console.warn("[WARN] missions/*/applications for activity chart:", err);
-        }
     }
 
     if (seenApplications.size === 0) {
@@ -324,16 +370,24 @@ async function fetchVolunteerMonthlyCounts(buckets) {
         }
     }
 
-    if (seenApplications.size === 0) {
+    if (seenVolunteerMonths.size === 0) {
         try {
             const orgUserIds = await getOrganizationUserIds();
             const usersSnap = await getDocs(collection(db, "users"));
             usersSnap.docs.forEach((userDoc) => {
                 const data = userDoc.data();
                 if (!isVolunteerUserDoc(data, orgUserIds)) return;
+                const dateObj = toJsDate(
+                    data.createdAt || data.registeredAt || null
+                );
+                if (!dateObj) return;
+                const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+                const monthUserKey = `${monthKey}:${userDoc.id}`;
+                if (seenVolunteerMonths.has(monthUserKey)) return;
+                seenVolunteerMonths.add(monthUserKey);
                 incrementActivityBucket(
                     buckets,
-                    data.createdAt || data.registeredAt || data.updatedAt,
+                    data.createdAt || data.registeredAt,
                     "volunteers"
                 );
             });
@@ -344,7 +398,7 @@ async function fetchVolunteerMonthlyCounts(buckets) {
 }
 
 async function fetchActivityAnalyticsData() {
-    const buckets = getLastSixMonthBuckets();
+    const buckets = getLastTwelveMonthBuckets();
     await Promise.all([
         fetchMissionMonthlyCounts(buckets),
         fetchVolunteerMonthlyCounts(buckets),
@@ -374,7 +428,7 @@ function initializeActivityChart() {
     const activityEl = document.getElementById("activityChart");
     if (!activityEl || activityChart) return;
 
-    const buckets = getLastSixMonthBuckets();
+    const buckets = getLastTwelveMonthBuckets();
 
     activityChart = new Chart(activityEl.getContext("2d"), {
         type: "line",
@@ -382,14 +436,14 @@ function initializeActivityChart() {
             labels: buckets.map((b) => b.label),
             datasets: [
                 {
-                    label: "Missions",
+                    label: "Missions submitted",
                     data: buckets.map(() => 0),
                     borderColor: "#667eea",
                     backgroundColor: "rgba(102, 126, 234, 0.1)",
                     tension: 0.4,
                 },
                 {
-                    label: "Volunteers",
+                    label: "Volunteers active",
                     data: buckets.map(() => 0),
                     borderColor: "#f093fb",
                     backgroundColor: "rgba(240, 147, 251, 0.1)",
@@ -399,12 +453,25 @@ function initializeActivityChart() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: "top",
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 11 },
+                        padding: 10,
+                    },
                 },
             },
             scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 0,
+                        font: { size: 10 },
+                    },
+                },
                 y: {
                     beginAtZero: true,
                     ticks: {
@@ -445,10 +512,20 @@ function initializeMissionTypesChart(initialData = null) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: "bottom",
+                    position: "right",
+                    align: "center",
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 11 },
+                        padding: 8,
+                    },
                 },
+            },
+            layout: {
+                padding: { left: 0, right: 4, top: 4, bottom: 4 },
             },
         },
     });
@@ -851,16 +928,15 @@ async function loadDashboardStats() {
          const submissionsSnapshot = await getDocs(collection(db, "mission_submissions"));
         document.getElementById('totalMissions').textContent = submissionsSnapshot.size;
 
-        // Get total volunteers count (users with volunteer role)
-        const volunteersQuery = query(collection(db, "users"), where("role", "==", "volunteer"));
-        const volunteersSnapshot = await getDocs(volunteersQuery);
-        document.getElementById('totalVolunteers').textContent = volunteersSnapshot.size;
+        const volunteerEntries = await loadVolunteerUserEntries();
+        document.getElementById("totalVolunteers").textContent =
+            String(volunteerEntries.length);
 
         console.log("[SUCCESS] Dashboard stats loaded from Firebase:", {
             users: usersSnapshot.size,
             organizations: orgsSnapshot.size,
             missions: submissionsSnapshot.size,
-            volunteers: volunteersSnapshot.size
+            volunteers: volunteerEntries.length,
         });
     } catch (error) {
         console.error("[ERROR] Error loading dashboard stats:", error);
@@ -927,14 +1003,41 @@ async function discoverVolunteersFromApplications() {
     try {
         const cgSnap = await getDocs(collectionGroup(db, "applications"));
         for (const appDoc of cgSnap.docs) {
-            mergeApplicationVolunteerProfile(
-                profileByUserId,
-                appDoc.data().userId,
-                appDoc.data()
-            );
+            const data = appDoc.data();
+            const userId =
+                data.userId || userIdFromApplicationPath(appDoc.ref.path);
+            mergeApplicationVolunteerProfile(profileByUserId, userId, data);
         }
     } catch (err) {
         console.warn("[WARN] collectionGroup(applications) for admin volunteers:", err);
+    }
+
+    if (profileByUserId.size === 0) {
+        try {
+            const usersSnap = await getDocs(collection(db, "users"));
+            for (const userDoc of usersSnap.docs) {
+                const appsSnap = await getDocs(
+                    collection(db, "users", userDoc.id, "applications")
+                );
+                for (const appDoc of appsSnap.docs) {
+                    const data = appDoc.data();
+                    const userId =
+                        data.userId ||
+                        userDoc.id ||
+                        userIdFromApplicationPath(appDoc.ref.path);
+                    mergeApplicationVolunteerProfile(
+                        profileByUserId,
+                        userId,
+                        data
+                    );
+                }
+            }
+        } catch (err) {
+            console.warn(
+                "[WARN] users/*/applications scan for admin volunteers:",
+                err
+            );
+        }
     }
 
     if (profileByUserId.size === 0) {
@@ -1043,11 +1146,13 @@ async function loadVolunteerUserEntries() {
         }
     }
 
-    if (entries.length === 0) {
-        const fromApplications = await discoverVolunteersFromApplications();
-        fromApplications.forEach(({ id, data }) => addEntry(id, data));
+    const fromApplications = await discoverVolunteersFromApplications();
+    fromApplications.forEach(({ id, data }) => addEntry(id, data));
+    if (fromApplications.length > 0) {
         console.log(
-            "[INFO] Discovered volunteers from applications/rosters:",
+            "[INFO] Merged volunteers from applications:",
+            fromApplications.length,
+            "total entries:",
             entries.length
         );
     }
