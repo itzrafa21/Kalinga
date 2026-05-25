@@ -405,3 +405,99 @@ export async function loadOrgApplications(orgMissionById, onEach, orgId = null) 
 
     return { dedupeCount: dedupe.size, fromCollectionGroup, fromUsersFallback };
 }
+
+/** Missions + history for an organization (used for org-scoped application queries). */
+export async function buildOrgMissionMap(orgId) {
+    const map = new Map();
+    const mergeMission = (id, data) => {
+        const prev = map.get(id);
+        map.set(id, {
+            ...(prev || {}),
+            ...data,
+            missionName:
+                data.missionName ||
+                data.name ||
+                data.title ||
+                prev?.missionName ||
+                "Mission",
+            orgId: data.orgId || data.organizationId || prev?.orgId || orgId,
+        });
+    };
+
+    const [missionsResult, historyResult] = await Promise.allSettled([
+        getDocs(collection(db, "organizations", orgId, "missions")),
+        getDocs(collection(db, "organizations", orgId, "history")),
+    ]);
+
+    if (missionsResult.status === "fulfilled") {
+        missionsResult.value.docs.forEach((d) => mergeMission(d.id, d.data()));
+    }
+    if (historyResult.status === "fulfilled") {
+        historyResult.value.docs.forEach((d) => mergeMission(d.id, d.data()));
+    }
+
+    return map;
+}
+
+function isApprovedVolunteerStatus(status) {
+    const s = (status || "").toLowerCase();
+    return s === "approved" || s === "accepted";
+}
+
+/**
+ * Unique volunteers with approved/accepted applications or org mission roster entries.
+ */
+export async function countOrgApprovedVolunteers(orgId) {
+    if (!orgId) return 0;
+
+    const orgMissionById = await buildOrgMissionMap(orgId);
+    const userIds = new Set();
+
+    const addUser = (userId, status) => {
+        const uid = String(userId || "").trim();
+        if (!uid || !isApprovedVolunteerStatus(status)) return;
+        userIds.add(uid);
+    };
+
+    await loadOrgApplications(
+        orgMissionById,
+        async (entry) => {
+            const userId =
+                entry.data.userId || entry.applicationUserId || "";
+            addUser(userId, entry.data.status);
+        },
+        orgId
+    );
+
+    await Promise.all(
+        [...orgMissionById.keys()].map(async (missionId) => {
+            try {
+                const rosterSnap = await getDocs(
+                    collection(
+                        db,
+                        "organizations",
+                        orgId,
+                        "missions",
+                        missionId,
+                        "volunteers"
+                    )
+                );
+                rosterSnap.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    addUser(
+                        data.userId || docSnap.id,
+                        data.status || "approved"
+                    );
+                });
+            } catch (err) {
+                console.warn(
+                    "[WARN] profile volunteer roster:",
+                    missionId,
+                    err
+                );
+            }
+        })
+    );
+
+    return userIds.size;
+}

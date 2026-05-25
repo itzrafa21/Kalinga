@@ -13,6 +13,9 @@ import {
   isOrgCacheStale,
   invalidateOrgCache,
 } from "./org-data-cache.js";
+import { countOrgApprovedVolunteers } from "./application-storage.js";
+
+const PROFILE_STATS_VERSION = 2;
 
 function normalizeProfilePictureSrc(src) {
   let raw = String(src ?? "").trim();
@@ -111,15 +114,26 @@ async function loadProfileStats(uid, { refresh = true } = {}) {
   if (!elTotal || !elActive || !elVol) return;
 
   const cached = readOrgCache(uid, ORG_CACHE_KEYS.PROFILE);
-  if (cached?.payload?.stats) {
+  const cacheVersion = cached?.payload?.statsVersion;
+  if (cached?.payload?.stats && cacheVersion === PROFILE_STATS_VERSION) {
     applyProfileStatsToDom(cached.payload.stats);
+  } else if (cached && cacheVersion !== PROFILE_STATS_VERSION) {
+    invalidateOrgCache(uid, ORG_CACHE_KEYS.PROFILE);
   }
 
-  if (cached && !refresh) {
+  if (
+    cached &&
+    cacheVersion === PROFILE_STATS_VERSION &&
+    !refresh
+  ) {
     return;
   }
 
-  if (cached && !isOrgCacheStale(uid, ORG_CACHE_KEYS.PROFILE)) {
+  if (
+    cached &&
+    cacheVersion === PROFILE_STATS_VERSION &&
+    !isOrgCacheStale(uid, ORG_CACHE_KEYS.PROFILE)
+  ) {
     return;
   }
 
@@ -127,9 +141,10 @@ async function loadProfileStats(uid, { refresh = true } = {}) {
     const missionsRef = collection(db, "organizations", uid, "missions");
     const historyRef = collection(db, "organizations", uid, "history");
 
-    const [missionsSnap, historySnap] = await Promise.all([
+    const [missionsSnap, historySnap, volunteerCount] = await Promise.all([
       getDocs(missionsRef),
       getDocs(historyRef),
+      countOrgApprovedVolunteers(uid),
     ]);
 
     const total = missionsSnap.size + historySnap.size;
@@ -143,29 +158,13 @@ async function loadProfileStats(uid, { refresh = true } = {}) {
       }
     });
 
-    const missionIds = new Set([
-      ...missionsSnap.docs.map((d) => d.id),
-      ...historySnap.docs.map((d) => d.id),
-    ]);
-
-    let approvedVolunteers = 0;
-    for (const missionId of missionIds) {
-      try {
-        const appsRef = collection(db, "missions", missionId, "applications");
-        const appsSnap = await getDocs(appsRef);
-        appsSnap.forEach((a) => {
-          const st = (a.data().status || "").toLowerCase();
-          if (st === "approved" || st === "accepted") approvedVolunteers++;
-        });
-      } catch (_) {}
-    }
-
     elTotal.textContent = String(total);
     elActive.textContent = String(active);
-    elVol.textContent = String(approvedVolunteers);
+    elVol.textContent = String(volunteerCount);
 
     writeOrgCache(uid, ORG_CACHE_KEYS.PROFILE, {
-      stats: { total, active: active, volunteers: approvedVolunteers },
+      statsVersion: PROFILE_STATS_VERSION,
+      stats: { total, active, volunteers: volunteerCount },
     });
   } catch (e) {
     console.error("[ERROR] loadProfileStats:", e);
