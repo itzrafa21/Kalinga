@@ -258,6 +258,7 @@
       <a class="nav-item" href="/admin/dashboard#volunteers"><i class="ti ti-users" aria-hidden="true"></i> Volunteers</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item active" href="/admin/config"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Rules &amp; Rewards</a>
+      <a class="nav-item" href="/admin/hotlines"><i class="ti ti-phone" aria-hidden="true"></i> Hotlines</a>
     </nav>
     <div class="sb-footer">
       <div class="sb-user" id="adminEmailSidebar"></div>

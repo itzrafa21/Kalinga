@@ -48,6 +48,9 @@ Route::get('/admin/dashboard', function () {
 Route::get('/admin/config', function () {
     return view('admin.config');
 });
+Route::get('/admin/hotlines', function () {
+    return view('admin.hotlines');
+});
 Route::get('/establishments/manage', function () {
     return view('establishments.manage');
 })->middleware('auth');

@@ -490,6 +490,9 @@
       <a class="nav-item" href="/admin/config">
         <i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards
       </a>
+      <a class="nav-item" href="/admin/hotlines">
+        <i class="ti ti-phone"></i> Hotlines
+      </a>
     </nav>
     <div class="sb-footer">
       <div class="sb-user" id="adminEmailSidebar"></div>
