@@ -28,7 +28,7 @@
     margin: 0;
     min-height: 100vh;
     font-family: "Poppins", "Segoe UI", Tahoma, sans-serif;
-    background: var(--bg);
+    background: #ffffff
     display: grid;
     place-items: center;
     padding: 24px;
