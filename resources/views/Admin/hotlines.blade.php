@@ -102,6 +102,11 @@
       gap: 12px; padding: 14px 16px;
       background: linear-gradient(180deg, #f0fdf4 0%, #fafafa 100%);
       border-bottom: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+    }
+    .category-head-text {
+      flex: 1;
+      min-width: 0;
     }
     .category-name {
       font-size: 15px; font-weight: 700; color: #14532d;
@@ -143,10 +148,12 @@
       display: block; font-size: 12px; font-weight: 600; color: #374151;
       margin-bottom: 2px;
     }
-    .number-value {
-      font-size: 14px; font-weight: 700; color: #15803d; text-decoration: none;
+    a.number-value {
+      font-size: 14px; font-weight: 700; color: #15803d;
+      text-decoration: none;
+      display: inline-block;
     }
-    .number-value:hover { text-decoration: underline; }
+    a.number-value:hover { text-decoration: underline; color: #166534; }
     .num-label-in, .num-value-in {
       display: block; width: 100%; max-width: 280px;
       height: 30px; padding: 0 10px; margin-bottom: 6px;
@@ -189,7 +196,8 @@
     .btn-edit { color: #2563eb; border-color: #bfdbfe; }
     .btn-edit:hover { background: #eff6ff; }
 
-    .add-row, #add-category-form .add-row {
+    .add-category-form-wrap { margin-bottom: 12px; }
+    .add-row, .add-category-form-wrap .add-row {
       display: flex; gap: 6px; flex-wrap: wrap;
       padding: 12px; background: #fff;
       border: 1px dashed #d1d5db; border-radius: 8px;
@@ -261,19 +269,18 @@
           </button>
         </div>
         <div class="section-body">
+          <div id="add-category-form" class="add-category-form-wrap" hidden>
+            <div class="add-row">
+              <input id="nc-name" type="text" placeholder="Organization name (e.g. NDRRMC)" aria-label="Organization name" />
+              <input id="nc-location" type="text" placeholder="Location (e.g. Metro Manila, Kalinga)" aria-label="Location" />
+              <button type="button" class="btn btn-g btn-sm" id="categoryAddConfirmBtn">Add organization</button>
+              <button type="button" class="btn btn-sm" id="categoryAddCancelBtn">Cancel</button>
+            </div>
+          </div>
           <div id="hotline-empty" class="hotline-empty" hidden>
             No organizations yet. Add one (e.g. NDRRMC) then add phone numbers inside it.
           </div>
-          <div id="hotline-categories">
-            <div id="add-category-form" hidden>
-              <div class="add-row">
-                <input id="nc-name" type="text" placeholder="Organization name (e.g. NDRRMC)" aria-label="Organization name" />
-                <input id="nc-location" type="text" placeholder="Location (e.g. Metro Manila, Kalinga)" aria-label="Location" />
-                <button type="button" class="btn btn-g btn-sm" id="categoryAddConfirmBtn">Add organization</button>
-                <button type="button" class="btn btn-sm" id="categoryAddCancelBtn">Cancel</button>
-              </div>
-            </div>
-          </div>
+          <div id="hotline-categories"></div>
           <p class="info-hint">
             <i class="ti ti-info-circle" aria-hidden="true"></i>
             Each card is one agency or organization. Use <strong>Add number</strong> inside a card for multiple lines (operations center, trunk line, etc.). Hidden organizations or numbers are not shown to volunteers.

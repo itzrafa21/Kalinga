@@ -169,17 +169,16 @@ function renderHotlineCategories(categories) {
     hotlineCategories = sortCategories(categories);
     const root = document.getElementById("hotline-categories");
     const empty = document.getElementById("hotline-empty");
-    const addCatForm = document.getElementById("add-category-form");
     if (!root) return;
 
-    root.querySelectorAll(".hotline-category").forEach((el) => el.remove());
+    root.innerHTML = "";
 
     if (hotlineCategories.length === 0) {
         if (empty) empty.hidden = false;
     } else {
         if (empty) empty.hidden = true;
         hotlineCategories.forEach((cat) => {
-            root.insertBefore(createCategoryCardElement(cat), addCatForm);
+            root.appendChild(createCategoryCardElement(cat));
         });
     }
 
@@ -326,6 +325,8 @@ function startCategoryEdit(categoryId) {
       <input type="text" class="cat-location-in" value="${escapeHtml(cat.location || cat.description || "")}" placeholder="Location (e.g. Metro Manila)" aria-label="Location" />`;
 
     card.classList.add("is-editing-cat");
+    const cfgRight = card.querySelector(".category-head .cfg-right");
+    if (cfgRight) cfgRight.hidden = true;
     const btn = card.querySelector("[data-edit-category]");
     if (btn) {
         btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i>';

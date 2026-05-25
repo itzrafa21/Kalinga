@@ -27,6 +27,11 @@ import {
     getLevelForPoints,
     computeMissionDurationHours,
 } from "./platform-config.js";
+import {
+    computeGlobalVolunteerStats,
+    readStoredProfileStats,
+    buildGlobalVolunteerStatsIndex,
+} from "./volunteer-stats.js";
 
 let allAdminMissions = [];
 let allAdminVolunteers = [];
@@ -1088,43 +1093,26 @@ async function countApprovedApplications(userId) {
     }
 }
 
-async function createVolunteerRow(userId, data) {
+async function createVolunteerRow(userId, data, globalStats = null) {
     const name = data.name || data.displayName || data.fullName || "Volunteer";
     const email = data.email || "—";
     const totalPoints = Number(data.totalPoints) || 0;
-    let missionsJoined = Number(data.missionsCompleted) || 0;
 
-    if (missionsJoined === 0 && Number(data.applicationCount) > 0) {
-        missionsJoined = Number(data.applicationCount);
-    }
+    const stored = readStoredProfileStats(data);
+    const global =
+        globalStats || (await computeGlobalVolunteerStats(userId));
 
-    if (missionsJoined === 0) {
-        const ledgerCount = await getDocs(
-            collection(db, "users", userId, "pointsLedger")
-        ).then((snap) => snap.size).catch(() => 0);
-        if (ledgerCount > 0) {
-            missionsJoined = ledgerCount;
-        } else {
-            missionsJoined = await countApprovedApplications(userId);
-        }
-    }
-
-    let hoursVolunteered =
-        Number(data.totalVolunteerHours ?? data.hoursVolunteered) || 0;
-    if (hoursVolunteered <= 0) {
-        try {
-            const ledgerSnap = await getDocs(
-                collection(db, "users", userId, "pointsLedger")
-            );
-            let totalHours = 0;
-            for (const ledgerDoc of ledgerSnap.docs) {
-                totalHours += await getMissionDurationHoursCached(ledgerDoc.id);
-            }
-            hoursVolunteered = Math.round(totalHours * 10) / 10;
-        } catch {
-            hoursVolunteered = 0;
-        }
-    }
+    const missionsJoined = Math.max(
+        Number(data.missionsCompleted) || 0,
+        stored.missionsCompleted,
+        global.missionsCompleted,
+        Number(data.applicationCount) || 0
+    );
+    const hoursVolunteered = Math.max(
+        Number(data.totalVolunteerHours ?? data.hoursVolunteered) || 0,
+        stored.totalHours,
+        global.totalHours
+    );
 
     const level =
         data.volunteerLevel ||
@@ -1330,9 +1318,13 @@ async function loadVolunteersData() {
         await loadPlatformConfig();
 
         const userEntries = await loadVolunteerUserEntries();
+        const userIds = userEntries.map(({ id }) => id);
+        const statsIndex = await buildGlobalVolunteerStatsIndex(userIds);
 
         const volunteers = await Promise.all(
-            userEntries.map(({ id, data }) => createVolunteerRow(id, data))
+            userEntries.map(({ id, data }) =>
+                createVolunteerRow(id, data, statsIndex.get(id))
+            )
         );
 
         volunteers.sort((a, b) =>
