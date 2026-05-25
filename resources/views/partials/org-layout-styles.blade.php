@@ -25,6 +25,21 @@
     border-bottom: 1px solid rgba(31, 31, 31, 0.08);
     margin-bottom: 1rem;
   }
+  .org-sidebar-logo-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .kalinga-logo,
+  .org-sidebar-logo-img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    flex-shrink: 0;
+    display: block;
+  }
   .org-sidebar-logo span {
     font-weight: 700;
     font-size: 1.05rem;

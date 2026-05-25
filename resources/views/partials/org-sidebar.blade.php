@@ -20,7 +20,12 @@
     $isActive = fn (string $key) => $activeNav === $key ? 'active' : '';
 @endphp
 <aside class="org-sidebar sidebar" id="sidebar" aria-label="Organization navigation">
-  <div class="org-sidebar-logo sidebar-logo"><span>KALINGA</span></div>
+  <div class="org-sidebar-logo sidebar-logo">
+    <a href="/organization/dashboard" class="org-sidebar-logo-link">
+      @include('partials.kalinga-logo', ['size' => 42, 'class' => 'org-sidebar-logo-img'])
+      <span>KALINGA</span>
+    </a>
+  </div>
 
   <nav class="org-sidebar-nav sidebar-nav">
     <div class="org-sidebar-section sidebar-section">Main</div>

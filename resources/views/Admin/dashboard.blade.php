@@ -322,11 +322,9 @@
     }
     .sb-header { padding: 20px 16px 16px; border-bottom: 1px solid #f0f2f5; }
     .sb-brand { display: flex; align-items: center; gap: 10px; }
-    .sb-icon {
-      width: 28px; height: 28px; background: #16a34a; border-radius: 7px;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    .sb-logo-img {
+      width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; display: block;
     }
-    .sb-icon i { color: #fff; font-size: 15px; }
     .sb-title { font-size: 14px; font-weight: 600; color: #111; }
     .sb-sub { font-size: 10px; color: #b0b0b0; margin-top: 1px; }
     .sb-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
@@ -465,7 +463,7 @@
   <aside class="sidebar">
     <div class="sb-header">
       <div class="sb-brand">
-        <div class="sb-icon"><i class="ti ti-shield"></i></div>
+        @include('partials.kalinga-logo', ['size' => 32, 'class' => 'sb-logo-img'])
         <div>
           <div class="sb-title">Kalinga</div>
           <div class="sb-sub">Management System</div>
