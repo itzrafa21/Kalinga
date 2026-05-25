@@ -31,69 +31,6 @@
     letter-spacing: 0.12em;
     color: #000000;
   }
-  .org-sidebar-user-card {
-    margin: 0 0.85rem 1.25rem;
-    padding: 1rem;
-    border-radius: 14px;
-    background: rgba(39, 39, 39, 0.06);
-    border: 1px solid rgba(39, 39, 39, 0.06);
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-  }
-  .org-sidebar-user-avatar-wrap { position: relative; flex-shrink: 0; }
-  .org-sidebar-user-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #2d6a4f;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 1.15rem;
-    position: relative;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-  .org-sidebar-user-avatar .org-sidebar-user-avatar-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    display: none;
-  }
-  .org-sidebar-user-avatar.has-photo .org-sidebar-user-avatar-img { display: block; }
-  .org-sidebar-user-avatar.has-photo #sidebarUserInitial { display: none; }
-  .org-sidebar-user-status-dot {
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 10px;
-    height: 10px;
-    background: #2ee59d;
-    border-radius: 50%;
-    border: 2px solid #0f2419;
-  }
-  .org-sidebar-user-info { min-width: 0; flex: 1; }
-  .org-sidebar-user-name {
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: #000000;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .org-sidebar-user-role { font-size: 0.78rem; color: #8fb3a0; margin-top: 2px; }
-  .org-sidebar-user-active-label {
-    font-size: 0.72rem;
-    color: #2ee59d;
-    margin-top: 4px;
-    font-weight: 600;
-  }
   .org-sidebar-nav {
     padding: 0 0.75rem;
     display: flex;

@@ -22,21 +22,6 @@
 <aside class="org-sidebar sidebar" id="sidebar" aria-label="Organization navigation">
   <div class="org-sidebar-logo sidebar-logo"><span>KALINGA</span></div>
 
-  <div class="org-sidebar-user-card sidebar-user-card">
-    <div class="org-sidebar-user-avatar-wrap sidebar-user-avatar-wrap">
-      <div class="org-sidebar-user-avatar sidebar-user-avatar">
-        <img id="sidebarUserAvatarImg" alt="" class="org-sidebar-user-avatar-img sidebar-user-avatar-img" width="48" height="48">
-        <span id="sidebarUserInitial">?</span>
-      </div>
-      <span class="org-sidebar-user-status-dot sidebar-user-status-dot" aria-hidden="true"></span>
-    </div>
-    <div class="org-sidebar-user-info sidebar-user-info">
-      <div class="org-sidebar-user-name sidebar-user-name" id="sidebarUserName">Organization</div>
-      <div class="org-sidebar-user-role sidebar-user-role">Coordinator</div>
-      <div class="org-sidebar-user-active-label sidebar-user-active-label">● Active</div>
-    </div>
-  </div>
-
   <nav class="org-sidebar-nav sidebar-nav">
     <div class="org-sidebar-section sidebar-section">Main</div>
     <a href="/organization/dashboard" class="{{ $isActive('dashboard') }}"><i class="bi bi-grid-1x2"></i> Mission Management</a>
