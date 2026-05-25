@@ -65,21 +65,7 @@
     }
     .topbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
     .topbar-actions { display: flex; align-items: center; gap: 10px; }
-    .tbadge {
-      font-size: 11px; color: #15803d; background: var(--color-accent-soft);
-      padding: 3px 10px; border-radius: 20px; border: 1px solid #bbf7d0;
-    }
     .topbar-user { font-size: 12px; color: var(--color-muted); }
-    .btn-save-all {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
-      border: none; background: var(--color-accent); color: #fff; cursor: pointer;
-    }
-    .btn-save-all:hover { background: #15803d; }
-    #hotlinesSaveToast {
-      font-size: 11px; color: #15803d; padding: 4px 8px;
-      background: var(--color-accent-soft); border-radius: 6px;
-    }
 
     .content {
       flex: 1; overflow: hidden; display: flex; flex-direction: column;
@@ -103,38 +89,75 @@
     .section-desc { font-size: 11px; color: var(--color-muted); margin-top: 2px; font-weight: 400; }
     .section-body { padding: 12px 14px 14px; overflow-y: auto; flex: 1; }
 
-    .hotline-row {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; padding: 12px 14px; border: 1px solid #f3f4f6; border-radius: 8px;
-      margin-bottom: 8px; background: #fafafa;
+    #hotline-categories {
+      display: flex; flex-direction: column; gap: 14px;
     }
-    .hotline-row:hover { background: #f5f5f5; }
-    .hotline-main { flex: 1; min-width: 0; }
-    .hotline-name { font-size: 13px; font-weight: 600; color: #111; }
-    .hotline-meta {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-      margin-top: 4px; font-size: 12px;
-    }
-    .hotline-number {
-      font-weight: 600; color: #15803d; text-decoration: none;
-    }
-    .hotline-number:hover { text-decoration: underline; }
-    .hotline-desc { color: var(--color-muted); font-size: 11px; }
-    .cfg-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
-    .hotline-row.is-editing .hotline-main {
-      display: flex; flex-direction: column; gap: 6px; width: 100%;
+    .hotline-category {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #fafafa;
+      overflow: hidden;
     }
-    .hotline-name-in,
-    .hotline-number-in,
-    .hotline-desc-in,
-    .hotline-cat-in {
-      height: 30px; padding: 0 10px; font-size: 12px;
-      border: 1px solid var(--color-border); border-radius: 6px; width: 100%;
-      max-width: 280px;
+    .category-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; padding: 14px 16px;
+      background: linear-gradient(180deg, #f0fdf4 0%, #fafafa 100%);
+      border-bottom: 1px solid #e5e7eb;
     }
-    .hotline-row.is-editing .hotline-meta {
-      flex-direction: column; align-items: stretch;
+    .category-name {
+      font-size: 15px; font-weight: 700; color: #14532d;
+      margin: 0 0 4px;
+    }
+    .category-location {
+      font-size: 12px; color: var(--color-muted);
+      margin: 0; line-height: 1.4;
+    }
+    .cat-name-in, .cat-location-in {
+      width: 100%; max-width: 420px; height: 30px; padding: 0 10px;
+      font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px;
+      margin-bottom: 6px;
+    }
+
+    .numbers-block { padding: 12px 14px 14px; }
+    .numbers-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; gap: 8px;
+    }
+    .numbers-title {
+      font-size: 11px; font-weight: 600; color: var(--color-muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .numbers-list { display: flex; flex-direction: column; gap: 6px; }
+    .numbers-empty {
+      font-size: 12px; color: var(--color-muted);
+      padding: 8px 0; font-style: italic;
+    }
+
+    .number-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 12px;
+      background: #fff; border: 1px solid #f3f4f6; border-radius: 8px;
+    }
+    .number-row:hover { border-color: #d1fae5; }
+    .number-main { flex: 1; min-width: 0; }
+    .number-label {
+      display: block; font-size: 12px; font-weight: 600; color: #374151;
+      margin-bottom: 2px;
+    }
+    .number-value {
+      font-size: 14px; font-weight: 700; color: #15803d; text-decoration: none;
+    }
+    .number-value:hover { text-decoration: underline; }
+    .num-label-in, .num-value-in {
+      display: block; width: 100%; max-width: 280px;
+      height: 30px; padding: 0 10px; margin-bottom: 6px;
+      font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px;
+    }
+
+    .cfg-right {
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end;
     }
 
     .badge-pill {
@@ -142,9 +165,6 @@
     }
     .bp-green { background: var(--color-accent-soft); color: #15803d; }
     .bp-gray { background: #f3f4f6; color: #6b7280; }
-    .bp-red { background: #fef2f2; color: #b91c1c; }
-    .bp-blue { background: #eff6ff; color: #1d4ed8; }
-    .bp-amber { background: #fffbeb; color: #b45309; }
 
     .toggle {
       width: 34px; height: 18px; background: #d1d5db; border-radius: 20px;
@@ -171,20 +191,22 @@
     .btn-edit { color: #2563eb; border-color: #bfdbfe; }
     .btn-edit:hover { background: #eff6ff; }
 
-    .add-row {
-      display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
-      padding: 12px; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px;
+    .add-row, #add-category-form .add-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      padding: 12px; background: #fff;
+      border: 1px dashed #d1d5db; border-radius: 8px;
     }
-    .add-row input, .add-row select {
-      flex: 1; min-width: 120px; height: 30px; padding: 0 10px;
+    .add-row input {
+      flex: 1; min-width: 140px; height: 30px; padding: 0 10px;
       font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px;
     }
+    .add-number-form { margin-top: 10px; }
     .hotline-empty {
       text-align: center; padding: 2rem 1rem; color: var(--color-muted); font-size: 13px;
     }
     .info-hint {
       font-size: 11px; color: var(--color-muted); line-height: 1.45;
-      margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6;
+      margin-top: 14px; padding-top: 10px; border-top: 1px solid #f3f4f6;
     }
     .info-hint i { color: var(--color-accent); margin-right: 4px; }
   </style>
@@ -223,11 +245,6 @@
     <div class="topbar">
       <div class="topbar-title">Emergency Hotlines</div>
       <div class="topbar-actions">
-        <span id="hotlinesSaveToast" hidden><i class="ti ti-check"></i> Saved</span>
-        <span class="tbadge" id="hotlineCount">0 hotlines</span>
-        <button type="button" class="btn-save-all" id="hotlinesSaveBtn">
-          <i class="ti ti-device-floppy" style="font-size:14px"></i> Save all
-        </button>
         <span class="topbar-user" id="adminEmail"></span>
       </div>
     </div>
@@ -239,37 +256,29 @@
             <div class="section-title" id="hotlines-heading">
               <i class="ti ti-phone-call" aria-hidden="true"></i> Hotline directory
             </div>
-            <p class="section-desc">Manage emergency and support numbers shown to volunteers</p>
+            <p class="section-desc">Group numbers by organization — e.g. all NDRRMC lines under NDRRMC, Red Cross under Philippine Red Cross</p>
           </div>
-          <button type="button" class="btn btn-g btn-sm" id="hotlineAddBtn">
-            <i class="ti ti-plus" style="font-size:12px"></i> Add hotline
+          <button type="button" class="btn btn-g btn-sm" id="categoryAddBtn">
+            <i class="ti ti-plus" style="font-size:12px"></i> Add Emergency Hotline
           </button>
         </div>
         <div class="section-body">
           <div id="hotline-empty" class="hotline-empty" hidden>
-            No hotlines yet. Add one or save to load defaults.
+            No organizations yet. Add one (e.g. NDRRMC) then add phone numbers inside it.
           </div>
-          <div id="hotline-list">
-            <div id="add-hotline-form" style="display:none;">
+          <div id="hotline-categories">
+            <div id="add-category-form" hidden>
               <div class="add-row">
-                <input id="nh-name" type="text" placeholder="Name (e.g. PNP)" aria-label="Hotline name" />
-                <input id="nh-number" type="text" placeholder="Phone number" aria-label="Phone number" />
-                <select id="nh-category" aria-label="Category">
-                  <option value="Emergency">Emergency</option>
-                  <option value="Medical">Medical</option>
-                  <option value="Disaster">Disaster</option>
-                  <option value="Support">Support</option>
-                  <option value="General">General</option>
-                </select>
-                <input id="nh-desc" type="text" placeholder="Short description (optional)" aria-label="Description" />
-                <button type="button" class="btn btn-g btn-sm" id="hotlineAddConfirmBtn">Add</button>
-                <button type="button" class="btn btn-sm" id="hotlineAddCancelBtn">Cancel</button>
+                <input id="nc-name" type="text" placeholder="Organization name (e.g. NDRRMC)" aria-label="Organization name" />
+                <input id="nc-location" type="text" placeholder="Location (e.g. Metro Manila, Kalinga)" aria-label="Location" />
+                <button type="button" class="btn btn-g btn-sm" id="categoryAddConfirmBtn">Add organization</button>
+                <button type="button" class="btn btn-sm" id="categoryAddCancelBtn">Cancel</button>
               </div>
             </div>
           </div>
           <p class="info-hint">
             <i class="ti ti-info-circle" aria-hidden="true"></i>
-            Inactive hotlines are hidden from the public list. Changes auto-save when you edit; use Save all to confirm.
+            Each card is one agency or organization. Use <strong>Add number</strong> inside a card for multiple lines (operations center, trunk line, etc.). Hidden organizations or numbers are not shown to volunteers.
           </p>
         </div>
       </section>

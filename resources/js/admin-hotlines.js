@@ -2,10 +2,12 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
+import { migrateFlatItemsToCategories } from "./hotlines-data.js";
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
-let hotlineItems = [];
+/** @type {import('./hotlines-data.js').HotlineCategory[]} */
+let hotlineCategories = [];
 
 document.addEventListener("DOMContentLoaded", () => {
     checkAdminAuth();
@@ -17,17 +19,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("hotlinesSaveBtn")?.addEventListener("click", () =>
-        saveHotlinesToFirestore()
+    document.getElementById("categoryAddBtn")?.addEventListener("click", () =>
+        showAddCategoryForm()
     );
-    document.getElementById("hotlineAddBtn")?.addEventListener("click", () =>
-        showAddHotlineForm()
+    document.getElementById("categoryAddConfirmBtn")?.addEventListener("click", () =>
+        addCategoryFromForm()
     );
-    document.getElementById("hotlineAddConfirmBtn")?.addEventListener("click", () =>
-        addHotlineFromForm()
-    );
-    document.getElementById("hotlineAddCancelBtn")?.addEventListener("click", () =>
-        hideAddHotlineForm()
+    document.getElementById("categoryAddCancelBtn")?.addEventListener("click", () =>
+        hideAddCategoryForm()
     );
 });
 
@@ -46,9 +45,9 @@ function checkAdminAuth() {
             return;
         }
         const email = user.email;
-        document.getElementById("adminEmail") &&
-            (document.getElementById("adminEmail").textContent = email);
+        const top = document.getElementById("adminEmail");
         const side = document.getElementById("adminEmailSidebar");
+        if (top) top.textContent = email;
         if (side) side.textContent = email;
         loadHotlinesFromFirestore();
     });
@@ -68,293 +67,410 @@ function slugId(name) {
         .replace(/\s+/g, "-")
         .replace(/[^a-zA-Z0-9-]/g, "")
         .toLowerCase();
-    return base || `hotline-${Date.now()}`;
+    return base || `id-${Date.now()}`;
 }
 
-function uniqueId(base) {
+function uniqueCategoryId(base) {
     let id = base;
     let n = 1;
-    const ids = new Set(hotlineItems.map((h) => h.id));
-    while (ids.has(id)) {
-        id = `${base}-${n++}`;
-    }
+    const ids = new Set(hotlineCategories.map((c) => c.id));
+    while (ids.has(id)) id = `${base}-${n++}`;
     return id;
 }
 
-function categoryClass(category) {
-    const c = (category || "").toLowerCase();
-    if (c === "emergency") return "bp-red";
-    if (c === "medical") return "bp-blue";
-    if (c === "disaster") return "bp-amber";
-    return "bp-gray";
+function uniqueNumberId(category, base) {
+    let id = base;
+    let n = 1;
+    const ids = new Set((category.numbers || []).map((num) => num.id));
+    while (ids.has(id)) id = `${base}-${n++}`;
+    return id;
 }
 
-function createHotlineRowElement(item) {
-    const key = item.id;
-    const isActive = item.active !== false;
-    const row = document.createElement("div");
-    row.className = "hotline-row";
-    row.id = "hl-" + key;
-    row.dataset.hotlineId = key;
-    row.innerHTML = `
-    <div class="hotline-main">
-      <div class="hotline-name">${escapeHtml(item.name)}</div>
-      <div class="hotline-meta">
-        <a href="tel:${escapeHtml(String(item.number).replace(/\s/g, ""))}" class="hotline-number">${escapeHtml(item.number)}</a>
-        ${item.description ? `<span class="hotline-desc">${escapeHtml(item.description)}</span>` : ""}
+function telHref(number) {
+    return `tel:${String(number).replace(/[^\d+]/g, "")}`;
+}
+
+function sortCategories(categories) {
+    return [...categories]
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((c) => ({
+            ...c,
+            numbers: [...(c.numbers || [])].sort(
+                (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+            ),
+        }));
+}
+
+function createNumberRowHtml(categoryId, num) {
+    const isActive = num.active !== false;
+    return `
+      <div class="number-row" data-category-id="${escapeHtml(categoryId)}" data-number-id="${escapeHtml(num.id)}">
+        <div class="number-main">
+          <span class="number-label">${escapeHtml(num.label)}</span>
+          <a href="${telHref(num.number)}" class="number-value">${escapeHtml(num.number)}</a>
+        </div>
+        <div class="cfg-right">
+          <span class="badge-pill ${isActive ? "bp-green" : "bp-gray"} num-status-pill">${isActive ? "Shown" : "Hidden"}</span>
+          <div class="toggle num-toggle ${isActive ? "on" : ""}" role="switch" aria-checked="${isActive}" tabindex="0"></div>
+          <button type="button" class="btn btn-edit btn-sm" data-edit-number aria-label="Edit number"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+          <button type="button" class="btn btn-r btn-sm" data-remove-number aria-label="Remove number"><i class="ti ti-trash" style="font-size:12px"></i></button>
+        </div>
+      </div>`;
+}
+
+function createCategoryCardElement(cat) {
+    const isActive = cat.active !== false;
+    const numbers = cat.numbers || [];
+    const card = document.createElement("article");
+    card.className = "hotline-category";
+    card.id = "cat-" + cat.id;
+    card.dataset.categoryId = cat.id;
+
+    const numbersHtml =
+        numbers.length > 0
+            ? numbers.map((n) => createNumberRowHtml(cat.id, n)).join("")
+            : `<p class="numbers-empty">No numbers yet. Add a line for this organization.</p>`;
+
+    card.innerHTML = `
+    <header class="category-head">
+      <div class="category-head-text">
+        <h3 class="category-name">${escapeHtml(cat.name)}</h3>
+        ${cat.location ? `<p class="category-location">${escapeHtml(cat.location)}</p>` : ""}
       </div>
-    </div>
-    <div class="cfg-right">
-      <span class="badge-pill ${categoryClass(item.category)}">${escapeHtml(item.category || "General")}</span>
-      <span class="badge-pill ${isActive ? "bp-green" : "bp-gray"} status-pill">${isActive ? "Active" : "Hidden"}</span>
-      <div class="toggle ${isActive ? "on" : ""}" role="switch" aria-checked="${isActive}" tabindex="0"></div>
-      <button type="button" class="btn btn-edit btn-sm" data-edit-hotline="${escapeHtml(key)}" aria-label="Edit hotline"><i class="ti ti-pencil" style="font-size:12px"></i></button>
-      <button type="button" class="btn btn-r btn-sm" data-remove-hotline="${escapeHtml(key)}"><i class="ti ti-trash" style="font-size:12px"></i></button>
+      <div class="cfg-right">
+        <span class="badge-pill ${isActive ? "bp-green" : "bp-gray"} cat-status-pill">${isActive ? "Active" : "Hidden"}</span>
+        <div class="toggle cat-toggle ${isActive ? "on" : ""}" role="switch" aria-checked="${isActive}" tabindex="0"></div>
+        <button type="button" class="btn btn-edit btn-sm" data-edit-category aria-label="Edit organization"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+        <button type="button" class="btn btn-r btn-sm" data-remove-category aria-label="Remove organization"><i class="ti ti-trash" style="font-size:12px"></i></button>
+      </div>
+    </header>
+    <div class="numbers-block">
+      <div class="numbers-head">
+        <span class="numbers-title">Numbers to call</span>
+        <button type="button" class="btn btn-g btn-sm" data-add-number>
+          <i class="ti ti-plus" style="font-size:12px"></i> Add number
+        </button>
+      </div>
+      <div class="numbers-list">${numbersHtml}</div>
+      <div class="add-number-form" data-add-number-form hidden>
+        <div class="add-row">
+          <input type="text" class="an-label" placeholder="Label (e.g. Operations Center)" aria-label="Number label" />
+          <input type="text" class="an-number" placeholder="Phone number" aria-label="Phone number" />
+          <button type="button" class="btn btn-g btn-sm" data-confirm-add-number>Add</button>
+          <button type="button" class="btn btn-sm" data-cancel-add-number>Cancel</button>
+        </div>
+      </div>
     </div>`;
-    return row;
+
+    return card;
 }
 
-function renderHotlinesList(items) {
-    hotlineItems = [...items].sort(
-        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
-    );
-    const list = document.getElementById("hotline-list");
-    const form = document.getElementById("add-hotline-form");
+function renderHotlineCategories(categories) {
+    hotlineCategories = sortCategories(categories);
+    const root = document.getElementById("hotline-categories");
     const empty = document.getElementById("hotline-empty");
-    if (!list) return;
+    const addCatForm = document.getElementById("add-category-form");
+    if (!root) return;
 
-    list.querySelectorAll(".hotline-row").forEach((row) => row.remove());
+    root.querySelectorAll(".hotline-category").forEach((el) => el.remove());
 
-    if (hotlineItems.length === 0) {
+    if (hotlineCategories.length === 0) {
         if (empty) empty.hidden = false;
     } else {
         if (empty) empty.hidden = true;
-        hotlineItems.forEach((item) => {
-            const row = createHotlineRowElement(item);
-            list.insertBefore(row, form);
+        hotlineCategories.forEach((cat) => {
+            root.insertBefore(createCategoryCardElement(cat), addCatForm);
         });
     }
 
-    const countEl = document.getElementById("hotlineCount");
-    if (countEl) {
-        const n = hotlineItems.length;
-        countEl.textContent = n === 1 ? "1 hotline" : `${n} hotlines`;
-    }
-
-    bindAllHotlineRows();
+    bindAllCategoryCards();
 }
 
-function bindHotlineRow(row, key) {
-    const toggle = row.querySelector(".toggle");
-    const pill = row.querySelector(".status-pill");
-    toggle?.addEventListener("click", () => {
+function getCategoryById(id) {
+    return hotlineCategories.find((c) => c.id === id);
+}
+
+function bindCategoryCard(card) {
+    const categoryId = card.dataset.categoryId;
+
+    card.querySelector(".cat-toggle")?.addEventListener("click", (e) => {
+        const toggle = e.currentTarget;
         toggle.classList.toggle("on");
         const on = toggle.classList.contains("on");
         toggle.setAttribute("aria-checked", on ? "true" : "false");
+        const pill = card.querySelector(".cat-status-pill");
         if (pill) {
             pill.textContent = on ? "Active" : "Hidden";
             pill.classList.toggle("bp-green", on);
             pill.classList.toggle("bp-gray", !on);
         }
-        syncHotlineItemFromRow(key);
+        const cat = getCategoryById(categoryId);
+        if (cat) cat.active = on;
         persistHotlines();
     });
-    row.querySelector("[data-edit-hotline]")?.addEventListener("click", () =>
-        toggleHotlineEdit(key)
+
+    card.querySelector("[data-edit-category]")?.addEventListener("click", () =>
+        toggleCategoryEdit(categoryId)
     );
-    row.querySelector("[data-remove-hotline]")?.addEventListener("click", () =>
-        removeHotline(key)
+    card.querySelector("[data-remove-category]")?.addEventListener("click", () =>
+        removeCategory(categoryId)
+    );
+    card.querySelector("[data-add-number]")?.addEventListener("click", () =>
+        showAddNumberForm(card)
+    );
+
+    card.querySelectorAll(".number-row").forEach((row) => bindNumberRow(card, row));
+
+    const confirmAdd = card.querySelector("[data-confirm-add-number]");
+    const cancelAdd = card.querySelector("[data-cancel-add-number]");
+    confirmAdd?.addEventListener("click", () => confirmAddNumber(card, categoryId));
+    cancelAdd?.addEventListener("click", () => hideAddNumberForm(card));
+}
+
+function bindNumberRow(card, row) {
+    const categoryId = row.dataset.categoryId;
+    const numberId = row.dataset.numberId;
+
+    row.querySelector(".num-toggle")?.addEventListener("click", (e) => {
+        const toggle = e.currentTarget;
+        toggle.classList.toggle("on");
+        const on = toggle.classList.contains("on");
+        toggle.setAttribute("aria-checked", on ? "true" : "false");
+        const pill = row.querySelector(".num-status-pill");
+        if (pill) {
+            pill.textContent = on ? "Shown" : "Hidden";
+            pill.classList.toggle("bp-green", on);
+            pill.classList.toggle("bp-gray", !on);
+        }
+        const cat = getCategoryById(categoryId);
+        const num = cat?.numbers?.find((n) => n.id === numberId);
+        if (num) num.active = on;
+        persistHotlines();
+    });
+
+    row.querySelector("[data-edit-number]")?.addEventListener("click", () =>
+        toggleNumberEdit(categoryId, numberId)
+    );
+    row.querySelector("[data-remove-number]")?.addEventListener("click", () =>
+        removeNumber(categoryId, numberId)
     );
 }
 
-function bindAllHotlineRows() {
-    document.querySelectorAll("#hotline-list .hotline-row").forEach((row) => {
-        const key = row.dataset.hotlineId;
-        bindHotlineRow(row, key);
-    });
+function bindAllCategoryCards() {
+    document.querySelectorAll("#hotline-categories .hotline-category").forEach(bindCategoryCard);
 }
 
-function getHotlineFromRow(row) {
-    const id = row.dataset.hotlineId;
-    const name = row.querySelector(".hotline-name")?.textContent?.trim() || "";
-    const number =
-        row.querySelector(".hotline-number")?.textContent?.trim() ||
-        row.querySelector(".hotline-number-in")?.value?.trim() ||
-        "";
-    const descEl = row.querySelector(".hotline-desc");
-    const desc =
-        descEl?.tagName === "INPUT"
-            ? descEl.value.trim()
-            : descEl?.textContent?.trim() || "";
-    const category =
-        row.querySelector(".hotline-cat-in")?.value?.trim() ||
-        row.querySelector(".badge-pill:not(.status-pill)")?.textContent?.trim() ||
-        "General";
-    const active = row.querySelector(".toggle")?.classList.contains("on") ?? true;
-    const existing = hotlineItems.find((h) => h.id === id);
-    return {
-        id,
-        name,
-        number,
-        category,
-        description: desc,
-        active,
-        sortOrder: existing?.sortOrder ?? hotlineItems.length,
-    };
-}
-
-function syncHotlineItemFromRow(key) {
-    const row = document.getElementById("hl-" + key);
-    if (!row) return;
-    const updated = getHotlineFromRow(row);
-    const idx = hotlineItems.findIndex((h) => h.id === key);
-    if (idx >= 0) hotlineItems[idx] = updated;
-}
-
-function collectHotlinesFromDom() {
-    const items = [];
-    document.querySelectorAll("#hotline-list .hotline-row").forEach((row, i) => {
-        items.push({
-            ...getHotlineFromRow(row),
-            sortOrder: i,
-        });
-    });
-    return items;
-}
-
-function showAddHotlineForm() {
-    const form = document.getElementById("add-hotline-form");
+function showAddCategoryForm() {
+    const form = document.getElementById("add-category-form");
     if (form) {
-        form.style.display = "block";
-        document.getElementById("nh-name")?.focus();
+        form.hidden = false;
+        document.getElementById("nc-name")?.focus();
     }
 }
 
-function hideAddHotlineForm() {
-    const form = document.getElementById("add-hotline-form");
-    if (form) form.style.display = "none";
-    ["nh-name", "nh-number", "nh-desc"].forEach((id) => {
+function hideAddCategoryForm() {
+    const form = document.getElementById("add-category-form");
+    if (form) form.hidden = true;
+    ["nc-name", "nc-location"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.value = "";
     });
-    const cat = document.getElementById("nh-category");
-    if (cat) cat.value = "Emergency";
 }
 
-function addHotlineFromForm() {
-    const name = document.getElementById("nh-name")?.value.trim();
-    const number = document.getElementById("nh-number")?.value.trim();
-    const category = document.getElementById("nh-category")?.value.trim() || "General";
-    const description = document.getElementById("nh-desc")?.value.trim() || "";
-    if (!name || !number) {
-        alert("Name and phone number are required.");
+function addCategoryFromForm() {
+    const name = document.getElementById("nc-name")?.value.trim();
+    const location = document.getElementById("nc-location")?.value.trim() || "";
+    if (!name) {
+        alert("Organization name is required (e.g. NDRRMC, Philippine Red Cross).");
         return;
     }
-    const id = uniqueId(slugId(name));
-    const item = {
+    const id = uniqueCategoryId(slugId(name));
+    hotlineCategories.push({
         id,
         name,
-        number,
-        category,
-        description,
+        location,
         active: true,
-        sortOrder: hotlineItems.length,
-    };
-    hotlineItems.push(item);
-    renderHotlinesList(hotlineItems);
-    hideAddHotlineForm();
+        sortOrder: hotlineCategories.length,
+        numbers: [],
+    });
+    renderHotlineCategories(hotlineCategories);
+    hideAddCategoryForm();
     persistHotlines();
     flashSaved();
 }
 
-function removeHotline(key) {
-    if (!confirm("Remove this hotline from the list?")) return;
-    hotlineItems = hotlineItems.filter((h) => h.id !== key);
-    renderHotlinesList(hotlineItems);
+function removeCategory(categoryId) {
+    const cat = getCategoryById(categoryId);
+    if (
+        !confirm(
+            `Remove "${cat?.name || "this organization"}" and all of its phone numbers?`
+        )
+    ) {
+        return;
+    }
+    hotlineCategories = hotlineCategories.filter((c) => c.id !== categoryId);
+    renderHotlineCategories(hotlineCategories);
     persistHotlines();
 }
 
-function startHotlineEdit(key) {
-    const row = document.getElementById("hl-" + key);
-    if (!row || row.classList.contains("is-editing")) return;
-    const item = hotlineItems.find((h) => h.id === key);
-    if (!item) return;
+function startCategoryEdit(categoryId) {
+    const card = document.getElementById("cat-" + categoryId);
+    const cat = getCategoryById(categoryId);
+    if (!card || !cat || card.classList.contains("is-editing-cat")) return;
 
-    row.dataset.editName = item.name;
-    row.dataset.editNumber = item.number;
-    row.dataset.editDesc = item.description || "";
-    row.dataset.editCategory = item.category || "General";
+    const headText = card.querySelector(".category-head-text");
+    if (!headText) return;
 
-    const nameEl = row.querySelector(".hotline-name");
-    const meta = row.querySelector(".hotline-meta");
-    if (nameEl && meta) {
-        nameEl.outerHTML = `<input type="text" class="hotline-name-in" value="${escapeHtml(item.name)}" aria-label="Hotline name" />`;
-        meta.innerHTML = `
-          <input type="text" class="hotline-number-in" value="${escapeHtml(item.number)}" aria-label="Phone number" />
-          <input type="text" class="hotline-desc-in" value="${escapeHtml(item.description || "")}" placeholder="Description (optional)" aria-label="Description" />
-          <select class="hotline-cat-in" aria-label="Category">
-            ${["Emergency", "Medical", "Disaster", "Support", "General"]
-                .map(
-                    (c) =>
-                        `<option value="${c}"${c === (item.category || "General") ? " selected" : ""}>${c}</option>`
-                )
-                .join("")}
-          </select>`;
-    }
+    headText.innerHTML = `
+      <input type="text" class="cat-name-in" value="${escapeHtml(cat.name)}" aria-label="Organization name" />
+      <input type="text" class="cat-location-in" value="${escapeHtml(cat.location || cat.description || "")}" placeholder="Location (e.g. Metro Manila)" aria-label="Location" />`;
 
-    row.classList.add("is-editing");
-    const catPill = row.querySelector(".badge-pill:not(.status-pill)");
-    if (catPill) catPill.style.display = "none";
-
-    const btn = row.querySelector("[data-edit-hotline]");
+    card.classList.add("is-editing-cat");
+    const btn = card.querySelector("[data-edit-category]");
     if (btn) {
         btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i>';
-        btn.setAttribute("aria-label", "Save hotline");
     }
-    row.querySelector(".hotline-name-in")?.focus();
+    card.querySelector(".cat-name-in")?.focus();
 }
 
-function saveHotlineEdit(key) {
-    const row = document.getElementById("hl-" + key);
-    if (!row) return;
+function saveCategoryEdit(categoryId) {
+    const card = document.getElementById("cat-" + categoryId);
+    const cat = getCategoryById(categoryId);
+    if (!card || !cat) return;
 
-    const name = row.querySelector(".hotline-name-in")?.value.trim() || row.dataset.editName;
-    const number = row.querySelector(".hotline-number-in")?.value.trim() || row.dataset.editNumber;
-    const description = row.querySelector(".hotline-desc-in")?.value.trim() || "";
-    const category = row.querySelector(".hotline-cat-in")?.value.trim() || "General";
-
-    if (!name || !number) {
-        alert("Name and phone number are required.");
+    const name = card.querySelector(".cat-name-in")?.value.trim();
+    const location = card.querySelector(".cat-location-in")?.value.trim() || "";
+    if (!name) {
+        alert("Organization name is required.");
         return;
     }
 
-    const idx = hotlineItems.findIndex((h) => h.id === key);
-    if (idx >= 0) {
-        hotlineItems[idx] = {
-            ...hotlineItems[idx],
-            name,
-            number,
-            description,
-            category,
-        };
-    }
-
-    renderHotlinesList(hotlineItems);
+    cat.name = name;
+    cat.location = location;
+    delete cat.description;
+    renderHotlineCategories(hotlineCategories);
     persistHotlines();
     flashSaved();
 }
 
-function cancelHotlineEdit(key) {
-    const row = document.getElementById("hl-" + key);
-    if (!row?.classList.contains("is-editing")) return;
-    renderHotlinesList(hotlineItems);
+function toggleCategoryEdit(categoryId) {
+    const card = document.getElementById("cat-" + categoryId);
+    if (!card) return;
+    if (card.classList.contains("is-editing-cat")) saveCategoryEdit(categoryId);
+    else startCategoryEdit(categoryId);
 }
 
-function toggleHotlineEdit(key) {
-    const row = document.getElementById("hl-" + key);
+function showAddNumberForm(card) {
+    const form = card.querySelector("[data-add-number-form]");
+    if (form) {
+        form.hidden = false;
+        form.querySelector(".an-label")?.focus();
+    }
+}
+
+function hideAddNumberForm(card) {
+    const form = card.querySelector("[data-add-number-form]");
+    if (!form) return;
+    form.hidden = true;
+    form.querySelector(".an-label").value = "";
+    form.querySelector(".an-number").value = "";
+}
+
+function confirmAddNumber(card, categoryId) {
+    const form = card.querySelector("[data-add-number-form]");
+    const label = form?.querySelector(".an-label")?.value.trim();
+    const number = form?.querySelector(".an-number")?.value.trim();
+    if (!label || !number) {
+        alert("Label and phone number are required.");
+        return;
+    }
+    const cat = getCategoryById(categoryId);
+    if (!cat) return;
+    if (!cat.numbers) cat.numbers = [];
+    cat.numbers.push({
+        id: uniqueNumberId(cat, slugId(label)),
+        label,
+        number,
+        active: true,
+        sortOrder: cat.numbers.length,
+    });
+    renderHotlineCategories(hotlineCategories);
+    hideAddNumberForm(card);
+    persistHotlines();
+    flashSaved();
+}
+
+function removeNumber(categoryId, numberId) {
+    if (!confirm("Remove this phone number?")) return;
+    const cat = getCategoryById(categoryId);
+    if (!cat?.numbers) return;
+    cat.numbers = cat.numbers.filter((n) => n.id !== numberId);
+    renderHotlineCategories(hotlineCategories);
+    persistHotlines();
+}
+
+function startNumberEdit(categoryId, numberId) {
+    const row = document.querySelector(
+        `.number-row[data-category-id="${categoryId}"][data-number-id="${numberId}"]`
+    );
+    const cat = getCategoryById(categoryId);
+    const num = cat?.numbers?.find((n) => n.id === numberId);
+    if (!row || !num || row.classList.contains("is-editing-num")) return;
+
+    row.querySelector(".number-main").innerHTML = `
+      <input type="text" class="num-label-in" value="${escapeHtml(num.label)}" aria-label="Label" />
+      <input type="text" class="num-value-in" value="${escapeHtml(num.number)}" aria-label="Phone number" />`;
+    row.classList.add("is-editing-num");
+    const btn = row.querySelector("[data-edit-number]");
+    if (btn) btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i>';
+    row.querySelector(".num-label-in")?.focus();
+}
+
+function saveNumberEdit(categoryId, numberId) {
+    const row = document.querySelector(
+        `.number-row[data-category-id="${categoryId}"][data-number-id="${numberId}"]`
+    );
+    const cat = getCategoryById(categoryId);
+    const num = cat?.numbers?.find((n) => n.id === numberId);
+    if (!row || !num) return;
+
+    const label = row.querySelector(".num-label-in")?.value.trim();
+    const number = row.querySelector(".num-value-in")?.value.trim();
+    if (!label || !number) {
+        alert("Label and phone number are required.");
+        return;
+    }
+    num.label = label;
+    num.number = number;
+    renderHotlineCategories(hotlineCategories);
+    persistHotlines();
+    flashSaved();
+}
+
+function toggleNumberEdit(categoryId, numberId) {
+    const row = document.querySelector(
+        `.number-row[data-category-id="${categoryId}"][data-number-id="${numberId}"]`
+    );
     if (!row) return;
-    if (row.classList.contains("is-editing")) saveHotlineEdit(key);
-    else startHotlineEdit(key);
+    if (row.classList.contains("is-editing-num")) saveNumberEdit(categoryId, numberId);
+    else startNumberEdit(categoryId, numberId);
+}
+
+function normalizeCategory(cat, i) {
+    const { description, ...rest } = cat;
+    return {
+        ...rest,
+        location: String(cat.location || description || "").trim(),
+        sortOrder: i,
+        numbers: (cat.numbers || []).map((num, j) => ({
+            ...num,
+            sortOrder: j,
+        })),
+    };
+}
+
+function collectCategoriesFromState() {
+    return sortCategories(hotlineCategories).map(normalizeCategory);
 }
 
 function flashSaved() {
@@ -369,12 +485,12 @@ function flashSaved() {
 
 async function saveHotlinesToFirestore(options = {}) {
     const { silent = false } = options;
-    const items = collectHotlinesFromDom();
-    hotlineItems = items;
+    const categories = collectCategoriesFromState();
+    hotlineCategories = categories;
     try {
         await setDoc(
             doc(db, ...HOTLINES_DOC),
-            { items, updatedAt: serverTimestamp() },
+            { categories, items: [], updatedAt: serverTimestamp() },
             { merge: true }
         );
         if (!silent) flashSaved();
@@ -392,31 +508,46 @@ function persistHotlines() {
     saveHotlinesToFirestore({ silent: true });
 }
 
-async function loadHotlinesFromFirestore() {
-    const list = document.getElementById("hotline-list");
-    if (list) {
-        list.querySelectorAll(".hotline-row").forEach((r) => r.remove());
+async function normalizeLoadedData(data) {
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+        return data.categories.map((cat, i) => normalizeCategory(cat, i));
     }
+    if (Array.isArray(data.items) && data.items.length > 0) {
+        const migrated = migrateFlatItemsToCategories(data.items);
+        await setDoc(
+            doc(db, ...HOTLINES_DOC),
+            {
+                categories: migrated,
+                items: [],
+                updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+        );
+        return migrated;
+    }
+    const seed = buildInitialHotlinesSeed();
+    await setDoc(
+        doc(db, ...HOTLINES_DOC),
+        {
+            categories: seed.categories,
+            items: [],
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+    return seed.categories;
+}
+
+async function loadHotlinesFromFirestore() {
     try {
         const ref = doc(db, ...HOTLINES_DOC);
         const snap = await getDoc(ref);
-        let items =
-            snap.exists() && Array.isArray(snap.data().items)
-                ? snap.data().items
-                : null;
-
-        if (!items || items.length === 0) {
-            items = buildInitialHotlinesSeed();
-            await setDoc(
-                ref,
-                { items, updatedAt: serverTimestamp() },
-                { merge: true }
-            );
-        }
-
-        renderHotlinesList(items);
+        const categories = snap.exists()
+            ? await normalizeLoadedData(snap.data())
+            : (await normalizeLoadedData({}));
+        renderHotlineCategories(categories);
     } catch (err) {
         console.warn("[WARN] load hotlines:", err);
-        renderHotlinesList(buildInitialHotlinesSeed());
+        renderHotlineCategories(buildInitialHotlinesSeed().categories);
     }
 }
