@@ -1,6 +1,11 @@
 import { auth, db } from "./firebase.js";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { ORG_VERIFICATION_STATUS } from "./org-verification.js";
 
 function openRegisterSuccessModal(orgName) {
   const overlay = document.getElementById("registerSuccessModal");
@@ -8,7 +13,7 @@ function openRegisterSuccessModal(orgName) {
   if (!overlay) return;
 
   if (messageEl && orgName) {
-    messageEl.innerHTML = `<strong>${escapeHtml(orgName)}</strong> has been registered successfully. You can now sign in to your organization account.`;
+    messageEl.innerHTML = `<strong>${escapeHtml(orgName)}</strong> has been registered. An administrator will review your organization before you can sign in to the dashboard.`;
   }
 
   overlay.removeAttribute("hidden");
@@ -92,9 +97,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       await setDoc(doc(db, "organizations", user.uid), {
         orgName,
+        name: orgName,
         email,
+        verified: false,
+        verificationStatus: ORG_VERIFICATION_STATUS.PENDING,
         createdAt: new Date().toISOString(),
       });
+
+      await signOut(auth);
 
       openRegisterSuccessModal(orgName);
     } catch (error) {

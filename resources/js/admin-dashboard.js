@@ -33,9 +33,16 @@ import {
     buildGlobalVolunteerStatsIndex,
 } from "./volunteer-stats.js";
 import { resolveMissionIdFromApplication } from "./application-storage.js";
+import {
+    getOrgVerificationKey,
+    getOrgVerificationLabel,
+    ORG_VERIFICATION_STATUS,
+} from "./org-verification.js";
 
 let allAdminMissions = [];
 let allAdminVolunteers = [];
+let allAdminOrganizations = [];
+let currentOrgDetailsId = null;
 const missionDurationHoursCache = new Map();
 let adminMissionsPageSize = 10;
 let adminMissionsCurrentPage = 1;
@@ -609,6 +616,150 @@ function loadTabData(tabName) {
 }
 
 
+function orgStatusBadgeClass(key) {
+    switch (key) {
+        case "verified":
+            return "bg-success";
+        case "rejected":
+            return "bg-danger";
+        case "pending":
+            return "bg-warning text-dark";
+        default:
+            return "bg-secondary";
+    }
+}
+
+async function setOrganizationVerification(orgId, status, rejectionReason = "") {
+    const ref = doc(db, "organizations", orgId);
+    const adminUid = auth.currentUser?.uid || null;
+
+    if (status === ORG_VERIFICATION_STATUS.APPROVED) {
+        await updateDoc(ref, {
+            verified: true,
+            verificationStatus: ORG_VERIFICATION_STATUS.APPROVED,
+            verifiedAt: serverTimestamp(),
+            verifiedBy: adminUid,
+            rejectedAt: deleteField(),
+            rejectionReason: deleteField(),
+        });
+        return;
+    }
+
+    if (status === ORG_VERIFICATION_STATUS.REJECTED) {
+        const reason = String(rejectionReason || "").trim();
+        await updateDoc(ref, {
+            verified: false,
+            verificationStatus: ORG_VERIFICATION_STATUS.REJECTED,
+            rejectedAt: serverTimestamp(),
+            verifiedBy: adminUid,
+            rejectionReason: reason || deleteField(),
+        });
+    }
+}
+
+let pendingRejectOrgId = null;
+
+function openOrgRejectModal(orgId) {
+    pendingRejectOrgId = orgId;
+    const overlay = document.getElementById("orgRejectModal");
+    const textarea = document.getElementById("orgRejectReasonInput");
+    const err = document.getElementById("orgRejectReasonError");
+    if (!overlay) return;
+    if (textarea) textarea.value = "";
+    if (err) err.textContent = "";
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    textarea?.focus();
+}
+
+function closeOrgRejectModal() {
+    const overlay = document.getElementById("orgRejectModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+    document.body.style.overflow = "";
+    pendingRejectOrgId = null;
+}
+
+async function performOrgRejection(orgId, reason) {
+    await setOrganizationVerification(
+        orgId,
+        ORG_VERIFICATION_STATUS.REJECTED,
+        reason
+    );
+    await loadOrganizationsData();
+    if (currentOrgDetailsId === orgId) {
+        await window.viewOrganization(orgId);
+    }
+}
+
+function openOrgVerifySuccessModal(orgName) {
+    const overlay = document.getElementById("orgVerifySuccessModal");
+    const messageEl = document.getElementById("orgVerifySuccessMessage");
+    if (!overlay) return;
+    const name = String(orgName || "").trim();
+    if (messageEl) {
+        messageEl.textContent = name
+            ? `${name} has been verified successfully. They can now sign in to the organization dashboard.`
+            : "The organization has been verified successfully. They can now sign in to the dashboard.";
+    }
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    document.getElementById("orgVerifySuccessOk")?.focus();
+}
+
+function closeOrgVerifySuccessModal() {
+    const overlay = document.getElementById("orgVerifySuccessModal");
+    if (!overlay) return;
+    overlay.setAttribute("hidden", "");
+    overlay.classList.remove("is-open");
+    document.body.style.overflow = "";
+}
+
+(function initOrgVerifySuccessModal() {
+    const overlay = document.getElementById("orgVerifySuccessModal");
+    if (!overlay) return;
+
+    const onClose = () => closeOrgVerifySuccessModal();
+
+    document.getElementById("orgVerifySuccessOk")?.addEventListener("click", onClose);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) onClose();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+            onClose();
+        }
+    });
+})();
+
+window.approveOrganization = async function (orgId) {
+    if (!orgId) return;
+    try {
+        const orgSnap = await getDoc(doc(db, "organizations", orgId));
+        const orgName =
+            orgSnap.exists() &&
+            (orgSnap.data().name || orgSnap.data().orgName || "");
+
+        await setOrganizationVerification(orgId, ORG_VERIFICATION_STATUS.APPROVED);
+        await loadOrganizationsData();
+        if (currentOrgDetailsId === orgId) {
+            await window.viewOrganization(orgId);
+        }
+        openOrgVerifySuccessModal(orgName);
+    } catch (err) {
+        console.error(err);
+        alert("Could not verify organization.");
+    }
+};
+
+window.rejectOrganization = function (orgId) {
+    if (!orgId) return;
+    openOrgRejectModal(orgId);
+};
+
 async function loadOrganizationsData() {
     try {
         const snapshot = await getDocs(collection(db, "organizations"));
@@ -616,13 +767,17 @@ async function loadOrganizationsData() {
         if (!tbody) return;
 
         if (snapshot.empty) {
+            allAdminOrganizations = [];
             tbody.innerHTML =
                 '<tr><td colspan="6" class="text-center">No organizations found</td></tr>';
             return;
         }
 
-        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) =>
+        allAdminOrganizations = snapshot.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+        }));
+        allAdminOrganizations.sort((a, b) =>
             String(a.name || a.orgName || "").localeCompare(
                 String(b.name || b.orgName || ""),
                 undefined,
@@ -630,34 +785,7 @@ async function loadOrganizationsData() {
             )
         );
 
-        tbody.innerHTML = list
-            .map((org) => {
-                const name = org.name || org.orgName || "Unnamed organization";
-                const email = org.email || "—";
-                const phone = org.phone || "—";
-                const location =
-                    [org.address, org.city, org.state, org.country]
-                        .filter(Boolean)
-                        .join(", ") || "Not specified";
-                const verified = org.verified === true;
-                const statusLabel = verified ? "Verified" : "Registered";
-                const statusClass = verified ? "bg-success" : "bg-secondary";
-
-                return `
-                <tr>
-                    <td><strong>${name}</strong></td>
-                    <td>${email}</td>
-                    <td>${phone}</td>
-                    <td>${location}</td>
-                    <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewOrganization('${org.id}')">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                    </td>
-                </tr>`;
-            })
-            .join("");
+        renderOrganizationsTable(allAdminOrganizations);
 
         console.log("[SUCCESS] Organizations loaded from Firebase");
     } catch (error) {
@@ -668,6 +796,60 @@ async function loadOrganizationsData() {
                 '<tr><td colspan="6" class="text-center text-danger">Error loading organizations</td></tr>';
         }
     }
+}
+
+function renderOrganizationsTable(list) {
+    const tbody = document.getElementById("organizationsTableBody");
+    if (!tbody) return;
+
+    if (!list.length) {
+        tbody.innerHTML =
+            '<tr><td colspan="6" class="text-center">No organizations match your filters</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list
+        .map((org) => {
+            const name = org.name || org.orgName || "Unnamed organization";
+            const email = org.email || "—";
+            const phone = org.phone || "—";
+            const location =
+                [org.address, org.city, org.state, org.country]
+                    .filter(Boolean)
+                    .join(", ") || "Not specified";
+            const statusKey = getOrgVerificationKey(org);
+            const statusLabel = getOrgVerificationLabel(org);
+            const statusClass = orgStatusBadgeClass(statusKey);
+            const verifyBtn =
+                statusKey !== "verified"
+                    ? `<button type="button" class="btn btn-sm btn-success me-1" onclick="approveOrganization('${org.id}')">
+                            <i class="fas fa-check"></i> Verify
+                       </button>`
+                    : "";
+            const rejectBtn =
+                statusKey !== "rejected"
+                    ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectOrganization('${org.id}')">
+                            <i class="fas fa-times"></i> Reject
+                       </button>`
+                    : "";
+
+            return `
+                <tr data-org-status="${statusKey}">
+                    <td><strong>${escapeHtml(name)}</strong></td>
+                    <td>${escapeHtml(email)}</td>
+                    <td>${escapeHtml(phone)}</td>
+                    <td>${escapeHtml(location)}</td>
+                    <td><span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>
+                    <td class="text-nowrap">
+                        ${verifyBtn}
+                        ${rejectBtn}
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewOrganization('${org.id}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>`;
+        })
+        .join("");
 }
 
 function getVisibleAdminMissionRows() {
@@ -1472,6 +1654,10 @@ function setupEventListeners() {
         orgSearch.addEventListener("input", filterOrganizations);
         console.log("[SUCCESS] Organization search listener added");
     }
+    const orgFilter = document.getElementById("orgFilter");
+    if (orgFilter) {
+        orgFilter.addEventListener("change", filterOrganizations);
+    }
     if (missionSearch) {
         missionSearch.addEventListener("input", filterMissions);
         const missionFilter = document.getElementById("missionFilter");
@@ -1713,6 +1899,37 @@ async function performMissionRejection(missionId, reason) {
     }
 }
 
+(function initOrgRejectModal() {
+    const overlay = document.getElementById("orgRejectModal");
+    if (!overlay) return;
+
+    document.getElementById("orgRejectCancel")?.addEventListener("click", closeOrgRejectModal);
+    document.getElementById("orgRejectConfirm")?.addEventListener("click", async () => {
+        const textarea = document.getElementById("orgRejectReasonInput");
+        const err = document.getElementById("orgRejectReasonError");
+        if (err) err.textContent = "";
+        const orgId = pendingRejectOrgId;
+        if (!orgId) return;
+        const reason = (textarea?.value || "").trim();
+        closeOrgRejectModal();
+        try {
+            await performOrgRejection(orgId, reason);
+        } catch (e) {
+            console.error(e);
+            alert("Could not reject organization. Please try again.");
+        }
+    });
+
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeOrgRejectModal();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+            closeOrgRejectModal();
+        }
+    });
+})();
+
 (function initMissionRejectModal() {
     const overlay = document.getElementById("missionRejectModal");
     if (!overlay) return;
@@ -1842,13 +2059,44 @@ function saveLeaderboardSettings(e) {
 // Filter functions
 function filterOrganizations() {
     const q = (document.getElementById("orgSearch")?.value || "").toLowerCase().trim();
-    const tbody = document.getElementById("organizationsTableBody");
-    if (!tbody) return;
+    const filterType = document.getElementById("orgFilter")?.value || "all";
 
-    tbody.querySelectorAll("tr").forEach((row) => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = !q || text.includes(q) ? "" : "none";
-    });
+    let filtered = allAdminOrganizations.slice();
+
+    if (filterType === "pending") {
+        filtered = filtered.filter(
+            (org) => getOrgVerificationKey(org) === "pending"
+        );
+    } else if (filterType === "verified") {
+        filtered = filtered.filter(
+            (org) => getOrgVerificationKey(org) === "verified"
+        );
+    } else if (filterType === "rejected") {
+        filtered = filtered.filter(
+            (org) => getOrgVerificationKey(org) === "rejected"
+        );
+    }
+
+    if (q) {
+        filtered = filtered.filter((org) => {
+            const haystack = [
+                org.name,
+                org.orgName,
+                org.email,
+                org.phone,
+                org.address,
+                org.city,
+                org.state,
+                org.country,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            return haystack.includes(q);
+        });
+    }
+
+    renderOrganizationsTable(filtered);
 }
 
 function filterMissions() {
@@ -2013,6 +2261,7 @@ onAuthStateChanged(auth, async (user) => {
 
     
     function closeOrgDetailsModal() {
+        currentOrgDetailsId = null;
         const modal = document.getElementById("orgDetailsModal");
         const backdrop = document.getElementById("orgDetailsBackdrop");
         backdrop?.setAttribute("hidden", "");
@@ -2020,6 +2269,8 @@ onAuthStateChanged(auth, async (user) => {
             modal.setAttribute("hidden", "");
             modal.style.display = "none";
         }
+        const actions = document.getElementById("orgDetailsActions");
+        if (actions) actions.innerHTML = "";
         document.body.style.overflow = "";
     }
     function orgDetailRow(iconClass, label, value, isBadge = false) {
@@ -2043,12 +2294,14 @@ onAuthStateChanged(auth, async (user) => {
                 alert("Organization not found.");
                 return;
             }
+            currentOrgDetailsId = orgId;
             const o = snap.data();
-            const statusLabel = o.verified === true ? "VERIFIED" : "REGISTERED";
-    
+            const statusKey = getOrgVerificationKey(o);
+            const statusLabel = getOrgVerificationLabel(o).toUpperCase();
+
             const body = document.getElementById("orgDetailsBody");
             if (!body) return;
-    
+
             body.innerHTML = [
                 orgDetailRow("fa-building", "Organization Name:", o.name || o.orgName),
                 orgDetailRow("fa-envelope", "Email:", o.email),
@@ -2059,9 +2312,35 @@ onAuthStateChanged(auth, async (user) => {
                 orgDetailRow("fa-mail-bulk", "Postal Code:", o.postalCode || "—"),
                 orgDetailRow("fa-globe", "Country:", o.country || "—"),
                 orgDetailRow("fa-check-circle", "Status:", statusLabel, true),
+                o.rejectionReason
+                    ? orgDetailRow(
+                          "fa-comment-alt",
+                          "Rejection reason:",
+                          o.rejectionReason
+                      )
+                    : "",
                 orgDetailRow("fa-fingerprint", "Org ID:", orgId),
-            ].join("");
-    
+            ]
+                .filter(Boolean)
+                .join("");
+
+            const actions = document.getElementById("orgDetailsActions");
+            if (actions) {
+                const verifyBtn =
+                    statusKey !== "verified"
+                        ? `<button type="button" class="btn btn-success btn-sm" onclick="approveOrganization('${orgId}')">
+                                <i class="fas fa-check"></i> Verify organization
+                           </button>`
+                        : "";
+                const rejectBtn =
+                    statusKey !== "rejected"
+                        ? `<button type="button" class="btn btn-outline-danger btn-sm" onclick="rejectOrganization('${orgId}')">
+                                <i class="fas fa-times"></i> Reject
+                           </button>`
+                        : "";
+                actions.innerHTML = `${verifyBtn}${rejectBtn}`;
+            }
+
             openOrgDetailsModal();
         } catch (e) {
             console.error(e);

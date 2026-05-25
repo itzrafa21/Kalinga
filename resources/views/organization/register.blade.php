@@ -260,7 +260,7 @@
       <div class="register-success-icon" aria-hidden="true">✓</div>
       <h2 id="registerSuccessTitle">Registration complete</h2>
       <p class="register-success-message" id="registerSuccessMessage">
-        Your organization account has been created successfully. You can now sign in.
+        Your organization account has been created. An administrator will review your registration before you can sign in.
       </p>
       <div class="register-success-actions">
         <button type="button" class="register-success-btn" id="registerSuccessOk">

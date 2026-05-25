@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase";
 import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { assertOrgVerified } from "./org-verification.js";
 import {
     ORG_CACHE_KEYS,
     readOrgCache,
@@ -56,6 +57,7 @@ onAuthStateChanged(auth, async (user) => {
         window.location.href = "/organization/login";
         return;
     }
+    if (!(await assertOrgVerified(user))) return;
 
     console.log("[SUCCESS] User logged in:", user.uid);
     CURRENT_USER = user;

@@ -1,5 +1,6 @@
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { assertOrgVerified } from "./org-verification.js";
 import {
     collection,
     collectionGroup,
@@ -1023,6 +1024,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = "/organization/login";
             return;
         }
+        if (!(await assertOrgVerified(user))) return;
         await initPage(user);
     });
 });

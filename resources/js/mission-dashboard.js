@@ -12,6 +12,7 @@ import {
     where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { assertOrgVerified } from "./org-verification.js";
 import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { awardMissionPoints } from "./volunteer-recognition.js";
 import {
@@ -47,6 +48,7 @@ onAuthStateChanged(auth, async (user) => {
         window.location.href = "/organization/login";
         return;
     }
+    if (!(await assertOrgVerified(user))) return;
 
     console.log("[SUCCESS] User logged in:", user.uid);
     CURRENT_USER = user;

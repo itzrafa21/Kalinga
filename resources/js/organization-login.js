@@ -1,5 +1,9 @@
 import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import {
+    fetchOrgVerification,
+    getVerificationBlockMessageForData,
+} from "./org-verification.js";
 
 function getLoginErrorMessage(error) {
     const code = error?.code || "";
@@ -19,11 +23,15 @@ function getLoginErrorMessage(error) {
     }
 }
 
-function openLoginErrorModal(message) {
+function openLoginErrorModal(message, title = "Login failed") {
     const overlay = document.getElementById("loginErrorModal");
     const messageEl = document.getElementById("loginErrorMessage");
+    const titleEl = document.getElementById("loginErrorTitle");
     if (!overlay) return;
 
+    if (titleEl && title) {
+        titleEl.textContent = title;
+    }
     if (messageEl && message) {
         messageEl.textContent = message;
     }
@@ -66,6 +74,12 @@ function initLoginErrorModal() {
 document.addEventListener("DOMContentLoaded", () => {
     initLoginErrorModal();
 
+    const blocked = sessionStorage.getItem("orgLoginBlockReason");
+    if (blocked) {
+        sessionStorage.removeItem("orgLoginBlockReason");
+        openLoginErrorModal(blocked, "Sign-in not available");
+    }
+
     const form = document.getElementById("orgLoginForm");
     if (!form) {
         console.error("[ERROR] Login form not found!");
@@ -91,6 +105,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 password
             );
             const user = userCredential.user;
+
+            const check = await fetchOrgVerification(user.uid);
+            if (!check.ok) {
+                await signOut(auth);
+                openLoginErrorModal(
+                    getVerificationBlockMessageForData(check.data, check.reason),
+                    "Approval required"
+                );
+                return;
+            }
+
             console.log("[SUCCESS] Logged in:", user.email);
             window.location.href = "/organization/dashboard";
         } catch (error) {

@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { assertOrgVerified } from "./org-verification.js";
 import {
   userHasApplicationForMission,
   upsertMissionVolunteer,
@@ -1612,6 +1613,7 @@ document.addEventListener("DOMContentLoaded", () => {
       window.location.href = "/organization/login";
       return;
     }
+    if (!(await assertOrgVerified(user))) return;
     try {
       wireRosterStatusSuccessModal();
       wireMissionFullModal();

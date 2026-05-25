@@ -629,6 +629,9 @@
             <input type="text" class="form-control search-box" id="orgSearch" placeholder="Search organizations...">
             <select class="form-select filter-dropdown" id="orgFilter">
               <option value="all">All organizations</option>
+              <option value="pending">Pending approval</option>
+              <option value="verified">Verified</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
@@ -761,7 +764,8 @@
     <button type="button" class="org-details-modal__close-x" id="orgDetailsCloseX" aria-label="Close">&times;</button>
   </div>
   <div class="org-details-modal__body" id="orgDetailsBody"></div>
-  <div class="org-details-modal__footer">
+  <div class="org-details-modal__footer d-flex flex-wrap gap-2 justify-content-between align-items-center">
+    <div id="orgDetailsActions" class="d-flex flex-wrap gap-2"></div>
     <button type="button" class="org-details-modal__close-btn" id="orgDetailsCloseBtn">Close</button>
   </div>
 </div>
@@ -817,6 +821,58 @@
     </p>
     <div class="success-modal-actions">
       <button type="button" class="success-modal-confirm" id="missionApproveSuccessOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Organization verify success modal -->
+<div
+  id="orgVerifySuccessModal"
+  class="success-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="orgVerifySuccessTitle"
+>
+  <div class="success-modal" role="document">
+    <div class="success-modal-icon" aria-hidden="true">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <h2 id="orgVerifySuccessTitle">Organization verified</h2>
+    <p class="success-modal-message" id="orgVerifySuccessMessage">
+      The organization has been verified successfully. They can now sign in to the dashboard.
+    </p>
+    <div class="success-modal-actions">
+      <button type="button" class="success-modal-confirm" id="orgVerifySuccessOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Organization reject modal -->
+<div
+  id="orgRejectModal"
+  class="reject-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="orgRejectModalTitle"
+>
+  <div class="reject-modal" role="document">
+    <h2 id="orgRejectModalTitle">Reject organization</h2>
+    <p class="reject-modal-help">
+      Reject this organization registration? They will not be able to sign in until an administrator approves them again.
+    </p>
+    <label for="orgRejectReasonInput">Reason (optional)</label>
+    <textarea
+      id="orgRejectReasonInput"
+      rows="4"
+      placeholder="e.g. Incomplete registration details…"
+      autocomplete="off"
+    ></textarea>
+    <p id="orgRejectReasonError" class="reject-modal-error" role="alert"></p>
+    <div class="reject-modal-actions">
+      <button type="button" class="reject-modal-cancel" id="orgRejectCancel">Cancel</button>
+      <button type="button" class="reject-modal-confirm" id="orgRejectConfirm">Reject organization</button>
     </div>
   </div>
 </div>

@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase";
 import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { assertOrgVerified } from "./org-verification.js";
 import {
     loadPlatformConfig,
     populateMissionTypeSelect,
@@ -159,6 +160,7 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "/organization/login";
     return;
   }
+  if (!(await assertOrgVerified(user))) return;
 
   initMissionEditSuccessModal();
   initializeImageUpload();

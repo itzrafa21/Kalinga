@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase";
 import { doc, updateDoc, getDoc, setDoc, collection, getDocs, deleteField } from "firebase/firestore";
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, onAuthStateChanged } from "firebase/auth";
+import { assertOrgVerified } from "./org-verification.js";
 import {
   ORG_CLOUDINARY,
   uploadImageToCloudinary,
@@ -180,6 +181,7 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "/organization/login";
     return;
   }
+  if (!(await assertOrgVerified(user))) return;
 
   currentUser = user;
   orgRef = doc(db, "organizations", user.uid);
