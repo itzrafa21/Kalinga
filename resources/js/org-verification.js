@@ -1,6 +1,14 @@
 import { db } from "./firebase.js";
 import { getAuth, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    updateDoc,
+    where,
+} from "firebase/firestore";
 
 export const ORG_VERIFICATION_STATUS = {
     PENDING: "pending",
@@ -116,5 +124,68 @@ export async function assertOrgVerified(user) {
         );
         window.location.href = ORG_LOGIN_PATH;
         return false;
+    }
+}
+
+/** Current display name from an organizations/{id} document. */
+export function organizationDisplayNameFromData(data) {
+    if (!data) return "";
+    return String(data.name || data.orgName || "").trim();
+}
+
+/** Live organization name from Firestore (falls back to snapshot on mission docs). */
+export async function fetchOrganizationDisplayName(orgId, fallback = "") {
+    if (!orgId) return fallback || "Unknown";
+    try {
+        const snap = await getDoc(doc(db, "organizations", orgId));
+        if (snap.exists()) {
+            const name = organizationDisplayNameFromData(snap.data());
+            if (name) return name;
+        }
+    } catch (err) {
+        console.warn("[WARN] fetchOrganizationDisplayName:", orgId, err);
+    }
+    return fallback || "Unknown";
+}
+
+/** @returns {Promise<Map<string, string>>} */
+export async function buildOrganizationNameMap(orgIds = []) {
+    const map = new Map();
+    const unique = [...new Set(orgIds.filter(Boolean))];
+    await Promise.all(
+        unique.map(async (orgId) => {
+            const name = await fetchOrganizationDisplayName(orgId, "");
+            if (name && name !== "Unknown") map.set(orgId, name);
+        })
+    );
+    return map;
+}
+
+/** Keep mission_submissions org labels in sync after a profile rename. */
+export async function syncOrganizationNameToSubmissions(orgId, orgName) {
+    const trimmed = String(orgName || "").trim();
+    if (!orgId || !trimmed) return;
+
+    try {
+        const snap = await getDocs(
+            query(
+                collection(db, "mission_submissions"),
+                where("orgId", "==", orgId)
+            )
+        );
+        if (snap.empty) return;
+
+        await Promise.all(
+            snap.docs.map((docSnap) =>
+                updateDoc(docSnap.ref, { orgName: trimmed })
+            )
+        );
+        console.log(
+            "[INFO] Synced organization name on",
+            snap.size,
+            "mission submission(s)"
+        );
+    } catch (err) {
+        console.warn("[WARN] syncOrganizationNameToSubmissions:", err);
     }
 }

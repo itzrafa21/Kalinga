@@ -37,6 +37,8 @@ import {
     getOrgVerificationKey,
     getOrgVerificationLabel,
     ORG_VERIFICATION_STATUS,
+    buildOrganizationNameMap,
+    fetchOrganizationDisplayName,
 } from "./org-verification.js";
 
 let allAdminMissions = [];
@@ -995,7 +997,7 @@ function renderAdminMissionsTable(missions) {
                         <strong>${mission.missionName || mission.name}</strong>
                         ${normalizedStatus === "pending" ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ""}
                     </td>
-                    <td>${mission.orgName || "Unknown"}</td>
+                    <td>${escapeHtml(mission.displayOrgName || mission.orgName || "Unknown")}</td>
                     <td><span class="badge bg-info">${mission.type || "General"}</span></td>
                     <td>${mission.date || "Not set"}</td>
                     <td>${mission.location || "Not specified"}</td>
@@ -1043,10 +1045,25 @@ async function loadMissionsData() {
             return;
         }
 
-        allAdminMissions = missionsSnapshot.docs.map((docSnap) => ({
+        const rawMissions = missionsSnapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...docSnap.data(),
         }));
+
+        const orgNameMap = await buildOrganizationNameMap(
+            rawMissions.map((m) => m.orgId)
+        );
+
+        allAdminMissions = rawMissions.map((mission) => {
+            const liveName = mission.orgId
+                ? orgNameMap.get(mission.orgId)
+                : "";
+            return {
+                ...mission,
+                displayOrgName:
+                    liveName || mission.orgName || "Unknown",
+            };
+        });
 
         allAdminMissions.sort((a, b) => {
             const aStatus = (a.status || "").toLowerCase();
@@ -1978,13 +1995,17 @@ window.rejectMission = function (missionId) {
                 }
         
                 const mission = snap.data();
+                const orgDisplayName = await fetchOrganizationDisplayName(
+                    mission.orgId,
+                    mission.orgName
+                );
                 const statusLabel = String(mission.status || "N/A").toUpperCase();
                 const body = document.getElementById("missionDetailsBody");
                 if (!body) return;
         
                 const rows = [
                     missionDetailRow("fa-flag", "Mission Name:", mission.missionName || mission.name),
-                    missionDetailRow("fa-building", "Organization:", mission.orgName),
+                    missionDetailRow("fa-building", "Organization:", orgDisplayName),
                     missionDetailRow("fa-tag", "Type:", mission.type),
                     missionDetailRow("fa-calendar", "Date:", mission.date),
                     missionDetailRow("fa-clock", "Time:", `${mission.startTime || "—"} – ${mission.endTime || "—"}`),

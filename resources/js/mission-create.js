@@ -1,7 +1,10 @@
 import { auth, db } from "./firebase";
 import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { assertOrgVerified } from "./org-verification.js";
+import {
+    assertOrgVerified,
+    fetchOrganizationDisplayName,
+} from "./org-verification.js";
 import {
     loadPlatformConfig,
     populateMissionTypeSelect,
@@ -123,8 +126,10 @@ function initializeFormSubmission() {
         console.log("[INFO] Form submitted");
         
         try {
-            // Get organization name
-            const orgName = currentUser.displayName || currentUser.email || "Unknown Organization";
+            const orgName = await fetchOrganizationDisplayName(
+                currentUser.uid,
+                currentUser.displayName || currentUser.email || "Unknown Organization"
+            );
             console.log("[INFO] Organization name:", orgName);
             
             const latVal = parseFloat(document.getElementById("latitude")?.value);

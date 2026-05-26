@@ -1,7 +1,16 @@
 import { auth, db } from "./firebase";
 import { doc, updateDoc, getDoc, setDoc, collection, getDocs, deleteField } from "firebase/firestore";
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, onAuthStateChanged } from "firebase/auth";
-import { assertOrgVerified } from "./org-verification.js";
+import {
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  onAuthStateChanged,
+  updateProfile,
+} from "firebase/auth";
+import {
+  assertOrgVerified,
+  syncOrganizationNameToSubmissions,
+} from "./org-verification.js";
 import {
   ORG_CLOUDINARY,
   uploadImageToCloudinary,
@@ -17,6 +26,44 @@ import {
 import { countOrgApprovedVolunteers } from "./application-storage.js";
 
 const PROFILE_STATS_VERSION = 2;
+
+function openProfileSaveSuccessModal(message) {
+  const overlay = document.getElementById("profileSaveSuccessModal");
+  const messageEl = document.getElementById("profileSaveSuccessMessage");
+  if (!overlay) return;
+  if (messageEl && message) {
+    messageEl.textContent = message;
+  }
+  overlay.removeAttribute("hidden");
+  overlay.classList.add("is-open");
+  document.body.style.overflow = "hidden";
+  document.getElementById("profileSaveSuccessOk")?.focus();
+}
+
+function closeProfileSaveSuccessModal() {
+  const overlay = document.getElementById("profileSaveSuccessModal");
+  if (!overlay) return;
+  overlay.setAttribute("hidden", "");
+  overlay.classList.remove("is-open");
+  document.body.style.overflow = "";
+}
+
+function initProfileSaveSuccessModal() {
+  const overlay = document.getElementById("profileSaveSuccessModal");
+  if (!overlay) return;
+
+  const onClose = () => closeProfileSaveSuccessModal();
+
+  document.getElementById("profileSaveSuccessOk")?.addEventListener("click", onClose);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) onClose();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+      onClose();
+    }
+  });
+}
 
 function normalizeProfilePictureSrc(src) {
   let raw = String(src ?? "").trim();
@@ -364,6 +411,8 @@ function updateProfileHeader(data, user) {
 }
 
 function initializeFormHandlers() {
+  initProfileSaveSuccessModal();
+
   const form = document.getElementById("profileForm");
   if (!form) {
     console.error("[ERROR] Profile form not found!");
@@ -547,12 +596,22 @@ function initializeFormHandlers() {
         updatedAt: new Date(),
       });
 
+      try {
+        await updateProfile(currentUser, { displayName: orgName });
+      } catch (profileErr) {
+        console.warn("[WARN] Auth displayName update:", profileErr);
+      }
+
+      await syncOrganizationNameToSubmissions(currentUser.uid, orgName);
+
       invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.SIDEBAR);
       invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.PROFILE);
 
       updateProfileHeader({ name: orgName, orgName }, currentUser);
       setLastUpdatedFooter({ updatedAt: new Date() });
-      alert("[SUCCESS] Profile updated successfully!");
+      openProfileSaveSuccessModal(
+        "Your organization details were saved successfully."
+      );
     } catch (err) {
       console.error("[ERROR] Error updating profile:", err);
       alert(`Failed to update profile: ${err.message}`);

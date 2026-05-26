@@ -343,7 +343,61 @@
 
     .success-message, .error-message { display: none; }
 
-
+    .profile-success-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 36, 25, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 1rem;
+    }
+    .profile-success-overlay.is-open {
+      display: flex;
+    }
+    .profile-success-overlay[hidden] {
+      display: none !important;
+    }
+    .profile-success-modal {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 420px;
+      width: 100%;
+      padding: 1.75rem 1.5rem 1.25rem;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    .profile-success-icon {
+      font-size: 3rem;
+      color: #28a745;
+      margin-bottom: 0.75rem;
+      line-height: 1;
+    }
+    .profile-success-modal h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      color: #1f2430;
+    }
+    .profile-success-message {
+      margin: 0 0 1.25rem;
+      font-size: 0.95rem;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .profile-success-confirm {
+      border: none;
+      border-radius: 10px;
+      padding: 0.6rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #28a745;
+      color: #fff;
+    }
+    .profile-success-confirm:hover {
+      background: #218838;
+    }
 
     @media (max-width: 768px) {
       .profile-header-content {
@@ -526,6 +580,26 @@
       <p id="profileFooterUpdated">Last updated: —</p>
     </footer>
   </main>
+
+  <div
+    id="profileSaveSuccessModal"
+    class="profile-success-overlay"
+    hidden
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="profileSaveSuccessTitle"
+  >
+    <div class="profile-success-modal" role="document">
+      <div class="profile-success-icon" aria-hidden="true">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <h2 id="profileSaveSuccessTitle">Profile updated</h2>
+      <p class="profile-success-message" id="profileSaveSuccessMessage">
+        Your organization details were saved successfully.
+      </p>
+      <button type="button" class="profile-success-confirm" id="profileSaveSuccessOk">OK</button>
+    </div>
+  </div>
 
   <script>
     // Your existing JS in organization-profile.js handles data.
