@@ -79,6 +79,22 @@
     if (volBody && vol.tableHtml && !isLoadingHtml(vol.tableHtml)) {
       volBody.innerHTML = vol.tableHtml;
     }
+    if (vol.stats) {
+      var volTotal = document.getElementById("totalVolunteers");
+      var volHours = document.getElementById("totalVolunteerHours");
+      if (volTotal && vol.stats.totalVolunteers != null) {
+        volTotal.textContent = String(vol.stats.totalVolunteers);
+      }
+      if (volHours && vol.stats.totalHours != null) {
+        var h = Number(vol.stats.totalHours);
+        volHours.textContent =
+          !isFinite(h) || h <= 0
+            ? "0"
+            : h % 1 === 0
+              ? String(h)
+              : String(Math.round(h * 10) / 10);
+      }
+    }
   }
 })();
 </script>

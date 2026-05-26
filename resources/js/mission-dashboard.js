@@ -43,6 +43,12 @@ function sortMissionsByCreatedAt(missions) {
     );
 }
 
+async function refreshMissionDashboard(user, { silent = false } = {}) {
+    if (!user) return;
+    await updateMissionStatuses(user);
+    await loadMissions(user, { refresh: true, force: true, silent });
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.href = "/organization/login";
@@ -54,14 +60,22 @@ onAuthStateChanged(auth, async (user) => {
     CURRENT_USER = user;
 
     initMissionFilters();
-    await loadMissions(user, { refresh: false });
+
+    const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
+    await refreshMissionDashboard(user, { silent: Boolean(cached?.payload) });
 
     setInterval(async () => {
         if (CURRENT_USER) {
-            await updateMissionStatuses(CURRENT_USER);
-            await loadMissions(CURRENT_USER, { silent: true, force: true });
+            await refreshMissionDashboard(CURRENT_USER, { silent: true });
         }
     }, 1 * 60 * 1000);
+});
+
+window.addEventListener("pageshow", (event) => {
+    if (!CURRENT_USER) return;
+    if (event.persisted) {
+        void refreshMissionDashboard(CURRENT_USER, { silent: false });
+    }
 });
 
 async function updateMissionStatuses(user) {
@@ -114,6 +128,10 @@ async function updateMissionStatuses(user) {
         }
 
         console.log(`[SUCCESS] Updated ${updatedCount} mission statuses`);
+        if (updatedCount > 0) {
+            invalidateOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
+            invalidateOrgCache(user.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+        }
     } catch (error) {
         console.error("[ERROR] Error updating mission statuses:", error);
     }
@@ -557,6 +575,7 @@ async function loadMissions(user, { silent = false, force = false, refresh = tru
     if (
         hasCache &&
         !force &&
+        !refresh &&
         !stillShowingLoading &&
         !isOrgCacheStale(user.uid, ORG_CACHE_KEYS.DASHBOARD)
     ) {

@@ -531,20 +531,11 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-header card-amber">
-          <span class="stat-card-title">Pending Approval</span>
-          <p class="stat-card-value" id="pendingVolunteers">0</p>
-          <div class="stat-card-icon">
-            <i class="bi bi-hourglass-split"></i>
-          </div>
-        </div>
-      </div>
-      <div class="stat-card">
         <div class="stat-card-header card-teal">
-          <span class="stat-card-title">Approved</span>
-          <p class="stat-card-value" id="approvedVolunteers">0</p>
+          <span class="stat-card-title">Total Volunteer Hours</span>
+          <p class="stat-card-value" id="totalVolunteerHours">0</p>
           <div class="stat-card-icon">
-            <i class="bi bi-shield-check"></i>
+            <i class="bi bi-clock-history"></i>
           </div>
         </div>
       </div>

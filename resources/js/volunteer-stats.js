@@ -6,8 +6,14 @@ import {
     getDoc,
     getDocs,
 } from "firebase/firestore";
-import { resolveMissionIdFromApplication } from "./application-storage.js";
-import { computeMissionDurationHours } from "./platform-config.js";
+import {
+    applicationDedupeKey,
+    resolveMissionIdFromApplication,
+} from "./application-storage.js";
+import {
+    computeMissionDurationHours,
+    loadPlatformConfig,
+} from "./platform-config.js";
 
 const missionHoursCache = new Map();
 
@@ -42,7 +48,10 @@ function normalizeMissionDoc(data, fallbackOrgId = "") {
 
 async function fetchMissionDoc(orgId, missionId) {
     const oid = String(orgId || "").trim();
-    const refs = [doc(db, "missions", missionId)];
+    const refs = [
+        doc(db, "mission_submissions", missionId),
+        doc(db, "missions", missionId),
+    ];
     if (oid) {
         refs.unshift(
             doc(db, "organizations", oid, "missions", missionId),
@@ -408,4 +417,173 @@ export async function buildGlobalVolunteerStatsIndex(userIds = []) {
         }
     }
     return index;
+}
+
+function missionBelongsToOrg(missionId, data, mission, orgId, orgMissionById) {
+    if (!orgId || !missionId) return false;
+    if (orgMissionById?.has(missionId)) return true;
+    const oid =
+        data?.orgId ||
+        data?.organizationId ||
+        mission?.orgId ||
+        mission?.organizationId ||
+        "";
+    return oid === orgId;
+}
+
+async function recordOrgMissionHours(
+    hoursByMission,
+    missionId,
+    data,
+    orgId,
+    orgMissionById
+) {
+    if (!missionId || hoursByMission.has(missionId)) return;
+
+    const status = (data?.status || "approved").toLowerCase();
+    if (!isParticipationStatus(status)) return;
+
+    let mission = orgMissionById.get(missionId);
+    if (!mission) {
+        mission = await fetchMissionDocExpanded(missionId, orgId, [orgId]);
+        if (mission) orgMissionById.set(missionId, mission);
+    }
+
+    if (!missionBelongsToOrg(missionId, data, mission, orgId, orgMissionById)) {
+        return;
+    }
+
+    let hours = hoursFromApplicationOrMission(data, mission);
+    if (!Number.isFinite(hours) || hours <= 0) {
+        hours = await resolveMissionDurationHours(missionId, orgId, [orgId]);
+    }
+    if (hours > 0) {
+        hoursByMission.set(missionId, hours);
+    }
+}
+
+/**
+ * Org-scoped volunteer hours for one user (ledger + applications + loaded rows).
+ */
+export async function computeOrgVolunteerHoursForUser(
+    userId,
+    orgId,
+    orgMissionById,
+    volunteerRowsForUser = []
+) {
+    const hoursByMission = new Map();
+    if (!userId || !orgId) {
+        return { totalHours: 0 };
+    }
+
+    const map = orgMissionById || new Map();
+
+    for (const row of volunteerRowsForUser) {
+        await recordOrgMissionHours(
+            hoursByMission,
+            row.missionId,
+            row,
+            orgId,
+            map
+        );
+    }
+
+    try {
+        const ledgerSnap = await getDocs(
+            collection(db, "users", userId, "pointsLedger")
+        );
+        for (const ledgerDoc of ledgerSnap.docs) {
+            const data = ledgerDoc.data();
+            const missionId = ledgerDoc.id;
+            const ledgerOrgId = data.orgId || data.organizationId || "";
+            if (ledgerOrgId && ledgerOrgId !== orgId) continue;
+            await recordOrgMissionHours(
+                hoursByMission,
+                missionId,
+                data,
+                orgId,
+                map
+            );
+        }
+    } catch (err) {
+        console.warn("[WARN] org hours ledger:", userId, err);
+    }
+
+    try {
+        const appsSnap = await getDocs(
+            collection(db, "users", userId, "applications")
+        );
+        for (const docSnap of appsSnap.docs) {
+            const data = docSnap.data();
+            let missionId = resolveMissionIdFromApplication(
+                data,
+                docSnap.ref.path
+            );
+            if (!missionId && docSnap.id) missionId = docSnap.id;
+            if (!missionId) continue;
+
+            const appOrg = data.orgId || data.organizationId || "";
+            if (appOrg && appOrg !== orgId && !map.has(missionId)) continue;
+
+            await recordOrgMissionHours(
+                hoursByMission,
+                missionId,
+                data,
+                orgId,
+                map
+            );
+        }
+    } catch (err) {
+        console.warn("[WARN] org hours user apps:", userId, err);
+    }
+
+    let totalHours = 0;
+    for (const hours of hoursByMission.values()) {
+        totalHours += hours;
+    }
+
+    return {
+        totalHours: Math.round(totalHours * 10) / 10,
+        missionsCounted: hoursByMission.size,
+    };
+}
+
+/**
+ * Sum org volunteer hours across all unique volunteers on the page.
+ */
+export async function computeOrgVolunteersTotalHours(
+    orgId,
+    orgMissionById,
+    volunteerRows = []
+) {
+    if (!orgId || !volunteerRows.length) {
+        return 0;
+    }
+
+    const map = orgMissionById || new Map();
+    const byUser = new Map();
+
+    for (const row of volunteerRows) {
+        const uid = String(row.userId || "").trim();
+        if (!uid) continue;
+        if (!byUser.has(uid)) byUser.set(uid, []);
+        byUser.get(uid).push(row);
+    }
+
+    if (byUser.size === 0) return 0;
+
+    await loadPlatformConfig();
+
+    let total = 0;
+    for (const [uid, rows] of byUser) {
+        const { totalHours } = await computeOrgVolunteerHoursForUser(
+            uid,
+            orgId,
+            map,
+            rows
+        );
+        total += totalHours;
+    }
+
+    return Math.round(total * 10) / 10;
 }

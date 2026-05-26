@@ -22,6 +22,7 @@ import {
     isLoadingTableHtml,
     tableHtmlForCache,
 } from "./org-data-cache.js";
+import { computeOrgVolunteersTotalHours } from "./volunteer-stats.js";
 
 const userProfileCache = new Map();
 let cachedOrgMissionById = null;
@@ -225,7 +226,7 @@ function applyVolunteerFilters() {
 
     volunteerCurrentPage = 1;
     displayVolunteers(list);
-    updateVolunteerCounts(list);
+    void updateVolunteerCounts();
 }
 
 const AUTO_CLOSE_REASON =
@@ -562,6 +563,41 @@ async function loadSidebarUser(user) {
         console.error("[ERROR] loadSidebarUser:", err);
     }
 }
+function applyCachedVolunteersPayload(payload) {
+    allVolunteers = payload.allVolunteers || [];
+    allApplicants = groupVolunteersByApplicant(allVolunteers);
+
+    const cachedHtml = payload.tableHtml || "";
+    if (volunteerTable && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
+        volunteerTable.innerHTML = cachedHtml;
+        applyVolunteerPagination();
+    } else {
+        applyVolunteerFilters();
+    }
+
+    if (payload.stats) {
+        const totalEl = document.getElementById("totalVolunteers");
+        const hoursEl = document.getElementById("totalVolunteerHours");
+        if (totalEl && payload.stats.totalVolunteers != null) {
+            totalEl.textContent = String(payload.stats.totalVolunteers);
+        }
+        if (hoursEl && payload.stats.totalHours != null) {
+            hoursEl.textContent = formatVolunteerHoursDisplay(
+                payload.stats.totalHours
+            );
+        }
+    } else {
+        void updateVolunteerCounts();
+    }
+
+    initVolunteerPaginationControls();
+}
+
+async function refreshVolunteersPage({ silent = false } = {}) {
+    if (!currentUser?.uid) return;
+    await loadVolunteers({ refresh: true, force: true, silent });
+}
+
 // Wait for authentication
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -574,41 +610,21 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = user;
 
     const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.VOLUNTEERS);
-    if (cached) {
-        allVolunteers = cached.payload.allVolunteers || [];
-        allApplicants = groupVolunteersByApplicant(allVolunteers);
-        const cachedHtml = cached.payload.tableHtml || "";
-        if (
-            volunteerTable &&
-            cachedHtml &&
-            !isLoadingTableHtml(cachedHtml)
-        ) {
-            volunteerTable.innerHTML = cachedHtml;
-            applyVolunteerPagination();
-        } else {
-            applyVolunteerFilters();
-        }
-        initVolunteerPaginationControls();
+    if (cached?.payload) {
+        applyCachedVolunteersPayload(cached.payload);
     } else {
         showVolunteerTableLoading();
     }
 
     void loadSidebarUser(user);
 
-    const stillShowingLoading =
-        volunteerTable && isLoadingTableHtml(volunteerTable.innerHTML);
+    await refreshVolunteersPage({ silent: Boolean(cached?.payload) });
+});
 
-    await loadVolunteers({
-        refresh: stillShowingLoading || !cached,
-        background: Boolean(cached) && !stillShowingLoading,
-    });
-
-    if (
-        cached &&
-        !stillShowingLoading &&
-        isOrgCacheStale(user.uid, ORG_CACHE_KEYS.VOLUNTEERS)
-    ) {
-        void loadVolunteers({ refresh: true, background: true });
+window.addEventListener("pageshow", (event) => {
+    if (!currentUser) return;
+    if (event.persisted) {
+        void refreshVolunteersPage({ silent: false });
     }
 });
 
@@ -866,10 +882,34 @@ function syncAllMissionsFromMap(orgMissionById) {
     }));
 }
 
+async function saveVolunteersCache(orgId) {
+    let totalHours = 0;
+    try {
+        const missionMap = await buildOrgMissionMap(orgId);
+        totalHours = await computeOrgVolunteersTotalHours(
+            orgId,
+            missionMap,
+            allVolunteers
+        );
+    } catch (err) {
+        console.warn("[WARN] saveVolunteersCache hours:", err);
+    }
+
+    writeOrgCache(orgId, ORG_CACHE_KEYS.VOLUNTEERS, {
+        allVolunteers,
+        tableHtml: tableHtmlForCache(volunteerTable?.innerHTML),
+        stats: {
+            totalVolunteers: allApplicants.length,
+            totalHours,
+        },
+    });
+}
+
 async function loadVolunteers({
     silent = false,
     refresh = true,
     background = false,
+    force = false,
 } = {}) {
     const orgId = currentUser?.uid;
     if (!orgId) return;
@@ -880,13 +920,14 @@ async function loadVolunteers({
     const stillShowingLoading =
         volunteerTable && isLoadingTableHtml(volunteerTable.innerHTML);
 
-    if (hasCache && !refresh && !stillShowingLoading) {
+    if (hasCache && !force && !refresh && !stillShowingLoading) {
         return;
     }
 
     if (
         hasCache &&
-        !background &&
+        !force &&
+        !refresh &&
         !stillShowingLoading &&
         !isOrgCacheStale(orgId, ORG_CACHE_KEYS.VOLUNTEERS)
     ) {
@@ -954,10 +995,7 @@ async function loadVolunteers({
         applyVolunteerFilters();
         initVolunteerPaginationControls();
 
-        writeOrgCache(orgId, ORG_CACHE_KEYS.VOLUNTEERS, {
-            allVolunteers,
-            tableHtml: tableHtmlForCache(volunteerTable?.innerHTML),
-        });
+        await saveVolunteersCache(orgId);
 
         if (!background) {
             setTimeout(() => {
@@ -986,45 +1024,48 @@ async function runVolunteerMaintenance(orgMissionById) {
     }
 }
 
-// Update volunteer summary cards using correct IDs
-function updateVolunteerCounts(volunteers) {
-    console.log("[INFO] Updating volunteer counts for:", volunteers.length, "volunteers");
-    
-    // Count volunteers by status
-    const totalVolunteers = volunteers.length;
-    const pendingVolunteers = volunteers.filter(
-        (v) => (v.summaryStatus || v.status || "").toLowerCase() === "pending"
-    ).length;
-    const approvedVolunteers = volunteers.filter(
-        (v) => (v.summaryStatus || v.status || "").toLowerCase() === "approved"
-    ).length;
-    
-    console.log("[INFO] Counts - Total:", totalVolunteers, "Pending:", pendingVolunteers, "Approved:", approvedVolunteers);
-    
-    // Use the correct IDs from the HTML
+function formatVolunteerHoursDisplay(hours) {
+    const n = Number(hours);
+    if (!Number.isFinite(n) || n <= 0) return "0";
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+}
+
+async function updateVolunteerCounts() {
+    const totalVolunteers = allApplicants.length;
     const totalElement = document.getElementById("totalVolunteers");
-    const pendingElement = document.getElementById("pendingVolunteers");
-    const approvedElement = document.getElementById("approvedVolunteers");
+    const hoursElement = document.getElementById("totalVolunteerHours");
 
     if (totalElement) {
-        totalElement.textContent = totalVolunteers;
-        console.log("[SUCCESS] Updated total volunteers:", totalVolunteers);
-    } else {
-        console.log("[ERROR] Could not find totalVolunteers element");
+        totalElement.textContent = String(totalVolunteers);
     }
-    
-    if (pendingElement) {
-        pendingElement.textContent = pendingVolunteers;
-        console.log("[SUCCESS] Updated pending volunteers:", pendingVolunteers);
-    } else {
-        console.log("[ERROR] Could not find pendingVolunteers element");
-    }
-    
-    if (approvedElement) {
-        approvedElement.textContent = approvedVolunteers;
-        console.log("[SUCCESS] Updated approved volunteers:", approvedVolunteers);
-    } else {
-        console.log("[ERROR] Could not find approvedVolunteers element");
+
+    if (!hoursElement) return;
+
+    hoursElement.textContent = "…";
+
+    try {
+        const orgId = currentUser?.uid;
+        if (!orgId) {
+            hoursElement.textContent = "0";
+            return;
+        }
+
+        const missionMap = await buildOrgMissionMap(orgId);
+        const totalHours = await computeOrgVolunteersTotalHours(
+            orgId,
+            missionMap,
+            allVolunteers
+        );
+        hoursElement.textContent = formatVolunteerHoursDisplay(totalHours);
+        console.log(
+            "[INFO] Volunteer stats — applicants:",
+            totalVolunteers,
+            "total hours:",
+            totalHours
+        );
+    } catch (err) {
+        console.warn("[WARN] total volunteer hours:", err);
+        hoursElement.textContent = "0";
     }
 }
 
@@ -1159,10 +1200,7 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
         applyVolunteerFilters();
 
         if (currentUser?.uid) {
-            writeOrgCache(currentUser.uid, ORG_CACHE_KEYS.VOLUNTEERS, {
-                allVolunteers,
-                tableHtml: tableHtmlForCache(volunteerTable?.innerHTML),
-            });
+            await saveVolunteersCache(currentUser.uid);
             invalidateOrgCache(
                 currentUser.uid,
                 missionDetailCacheKey(volunteer.missionId)
