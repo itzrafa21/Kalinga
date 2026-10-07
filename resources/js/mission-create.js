@@ -92,6 +92,65 @@ function getCreateFormSchedule() {
     };
 }
 
+function parseCreateDateTime(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return null;
+    try {
+        const raw = String(timeStr).trim();
+        if (/am|pm/i.test(raw)) {
+            const [time, period] = raw.split(/\s+/);
+            const [hours, minutes] = time.split(":");
+            let hour24 = parseInt(hours, 10);
+            const p = period.toUpperCase();
+            if (p === "AM") {
+                if (hour24 === 12) hour24 = 0;
+            } else if (p === "PM" && hour24 !== 12) {
+                hour24 += 12;
+            }
+            return new Date(
+                `${dateStr}T${String(hour24).padStart(2, "0")}:${minutes}`
+            );
+        }
+        const t = raw.length === 5 ? `${raw}:00` : raw;
+        return new Date(`${dateStr}T${t}`);
+    } catch {
+        return null;
+    }
+}
+
+function validateMissionScheduleNotPast(schedule) {
+    const start = parseCreateDateTime(schedule.date, schedule.startTime);
+    const end = parseCreateDateTime(schedule.endDate, schedule.endTime);
+    const now = new Date();
+
+    if (!start || Number.isNaN(start.getTime())) {
+        return { ok: false, message: "Please enter a valid start date and time." };
+    }
+    if (!end || Number.isNaN(end.getTime())) {
+        return { ok: false, message: "Please enter a valid end date and time." };
+    }
+    if (end <= start) {
+        return {
+            ok: false,
+            message: "End time must be after start time. Please enter a fixed schedule.",
+        };
+    }
+    if (end <= now) {
+        return {
+            ok: false,
+            message:
+                "This mission time has already passed. Please enter a fixed future date and time.",
+        };
+    }
+    if (start <= now) {
+        return {
+            ok: false,
+            message:
+                "The start time has already passed. Please enter a fixed future start time.",
+        };
+    }
+    return { ok: true };
+}
+
 function initializePointsPreview() {
     const displayEl = document.getElementById("missionPointsPreview");
     const typeEl = document.getElementById("type");
@@ -178,8 +237,16 @@ function initializeFormSubmission() {
             }
 
             const schedule = getCreateFormSchedule();
-            schedule.type = missionType;
-            const pointsFields = await computeMissionPointsPayload(schedule);
+schedule.type = missionType;
+
+const scheduleCheck = validateMissionScheduleNotPast(schedule);
+if (!scheduleCheck.ok) {
+    alert(scheduleCheck.message);
+    document.getElementById("start_time")?.focus();
+    return;
+}
+
+const pointsFields = await computeMissionPointsPayload(schedule);
 
             const missionData = {
                 missionName: document.getElementById("name")?.value || "Untitled",
