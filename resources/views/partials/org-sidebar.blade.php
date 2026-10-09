@@ -11,7 +11,7 @@
             $activeNav = 'donation';
         } elseif (request()->is('organization/profile')) {
             $activeNav = 'profile';
-        } elseif (request()->is('settings')) {
+        } elseif (request()->is('settings') || request()->is('organization/settings')) {
             $activeNav = 'settings';
         } elseif (request()->is('missions/create', 'missions/edit', 'missions/details')) {
             $activeNav = 'missions';

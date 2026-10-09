@@ -39,6 +39,12 @@ Route::get('/organization/volunteers', function () {
 Route::get('/donation', function () {
     return view('organization.donation');
 });
+Route::get('/settings', function () {
+    return view('organization.settings');
+});
+Route::get('/organization/settings', function () {
+    return view('organization.settings');
+});
 Route::get('/admin/login', function () {
     return view('admin.login');
 });
