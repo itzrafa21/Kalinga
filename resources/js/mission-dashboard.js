@@ -91,9 +91,70 @@ async function updateMissionStatuses(user) {
             const mission = docSnap.data();
             const missionId = docSnap.id;
 
-            if (mission.status === "Pending" || mission.status === "pending") {
-                continue;
-            }
+            const isPending =
+    mission.status === "Pending" || mission.status === "pending";
+
+// Pending + end time already passed → close and move to History
+if (isPending) {
+    const endDate = mission.endDate || mission.date;
+    if (!endDate || !mission.endTime) continue;
+
+    let endDateTime;
+    try {
+        if (
+            mission.endTime.includes("AM") ||
+            mission.endTime.includes("PM")
+        ) {
+            endDateTime = parse12HourTime(endDate, mission.endTime);
+        } else {
+            endDateTime = new Date(`${endDate}T${mission.endTime}`);
+        }
+    } catch {
+        continue;
+    }
+
+    if (
+        Number.isNaN(endDateTime.getTime()) ||
+        new Date() <= endDateTime
+    ) {
+        continue; // still upcoming or ongoing — keep Pending
+    }
+
+    console.log(
+        `[INFO] Auto-closing expired pending mission ${missionId}`
+    );
+
+    await closePendingApplicationsForMission(missionId);
+
+    const closedPayload = {
+        status: "Closed",
+        lastStatusUpdate: new Date(),
+        autoClosedReason:
+            "Mission schedule ended while still pending admin approval.",
+    };
+
+    await updateDoc(
+        doc(db, "organizations", user.uid, "missions", missionId),
+        closedPayload
+    );
+
+    try {
+        await updateDoc(doc(db, "missions", missionId), closedPayload);
+    } catch (error) {
+        console.log(
+            "[WARNING] Could not update global mission:",
+            error
+        );
+    }
+
+    await moveMissionToHistory(user.uid, missionId, {
+        ...mission,
+        ...closedPayload,
+    });
+
+    updatedCount++;
+    continue;
+}
 
             const newStatus = calculateMissionStatus(mission);
 
@@ -629,7 +690,7 @@ async function loadMissions(user, { silent = false, force = false, refresh = tru
 
 function shouldMoveMissionToHistory(mission, today) {
     const status = normalizeMissionStatus(mission.status);
-    if (status === "pending") return false;
+    // Allow pending missions to move to history once end time has passed
 
     const endDate = mission.endDate || mission.date;
     if (!endDate || !mission.endTime) return false;
@@ -673,13 +734,30 @@ async function moveMissionToHistory(orgId, missionId, mission) {
     try {
         const historyRef = doc(db, "organizations", orgId, "history", missionId);
 
-        let payload = { ...mission, movedToHistoryAt: new Date() };
+        let payload = {
+            ...mission,
+            status: mission.status === "Pending" || mission.status === "pending"
+                ? "Closed"
+                : mission.status,
+            movedToHistoryAt: new Date(),
+        };
 
         try {
             const globalSnap = await getDoc(doc(db, "missions", missionId));
             if (globalSnap.exists()) {
                 const globalData = globalSnap.data();
-                payload = { ...mission, ...globalData, movedToHistoryAt: new Date() };
+                payload = {
+                    ...mission,
+                    ...globalData,
+                    status:
+                        mission.status === "Pending" ||
+                        mission.status === "pending" ||
+                        globalData.status === "Pending" ||
+                        globalData.status === "pending"
+                            ? "Closed"
+                            : globalData.status || mission.status,
+                    movedToHistoryAt: new Date(),
+                };
             }
         } catch (e) {
             console.warn("[WARNING] Could not read global mission for merge:", missionId, e);
