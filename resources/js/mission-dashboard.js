@@ -133,6 +133,21 @@ if (isPending) {
             "Mission schedule ended while still pending admin approval.",
     };
 
+    try {
+        await updateDoc(
+            doc(db, "mission_submissions", missionId),
+            {
+                ...closedPayload,
+                workflowStatus: "closed",
+            }
+        );
+    } catch (error) {
+        console.log(
+            "[WARNING] Could not update mission_submissions:",
+            error
+        );
+    }
+
     await updateDoc(
         doc(db, "organizations", user.uid, "missions", missionId),
         closedPayload

@@ -1028,6 +1028,47 @@ function renderAdminMissionsTable(missions) {
     initAdminMissionsPaginationControls();
     filterAdminMissionsTable();
 }
+
+function parseAdminMissionEnd(mission) {
+    const endDate = mission.endDate || mission.date;
+    const endTime = mission.endTime;
+    if (!endDate || !endTime) return null;
+    try {
+        const raw = String(endTime).trim();
+        if (/am|pm/i.test(raw)) {
+            const [time, period] = raw.split(/\s+/);
+            const [hours, minutes] = time.split(":");
+            let hour24 = parseInt(hours, 10);
+            const p = (period || "").toUpperCase();
+            if (p === "AM" && hour24 === 12) hour24 = 0;
+            if (p === "PM" && hour24 !== 12) hour24 += 12;
+            return new Date(
+                `${endDate}T${String(hour24).padStart(2, "0")}:${minutes}`
+            );
+        }
+        const t = raw.length === 5 ? `${raw}:00` : raw;
+        return new Date(`${endDate}T${t}`);
+    } catch {
+        return null;
+    }
+}
+
+function shouldShowSubmissionInAdminList(mission) {
+    const status = (mission.status || "").toLowerCase();
+    const workflow = (mission.workflowStatus || "").toLowerCase();
+
+    if (status === "closed" || workflow === "closed") return false;
+
+    // Hide pending submissions whose schedule already ended
+    if (status === "pending" || workflow === "submitted" || workflow === "pending") {
+        const end = parseAdminMissionEnd(mission);
+        if (end && !Number.isNaN(end.getTime()) && new Date() > end) {
+            return false;
+        }
+    }
+    return true;
+}
+
 async function loadMissionsData() {
     try {
         console.log("[INFO] Loading missions data from Firebase...");
@@ -1049,12 +1090,14 @@ async function loadMissionsData() {
             id: docSnap.id,
             ...docSnap.data(),
         }));
-
+        
+        const visibleMissions = rawMissions.filter(shouldShowSubmissionInAdminList);
+        
         const orgNameMap = await buildOrganizationNameMap(
-            rawMissions.map((m) => m.orgId)
+            visibleMissions.map((m) => m.orgId)
         );
-
-        allAdminMissions = rawMissions.map((mission) => {
+        
+        allAdminMissions = visibleMissions.map((mission) => {
             const liveName = mission.orgId
                 ? orgNameMap.get(mission.orgId)
                 : "";
