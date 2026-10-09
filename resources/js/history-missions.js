@@ -65,7 +65,7 @@ onAuthStateChanged(auth, async (user) => {
     await populateSidebarUser(user);
 
     // Load missions for this user
-    await loadHistoryMissions(user, { refresh: false });
+    await loadHistoryMissions(user, { refresh: true });
 });
 
 function updateHistoryMissionFooter(visibleCount) {
@@ -275,14 +275,10 @@ function getHistoryStatusClass(status) {
 }
 
 function getMissionCompletionDate(mission) {
-    const fromFields = toJsDate(mission.movedToHistoryAt)
-        || toJsDate(mission.completedAt)
-        || toJsDate(mission.lastStatusUpdate);
-
-    if (fromFields) return fromFields;
-
+    // Prefer the mission's actual schedule date for period filters
     const endDate = mission.endDate || mission.date;
     const endTime = mission.endTime;
+
     if (endDate && endTime) {
         try {
             if (endTime.includes("AM") || endTime.includes("PM")) {
@@ -304,8 +300,18 @@ function getMissionCompletionDate(mission) {
         }
     }
 
-    if (!endDate) return null;
-    return toJsDate(`${endDate}T12:00:00`);
+    if (endDate) {
+        const parsed = toJsDate(`${endDate}T12:00:00`);
+        if (parsed) return parsed;
+    }
+
+    // Fallback only if schedule is missing
+    return (
+        toJsDate(mission.movedToHistoryAt) ||
+        toJsDate(mission.completedAt) ||
+        toJsDate(mission.lastStatusUpdate) ||
+        null
+    );
 }
 
 function isInCurrentMonth(date) {
@@ -315,14 +321,17 @@ function isInCurrentMonth(date) {
         date.getFullYear() === now.getFullYear() &&
         date.getMonth() === now.getMonth()
     );
-}function getPeriodBucket(date) {
+}
+function getPeriodBucket(date) {
     if (!date) return "older";
+
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-    if (date >= thisMonthStart) return "this_month";
-    if (date >= lastMonthStart) return "last_month";
+    if (date >= thisMonthStart && date < nextMonthStart) return "this_month";
+    if (date >= lastMonthStart && date < thisMonthStart) return "last_month";
     return "older";
 }
 
@@ -437,6 +446,13 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
     const historyTableBody = document.getElementById("historyMissionsBody");
     if (!historyTableBody) return;
 
+    // Temporary: force rebuild so period buckets use schedule dates
+try {
+    sessionStorage.removeItem(`kalinga-org:${user.uid}:history`);
+} catch {
+    /* ignore */
+}
+
     const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
     const hasCache = cached !== null;
 
@@ -459,10 +475,7 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
     if (hasCache && !refresh) {
         return;
     }
-
-    if (hasCache && !isOrgCacheStale(user.uid, ORG_CACHE_KEYS.HISTORY)) {
-        return;
-    }
+    
 
     try {
         const historyRef = collection(db, "organizations", user.uid, "history");
