@@ -477,54 +477,6 @@
       </form>
     </div>
 
-    <!-- Recent Donations -->
-    <div class="recent-donations">
-      <h3><i class="bi bi-hand-thumbs-up"></i> Recent Donations</h3>
-      
-      <div class="donation-item">
-        <div class="donor-info">
-          <div class="donor-avatar">M</div>
-          <div class="donor-details">
-            <h4>Maria Santos</h4>
-            <p>2 hours ago</p>
-          </div>
-        </div>
-        <div class="donation-amount">₱1,500</div>
-      </div>
-
-      <div class="donation-item">
-        <div class="donor-info">
-          <div class="donor-avatar">J</div>
-          <div class="donor-details">
-            <h4>Juan Dela Cruz</h4>
-            <p>5 hours ago</p>
-          </div>
-        </div>
-        <div class="donation-amount">₱2,000</div>
-      </div>
-
-      <div class="donation-item">
-        <div class="donor-info">
-          <div class="donor-avatar">A</div>
-          <div class="donor-details">
-            <h4>Anonymous</h4>
-            <p>1 day ago</p>
-          </div>
-        </div>
-        <div class="donation-amount">₱500</div>
-      </div>
-
-      <div class="donation-item">
-        <div class="donor-info">
-          <div class="donor-avatar">R</div>
-          <div class="donor-details">
-            <h4>Roberto Garcia</h4>
-            <p>2 days ago</p>
-          </div>
-        </div>
-        <div class="donation-amount">₱3,000</div>
-      </div>
-    </div>
   </main>
 
   <script>
