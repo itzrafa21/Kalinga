@@ -201,6 +201,35 @@
       margin-bottom: 0.5rem;
     }
 
+    .qr-upload-box {
+  margin-top: 0.85rem;
+  border: 1px dashed #c5d5cc;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #f8faf9;
+}
+.qr-upload-box[hidden] { display: none !important; }
+.qr-upload-box label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #1e3a2f;
+}
+.qr-preview {
+  margin-top: 0.75rem;
+  max-width: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #dbe3ea;
+  background: #fff;
+}
+.qr-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.qr-preview[hidden] { display: none !important; }
+
     .donate-btn {
       background: linear-gradient(90deg, #28a745, #00c853);
       color: #fff;
@@ -412,6 +441,23 @@
             </div>
           </div>
 
+          <div class="form-group qr-upload-box" id="qrUploadBox">
+  <label for="donationQrInput">
+    <i class="bi bi-qr-code"></i> Payment QR Code
+  </label>
+  <input
+    type="file"
+    id="donationQrInput"
+    accept="image/png,image/jpeg,image/webp"
+  >
+  <p style="margin: 0.4rem 0 0; font-size: 0.8rem; color: #64748b;">
+    Attach your GCash / Maya QR so donors can scan it. PNG or JPG.
+  </p>
+  <div class="qr-preview" id="donationQrPreview" hidden>
+    <img id="donationQrImg" alt="Donation QR code preview">
+  </div>
+</div>
+
           <div class="form-group">
             <label>Message (Optional)</label>
             <textarea id="donorMessage" rows="4" placeholder="Leave a message of support..."></textarea>
@@ -514,6 +560,31 @@
     // Form submission
     document.getElementById('donationForm').addEventListener('submit', (e) => {
       e.preventDefault();
+
+      const qrInput = document.getElementById("donationQrInput");
+const qrPreview = document.getElementById("donationQrPreview");
+const qrImg = document.getElementById("donationQrImg");
+const qrBox = document.getElementById("qrUploadBox");
+
+function updateQrVisibility() {
+  const show =
+    selectedPaymentMethod === "gcash" ||
+    selectedPaymentMethod === "paymaya";
+  if (qrBox) qrBox.hidden = !show;
+}
+
+qrInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file || !qrImg || !qrPreview) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    qrImg.src = ev.target.result;
+    qrPreview.hidden = false;
+  };
+  reader.readAsDataURL(file);
+});
+
+updateQrVisibility();
       
       const donorName = document.getElementById('donorName').value;
       const donorEmail = document.getElementById('donorEmail').value;
@@ -532,13 +603,14 @@
       donateBtn.textContent = 'Processing...';
 
       setTimeout(() => {
-        alert(`[SUCCESS] Thank you for your donation of ₱${selectedAmount.toLocaleString()}!\n\nThis is a mock-up version. In a real implementation, this would process the payment through ${selectedPaymentMethod.toUpperCase()}.`);
-        
-        donateBtn.disabled = false;
-        donateBtn.innerHTML = '<i class="bi bi-heart"></i> Donate Now';
-        
-        // Reset form
-        document.getElementById('donationForm').reset();
+        document.querySelectorAll('.payment-method').forEach(method => {
+  method.addEventListener('click', () => {
+    document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
+    method.classList.add('active');
+    selectedPaymentMethod = method.dataset.method;
+    updateQrVisibility();
+  });
+});
         document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
         document.querySelector('.payment-method[data-method="gcash"]').classList.add('active');
