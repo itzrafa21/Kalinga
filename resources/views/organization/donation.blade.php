@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Donation - Kalinga</title>
-  
+  <title>Donation Setup - Kalinga</title>
+
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite([
     'resources/css/app.css',
@@ -17,43 +17,43 @@
 
   <style>
     .org-main-content.main-content {
-      max-width: 1200px;
+      max-width: 960px;
     }
     .page-title-donation {
       font-size: 1.5rem;
       font-weight: 700;
       color: #1e3a2f;
-      margin: 0 0 1.5rem;
+      margin: 0 0 0.35rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
     .page-title-donation i { color: #28a745; }
+    .page-subtitle {
+      margin: 0 0 1.5rem;
+      color: #64748b;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
 
-    /* Stats Cards */
     .stats {
       display: flex;
       flex-wrap: wrap;
       gap: 1.5rem;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
 
     .card {
       flex: 1;
-      min-width: 220px;
+      min-width: 180px;
       background: #fff;
       border-radius: 16px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-      padding: 1.5rem;
+      padding: 1.35rem 1.5rem;
       text-align: center;
       font-weight: bold;
       position: relative;
       overflow: hidden;
-      transition: transform 0.2s ease-in-out;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
     }
 
     .card::before {
@@ -69,19 +69,20 @@
     }
 
     .card h2 {
-      font-size: 2rem;
-      margin: 0.5rem 0 0;
+      font-size: 1.85rem;
+      margin: 0.35rem 0 0;
       color: #28a745;
+      position: relative;
     }
 
     .card p {
-      margin: 0.5rem 0 0;
+      margin: 0.4rem 0 0;
       color: #666;
       font-size: 0.9rem;
       font-weight: 500;
+      position: relative;
     }
 
-    /* Donation Form */
     .donation-section {
       background: #fff;
       border-radius: 16px;
@@ -91,8 +92,8 @@
     }
 
     .donation-section h3 {
-      margin-bottom: 1.5rem;
-      font-size: 1.6rem;
+      margin: 0 0 0.4rem;
+      font-size: 1.35rem;
       color: #28a745;
       font-weight: 600;
       display: flex;
@@ -100,92 +101,85 @@
       gap: 0.5rem;
     }
 
-    .donation-form {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
+    .section-desc {
+      margin: 0 0 1.25rem;
+      color: #64748b;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .mock-badge {
+      background: #ffc107;
+      color: #000;
+      padding: 0.4rem 0.85rem;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      display: inline-block;
+      margin-bottom: 1.15rem;
     }
 
     .form-group {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .form-group label {
       display: block;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.45rem;
       font-weight: 600;
-      color: #555;
+      color: #334155;
+      font-size: 0.92rem;
     }
 
     .form-group input,
-    .form-group select,
     .form-group textarea {
       width: 100%;
       padding: 12px 16px;
       border: 2px solid #e1e5e9;
       border-radius: 8px;
       font-size: 1rem;
+      font-family: inherit;
       transition: border-color 0.2s ease-in-out;
       box-sizing: border-box;
     }
 
     .form-group input:focus,
-    .form-group select:focus,
     .form-group textarea:focus {
       outline: none;
       border-color: #28a745;
       box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
     }
 
-    .amount-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .amount-btn {
-      padding: 12px 16px;
-      border: 2px solid #e1e5e9;
-      border-radius: 8px;
-      background: #fff;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease-in-out;
-      text-align: center;
-    }
-
-    .amount-btn:hover,
-    .amount-btn.active {
-      border-color: #28a745;
-      background: #28a745;
-      color: #fff;
-    }
-
-    .custom-amount {
-      grid-column: 1 / -1;
-    }
-
-    .custom-amount input {
-      text-align: center;
-      font-size: 1.2rem;
-      font-weight: 600;
+    .form-hint {
+      margin: 0.4rem 0 0;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.4;
     }
 
     .payment-methods {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.85rem;
     }
 
     .payment-method {
       padding: 1rem;
       border: 2px solid #e1e5e9;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       transition: all 0.2s ease-in-out;
       text-align: center;
+      font-weight: 600;
+      color: #334155;
+      background: #fff;
+    }
+
+    .payment-method i {
+      display: block;
+      font-size: 1.35rem;
+      margin-bottom: 0.35rem;
+      color: #64748b;
     }
 
     .payment-method:hover,
@@ -194,169 +188,96 @@
       background: rgba(40, 167, 69, 0.05);
     }
 
-    .payment-method img {
-      width: 40px;
-      height: 25px;
-      object-fit: contain;
-      margin-bottom: 0.5rem;
+    .payment-method.active i {
+      color: #28a745;
     }
 
-    .qr-upload-box {
-  margin-top: 0.85rem;
-  border: 1px dashed #c5d5cc;
-  border-radius: 12px;
-  padding: 1rem;
-  background: #f8faf9;
-}
-.qr-upload-box[hidden] { display: none !important; }
-.qr-upload-box label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #1e3a2f;
-}
-.qr-preview {
-  margin-top: 0.75rem;
-  max-width: 220px;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #dbe3ea;
-  background: #fff;
-}
-.qr-preview img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.qr-preview[hidden] { display: none !important; }
+    .payment-method.coming-soon {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
 
-    .donate-btn {
+    .gcash-setup-box {
+      border: 1px dashed #c5d5cc;
+      border-radius: 12px;
+      padding: 1.15rem 1.25rem;
+      background: #f8faf9;
+      margin-top: 0.25rem;
+    }
+
+    .gcash-setup-box > .box-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 700;
+      color: #1e3a2f;
+      margin-bottom: 0.35rem;
+    }
+
+    .qr-preview {
+      margin-top: 0.75rem;
+      max-width: 220px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #dbe3ea;
+      background: #fff;
+    }
+
+    .qr-preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .qr-preview[hidden] {
+      display: none !important;
+    }
+
+    .save-btn {
       background: linear-gradient(90deg, #28a745, #00c853);
       color: #fff;
       border: none;
-      padding: 16px 32px;
+      padding: 14px 28px;
       border-radius: 12px;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease-in-out;
       box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
       width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      font-family: inherit;
     }
 
-    .donate-btn:hover {
+    .save-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
     }
 
-    .donate-btn:disabled {
+    .save-btn:disabled {
       background: #ccc;
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
     }
 
-    /* Recent Donations */
-    .recent-donations {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-      padding: 2rem;
+    .preview-note {
+      margin-top: 1.25rem;
+      padding: 0.9rem 1rem;
+      background: #ecfdf3;
+      border: 1px solid #bbf7d0;
+      border-radius: 12px;
+      color: #166534;
+      font-size: 0.88rem;
+      line-height: 1.45;
     }
 
-    .recent-donations h3 {
-      margin-bottom: 1.5rem;
-      font-size: 1.6rem;
-      color: #28a745;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .donation-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      border-bottom: 1px solid #f0f0f0;
-      transition: background 0.2s ease-in-out;
-    }
-
-    .donation-item:hover {
-      background: #f8f9fa;
-    }
-
-    .donation-item:last-child {
-      border-bottom: none;
-    }
-
-    .donor-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .donor-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #28a745;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-    }
-
-    .donor-details h4 {
-      margin: 0;
-      font-size: 1rem;
-      color: #333;
-    }
-
-    .donor-details p {
-      margin: 0;
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .donation-amount {
-      font-size: 1.2rem;
-      font-weight: 600;
-      color: #28a745;
-    }
-
-    /* Mock Badge */
-    .mock-badge {
-      background: #ffc107;
-      color: #000;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-weight: bold;
-      font-size: 0.9rem;
-      display: inline-block;
-      margin-bottom: 1rem;
-    }
-
-    /* Responsive Design */
     @media (max-width: 768px) {
-      .donation-form {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-      }
-      
-      .stats {
-        flex-direction: column;
-      }
-      
-      .main-content {
-        padding: 1rem;
-      }
-      
-      .donation-section, .recent-donations {
-        padding: 1.5rem;
-      }
+      .stats { flex-direction: column; }
+      .donation-section { padding: 1.5rem; }
     }
   </style>
 </head>
@@ -365,211 +286,173 @@
 
   <main class="org-main-content main-content" id="mainContent">
     <h1 class="page-title-donation"><i class="bi bi-heart"></i> Donation Center</h1>
-    <!-- Stats Cards -->
+    <p class="page-subtitle">
+      Set up how volunteers can donate to your organization. You are not donating here — you are publishing your payment details for others to use.
+    </p>
+
     <div class="stats">
       <div class="card">
-        <h2 id="totalDonations">₱12,450</h2>
+        <h2 id="totalDonations">₱0</h2>
         <p>Total Raised</p>
       </div>
       <div class="card">
-        <h2 id="thisMonth">₱3,200</h2>
+        <h2 id="thisMonth">₱0</h2>
         <p>This Month</p>
       </div>
       <div class="card">
-        <h2 id="donorsCount">47</h2>
+        <h2 id="donorsCount">0</h2>
         <p>Donors</p>
       </div>
     </div>
 
-    <!-- Donation Form -->
     <div class="donation-section">
-      <h3><i class="bi bi-heart"></i> Make a Donation</h3>
-      <div class="mock-badge">MOCK-UP VERSION</div>
-      
-      <form id="donationForm" class="donation-form">
-        <div class="form-column">
+      <h3><i class="bi bi-wallet2"></i> How volunteers can donate</h3>
+      <p class="section-desc">
+        Add your GCash details and QR code. Volunteers will use these to send donations later.
+      </p>
+      <div class="mock-badge">MOCK-UP — not saved to Firebase yet</div>
+
+      <form id="donationSetupForm">
+        <div class="form-group">
+          <label>Payment method</label>
+          <div class="payment-methods">
+            <div class="payment-method active" data-method="gcash" role="button" tabindex="0">
+              <i class="bi bi-phone"></i>
+              GCash
+            </div>
+            <div class="payment-method coming-soon" data-method="paymaya" title="Coming soon">
+              <i class="bi bi-credit-card"></i>
+              PayMaya
+            </div>
+            <div class="payment-method coming-soon" data-method="bank" title="Coming soon">
+              <i class="bi bi-bank"></i>
+              Bank
+            </div>
+          </div>
+          <p class="form-hint">GCash is available for this mockup. Other methods can be added later.</p>
+        </div>
+
+        <div class="gcash-setup-box" id="gcashDetailsBox">
+          <div class="box-title"><i class="bi bi-qr-code"></i> Your GCash receiving details</div>
+          <p class="form-hint" style="margin-bottom: 1rem;">
+            From the GCash app: open Receive / My QR, then enter the same account name and number here and upload the QR image.
+          </p>
+
           <div class="form-group">
-            <label>Donation Amount</label>
-            <div class="amount-options">
-              <button type="button" class="amount-btn" data-amount="100">₱100</button>
-              <button type="button" class="amount-btn" data-amount="500">₱500</button>
-              <button type="button" class="amount-btn" data-amount="1000">₱1,000</button>
-              <button type="button" class="amount-btn" data-amount="2000">₱2,000</button>
-              <button type="button" class="amount-btn" data-amount="5000">₱5,000</button>
-              <div class="custom-amount">
-                <input type="number" id="customAmount" placeholder="Enter custom amount" min="1">
-              </div>
+            <label for="gcashAccountName">Account name</label>
+            <input type="text" id="gcashAccountName" placeholder="e.g. GoodApps Organization" required>
+          </div>
+
+          <div class="form-group">
+            <label for="gcashNumber">GCash number</label>
+            <input type="tel" id="gcashNumber" placeholder="09XX XXX XXXX" required>
+          </div>
+
+          <div class="form-group">
+            <label for="donationQrInput">GCash QR code image</label>
+            <input type="file" id="donationQrInput" accept="image/png,image/jpeg,image/webp">
+            <p class="form-hint">PNG or JPG. Keep the file under ~700 KB if you later save it to Firestore.</p>
+            <div class="qr-preview" id="donationQrPreview" hidden>
+              <img id="donationQrImg" alt="Organization GCash QR preview">
             </div>
           </div>
 
-          <div class="form-group">
-            <label>Donor Information</label>
-            <input type="text" id="donorName" placeholder="Your name" required>
-          </div>
-
-          <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" id="donorEmail" placeholder="your@email.com" required>
-          </div>
-
-          <div class="form-group">
-            <label>Phone Number</label>
-            <input type="tel" id="donorPhone" placeholder="+63 912 345 6789">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="volunteerNote">Note shown to volunteers (optional)</label>
+            <textarea id="volunteerNote" rows="3" placeholder="e.g. Please include your name in the GCash message. Thank you for supporting our missions!"></textarea>
           </div>
         </div>
 
-        <div class="form-column">
-          <div class="form-group">
-            <label>Payment Method</label>
-            <div class="payment-methods">
-              <div class="payment-method active" data-method="gcash">
-                <div><i class="bi bi-phone"></i></div>
-                <div>GCash</div>
-              </div>
-              <div class="payment-method" data-method="paymaya">
-                <div><i class="bi bi-credit-card"></i></div>
-                <div>PayMaya</div>
-              </div>
-              <div class="payment-method" data-method="bank">
-                <div><i class="bi bi-bank"></i></div>
-                <div>Bank Transfer</div>
-              </div>
-              <div class="payment-method" data-method="cash">
-                <div><i class="bi bi-cash-stack"></i></div>
-                <div>Cash</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group qr-upload-box" id="qrUploadBox">
-  <label for="donationQrInput">
-    <i class="bi bi-qr-code"></i> Payment QR Code
-  </label>
-  <input
-    type="file"
-    id="donationQrInput"
-    accept="image/png,image/jpeg,image/webp"
-  >
-  <p style="margin: 0.4rem 0 0; font-size: 0.8rem; color: #64748b;">
-    Attach your GCash / Maya QR so donors can scan it. PNG or JPG.
-  </p>
-  <div class="qr-preview" id="donationQrPreview" hidden>
-    <img id="donationQrImg" alt="Donation QR code preview">
-  </div>
-</div>
-
-          <div class="form-group">
-            <label>Message (Optional)</label>
-            <textarea id="donorMessage" rows="4" placeholder="Leave a message of support..."></textarea>
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="anonymousDonation" style="width: auto; margin-right: 8px;">
-              Make this donation anonymous
-            </label>
-          </div>
-
-          <button type="submit" class="donate-btn" id="donateBtn">
-            <i class="bi bi-heart"></i> Donate Now
+        <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 0;">
+          <button type="submit" class="save-btn" id="saveDonationSetupBtn">
+            <i class="bi bi-check-lg"></i> Save donation details
           </button>
         </div>
       </form>
-    </div>
 
+      <div class="preview-note">
+        <strong>Next step (later):</strong> a volunteer-facing donate page will show this QR and number as read-only so they can send money. This org page only configures receiving details.
+      </div>
+    </div>
   </main>
 
   <script>
-    // Donation Form Functionality
-    let selectedAmount = 0;
-    let selectedPaymentMethod = 'gcash';
-
-    // Amount selection
-    document.querySelectorAll('.amount-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedAmount = parseInt(btn.dataset.amount);
-        document.getElementById('customAmount').value = '';
-      });
-    });
-
-    // Custom amount
-    document.getElementById('customAmount').addEventListener('input', (e) => {
-      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
-      selectedAmount = parseInt(e.target.value) || 0;
-    });
-
-    // Payment method selection
-    document.querySelectorAll('.payment-method').forEach(method => {
-      method.addEventListener('click', () => {
-        document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
-        method.classList.add('active');
-        selectedPaymentMethod = method.dataset.method;
-      });
-    });
-
-    // Form submission
-    document.getElementById('donationForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-
+    (function () {
+      const form = document.getElementById("donationSetupForm");
       const qrInput = document.getElementById("donationQrInput");
-const qrPreview = document.getElementById("donationQrPreview");
-const qrImg = document.getElementById("donationQrImg");
-const qrBox = document.getElementById("qrUploadBox");
+      const qrPreview = document.getElementById("donationQrPreview");
+      const qrImg = document.getElementById("donationQrImg");
+      const saveBtn = document.getElementById("saveDonationSetupBtn");
 
-function updateQrVisibility() {
-  const show =
-    selectedPaymentMethod === "gcash" ||
-    selectedPaymentMethod === "paymaya";
-  if (qrBox) qrBox.hidden = !show;
-}
+      let qrDataUrl = "";
 
-qrInput?.addEventListener("change", (e) => {
-  const file = e.target.files?.[0];
-  if (!file || !qrImg || !qrPreview) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    qrImg.src = ev.target.result;
-    qrPreview.hidden = false;
-  };
-  reader.readAsDataURL(file);
-});
+      qrInput?.addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !qrImg || !qrPreview) return;
 
-updateQrVisibility();
-      
-      const donorName = document.getElementById('donorName').value;
-      const donorEmail = document.getElementById('donorEmail').value;
-      const donorPhone = document.getElementById('donorPhone').value;
-      const donorMessage = document.getElementById('donorMessage').value;
-      const isAnonymous = document.getElementById('anonymousDonation').checked;
-      
-      if (!selectedAmount || selectedAmount <= 0) {
-        alert('Please select a donation amount');
-        return;
-      }
+        if (file.size > 900 * 1024) {
+          alert("QR image is quite large. Please use a smaller PNG/JPG (under ~700 KB).");
+        }
 
-      // Mock donation processing
-      const donateBtn = document.getElementById('donateBtn');
-      donateBtn.disabled = true;
-      donateBtn.textContent = 'Processing...';
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          qrDataUrl = ev.target.result || "";
+          qrImg.src = qrDataUrl;
+          qrPreview.hidden = false;
+        };
+        reader.readAsDataURL(file);
+      });
 
-      setTimeout(() => {
-        document.querySelectorAll('.payment-method').forEach(method => {
-  method.addEventListener('click', () => {
-    document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
-    method.classList.add('active');
-    selectedPaymentMethod = method.dataset.method;
-    updateQrVisibility();
-  });
-});
-        document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
-        document.querySelector('.payment-method[data-method="gcash"]').classList.add('active');
-        selectedAmount = 0;
-        selectedPaymentMethod = 'gcash';
-      }, 2000);
-    });
+      document.querySelectorAll(".payment-method:not(.coming-soon)").forEach((method) => {
+        method.addEventListener("click", () => {
+          document.querySelectorAll(".payment-method:not(.coming-soon)").forEach((m) => {
+            m.classList.remove("active");
+          });
+          method.classList.add("active");
+        });
+      });
+
+      form?.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const accountName = document.getElementById("gcashAccountName")?.value?.trim() || "";
+        const number = document.getElementById("gcashNumber")?.value?.trim() || "";
+        const note = document.getElementById("volunteerNote")?.value?.trim() || "";
+
+        if (!accountName) {
+          alert("Please enter the GCash account name.");
+          document.getElementById("gcashAccountName")?.focus();
+          return;
+        }
+        if (!number) {
+          alert("Please enter your GCash number.");
+          document.getElementById("gcashNumber")?.focus();
+          return;
+        }
+        if (!qrDataUrl && qrPreview?.hidden) {
+          alert("Please upload your GCash QR code so volunteers can scan it.");
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+
+        // Mock save — later: write to organizations/{uid}/donationSettings
+        setTimeout(() => {
+          alert(
+            "[MOCK] Donation details saved for volunteers.\n\n" +
+              `Account: ${accountName}\n` +
+              `GCash: ${number}\n` +
+              `QR: ${qrDataUrl ? "uploaded" : "none"}\n` +
+              `Note: ${note || "(none)"}\n\n` +
+              "Later this will save to Firebase and appear on the volunteer donate page."
+          );
+
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save donation details';
+        }, 600);
+      });
+    })();
   </script>
 </body>
 </html>
