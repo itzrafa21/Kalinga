@@ -260,9 +260,22 @@ const pointsFields = await computeMissionPointsPayload(schedule);
                 location: location || "N/A",
                 latitude: latitude || "N/A",
                 longitude: longitude || "N/A",
-                volunteers: document.getElementById("volunteers")?.value || "1",
+                volunteers: document.getElementById("volunteers")?.value || "1",          
                 autoAcceptVolunteers:
                     document.getElementById("autoAcceptVolunteers")?.checked === true,
+                makeDonations: missionDonationEnabled,
+                donationDetails: missionDonationEnabled
+                    ? {
+                        method: "gcash",
+                        accountName:
+                            document.getElementById("missionGcashAccountName")?.value?.trim() || "",
+                        gcashNumber:
+                            document.getElementById("missionGcashNumber")?.value?.trim() || "",
+                        qrImage: missionDonationQrDataUrl || "",
+                        note:
+                            document.getElementById("missionDonationNote")?.value?.trim() || "",
+                    }
+                    : null,
                 orgId: currentUser.uid,
                 orgName: orgName,
                 createdAt: new Date(),
