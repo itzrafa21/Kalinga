@@ -377,82 +377,120 @@
   </main>
 
   <script>
-    (function () {
-      const form = document.getElementById("donationSetupForm");
-      const qrInput = document.getElementById("donationQrInput");
-      const qrPreview = document.getElementById("donationQrPreview");
-      const qrImg = document.getElementById("donationQrImg");
-      const saveBtn = document.getElementById("saveDonationSetupBtn");
+  (function () {
+    const STORAGE_KEY = "kalinga-org-donation-gcash";
 
-      let qrDataUrl = "";
+    const form = document.getElementById("donationSetupForm");
+    const qrInput = document.getElementById("donationQrInput");
+    const qrPreview = document.getElementById("donationQrPreview");
+    const qrImg = document.getElementById("donationQrImg");
+    const saveBtn = document.getElementById("saveDonationSetupBtn");
+    const accountEl = document.getElementById("gcashAccountName");
+    const numberEl = document.getElementById("gcashNumber");
+    const noteEl = document.getElementById("volunteerNote");
 
-      qrInput?.addEventListener("change", (e) => {
-        const file = e.target.files?.[0];
-        if (!file || !qrImg || !qrPreview) return;
+    let qrDataUrl = "";
 
-        if (file.size > 900 * 1024) {
-          alert("QR image is quite large. Please use a smaller PNG/JPG (under ~700 KB).");
-        }
+    function loadSavedDonation() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          qrDataUrl = ev.target.result || "";
-          qrImg.src = qrDataUrl;
+        if (accountEl) accountEl.value = data.accountName || "";
+        if (numberEl) numberEl.value = data.gcashNumber || "";
+        if (noteEl) noteEl.value = data.note || "";
+
+        if (data.qrImage && qrImg && qrPreview) {
+          qrDataUrl = data.qrImage;
+          qrImg.src = data.qrImage;
           qrPreview.hidden = false;
-        };
-        reader.readAsDataURL(file);
-      });
+        }
+      } catch (err) {
+        console.warn("[WARN] Could not load saved donation details:", err);
+      }
+    }
 
-      document.querySelectorAll(".payment-method:not(.coming-soon)").forEach((method) => {
-        method.addEventListener("click", () => {
-          document.querySelectorAll(".payment-method:not(.coming-soon)").forEach((m) => {
-            m.classList.remove("active");
-          });
-          method.classList.add("active");
+    function saveDonationLocally(payload) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    qrInput?.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !qrImg || !qrPreview) return;
+
+      if (file.size > 900 * 1024) {
+        alert("QR image is quite large. Please use a smaller PNG/JPG (under ~700 KB).");
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        qrDataUrl = ev.target.result || "";
+        qrImg.src = qrDataUrl;
+        qrPreview.hidden = false;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.querySelectorAll(".payment-method:not(.coming-soon)").forEach((method) => {
+      method.addEventListener("click", () => {
+        document.querySelectorAll(".payment-method:not(.coming-soon)").forEach((m) => {
+          m.classList.remove("active");
         });
+        method.classList.add("active");
       });
+    });
 
-      form?.addEventListener("submit", (e) => {
-        e.preventDefault();
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
 
-        const accountName = document.getElementById("gcashAccountName")?.value?.trim() || "";
-        const number = document.getElementById("gcashNumber")?.value?.trim() || "";
-        const note = document.getElementById("volunteerNote")?.value?.trim() || "";
+      const accountName = accountEl?.value?.trim() || "";
+      const number = numberEl?.value?.trim() || "";
+      const note = noteEl?.value?.trim() || "";
 
-        if (!accountName) {
-          alert("Please enter the GCash account name.");
-          document.getElementById("gcashAccountName")?.focus();
-          return;
-        }
-        if (!number) {
-          alert("Please enter your GCash number.");
-          document.getElementById("gcashNumber")?.focus();
-          return;
-        }
-        if (!qrDataUrl && qrPreview?.hidden) {
-          alert("Please upload your GCash QR code so volunteers can scan it.");
-          return;
-        }
+      if (!accountName) {
+        alert("Please enter the GCash account name.");
+        accountEl?.focus();
+        return;
+      }
+      if (!number) {
+        alert("Please enter your GCash number.");
+        numberEl?.focus();
+        return;
+      }
+      if (!qrDataUrl && qrPreview?.hidden) {
+        alert("Please upload your GCash QR code so volunteers can scan it.");
+        return;
+      }
 
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
 
-        // Mock save — later: write to organizations/{uid}/donationSettings
-        setTimeout(() => {
-          alert(
-            "[MOCK] Donation details saved for volunteers.\n\n" +
-              `Account: ${accountName}\n` +
-              `GCash: ${number}\n` +
-              `QR: ${qrDataUrl ? "uploaded" : "none"}\n` +
-              `Note: ${note || "(none)"}\n\n` +
-              "Later this will save to Firebase and appear on the volunteer donate page."
-          );
+      const payload = {
+        method: "gcash",
+        accountName,
+        gcashNumber: number,
+        note,
+        qrImage: qrDataUrl || "",
+        savedAt: new Date().toISOString(),
+      };
 
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save donation details';
-        }, 600);
-      });
-    })();
-  </script>
+      try {
+        saveDonationLocally(payload);
+        alert("Donation details saved on this browser.\n\n(Not uploaded to Firebase yet.)");
+      } catch (err) {
+        console.error(err);
+        alert(
+          "Could not save. The QR image may be too large for browser storage. Try a smaller image."
+        );
+      }
+
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save donation details';
+    });
+
+    loadSavedDonation();
+  })();
+</script>
 </body>
 </html>
