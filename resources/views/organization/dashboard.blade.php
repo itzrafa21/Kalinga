@@ -24,6 +24,57 @@
       color: #1e3a2f;
       margin: 0 0 1.25rem;
     }
+    .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+.page-header-text {
+  min-width: 0;
+}
+.page-welcome {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  color: #1e3a2f;
+}
+.page-header .page-title {
+  margin-bottom: 1.25rem;
+}
+.notif-btn {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #cfe3d6;
+  border-radius: 50%;
+  background: #fff;
+  color: #1e3a2f;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.notif-btn:hover {
+  background: #ecfdf3;
+  border-color: #28a745;
+  color: #28a745;
+}
+.notif-btn i {
+  font-size: 1.15rem;
+}
+.notif-badge {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc2626;
+  border: 2px solid #effff4;
+}
 
     /* Toolbar - search, filters, primary button */
     .toolbar {
@@ -404,12 +455,18 @@
 @include('partials.org-sidebar', ['activeNav' => 'dashboard'])
 
 <main class="org-main-content main-content">
-  <div class="page-header">
+<div class="page-header">
+  <div class="page-header-text">
     <p class="page-welcome">
       Welcome, <span id="orgNameWelcome">Organization</span>!
     </p>
     <h1 class="page-title">Mission Management</h1>
   </div>
+  <button type="button" class="notif-btn" id="orgNotifBtn" aria-label="Notifications" title="Notifications">
+    <i class="bi bi-bell"></i>
+    <span class="notif-badge" id="orgNotifBadge" hidden></span>
+  </button>
+</div>
 
     <div class="stats">
       <div class="stat-card">
