@@ -263,19 +263,19 @@ const pointsFields = await computeMissionPointsPayload(schedule);
                 volunteers: document.getElementById("volunteers")?.value || "1",          
                 autoAcceptVolunteers:
                     document.getElementById("autoAcceptVolunteers")?.checked === true,
-                makeDonations: missionDonationEnabled,
-                donationDetails: missionDonationEnabled
-                    ? {
-                        method: "gcash",
-                        accountName:
-                            document.getElementById("missionGcashAccountName")?.value?.trim() || "",
-                        gcashNumber:
-                            document.getElementById("missionGcashNumber")?.value?.trim() || "",
-                        qrImage: missionDonationQrDataUrl || "",
-                        note:
-                            document.getElementById("missionDonationNote")?.value?.trim() || "",
-                    }
-                    : null,
+                    makeDonations: isMissionDonationEnabled(),
+                    donationDetails: (() => {
+                        if (!isMissionDonationEnabled()) return null;
+                        const data = getSavedDonationDetails();
+                        if (!data) return null;
+                        return {
+                            method: data.method || "gcash",
+                            accountName: data.accountName || "",
+                            gcashNumber: data.gcashNumber || "",
+                            qrImage: data.qrImage || "",
+                            note: data.note || "",
+                        };
+                    })(),
                 orgId: currentUser.uid,
                 orgName: orgName,
                 createdAt: new Date(),

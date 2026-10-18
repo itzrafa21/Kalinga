@@ -20,6 +20,9 @@ Route::get('/', function () {
 Route::get('/missions/create', function () {
     return view('missions.create');
 });
+Route::get('/missions/donation-details', function () {
+    return view('missions.donation-details');
+});
 // Edit mission page
 Route::get('/missions/edit', function () {
     return view('missions.edit');

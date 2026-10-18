@@ -712,38 +712,12 @@
                                     <p class="text-muted small mb-0 mt-2">When enabled, new applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
                                 </div>
                                 <div class="option-card mt-3">
-  <button type="button" class="btn btn-outline-success w-100" id="openMissionDonationBtn">
+  <a href="/missions/donation-details" class="btn btn-outline-success w-100" id="openMissionDonationBtn">
     <i class="bi bi-heart"></i> Make donations for this mission
-  </button>
+  </a>
   <p class="text-muted small mb-0 mt-2" id="missionDonationStatus">
     No donation details set for this mission yet.
   </p>
-</div>
-
-<div id="missionDonationPanel" class="option-card mt-3" hidden>
-  <h3 class="h6 mb-2"><i class="bi bi-qr-code"></i> Donation details for this mission</h3>
-  <p class="text-muted small">Volunteers will use these details to donate to this mission.</p>
-
-  <label class="form-label" for="missionGcashAccountName">Account name</label>
-  <input type="text" id="missionGcashAccountName" class="form-control mb-2" placeholder="e.g. GoodApps Organization">
-
-  <label class="form-label" for="missionGcashNumber">GCash number</label>
-  <input type="tel" id="missionGcashNumber" class="form-control mb-2" placeholder="09XX XXX XXXX">
-
-  <label class="form-label" for="missionDonationQrInput">GCash QR</label>
-  <input type="file" id="missionDonationQrInput" class="form-control mb-2" accept="image/png,image/jpeg,image/webp">
-  <div id="missionDonationQrPreview" class="mb-2" hidden>
-    <img id="missionDonationQrImg" alt="Mission GCash QR" style="max-width:180px;border-radius:8px;">
-  </div>
-
-  <label class="form-label" for="missionDonationNote">Note for volunteers (optional)</label>
-  <textarea id="missionDonationNote" class="form-control mb-3" rows="2" placeholder="Message shown with the QR"></textarea>
-
-  <div class="d-flex gap-2">
-    <button type="button" class="btn btn-success" id="saveMissionDonationBtn">Save donation details</button>
-    <button type="button" class="btn btn-outline-secondary" id="cancelMissionDonationBtn">Cancel</button>
-    <button type="button" class="btn btn-outline-danger" id="clearMissionDonationBtn">Remove</button>
-  </div>
 </div>
                             </div>
                         </div>
