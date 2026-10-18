@@ -718,6 +718,9 @@
   <p class="text-muted small mb-0 mt-2" id="missionDonationStatus">
     No donation details set for this mission yet.
   </p>
+  <a href="/missions/donation-details" class="btn btn-outline-success w-100 mt-2" id="viewMissionDonationBtn">
+    <i class="bi bi-eye"></i> View Donation Details
+  </a>
 </div>
                             </div>
                         </div>
