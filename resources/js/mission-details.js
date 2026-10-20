@@ -1175,7 +1175,11 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
     btn.disabled = true;
     try {
       await updateApplicationStatus(volunteer, missionId, "approved");
-      await refreshMissionDetails();
+      invalidateOrgCache(
+        auth.currentUser?.uid,
+        missionDetailCacheKey(missionId)
+      );
+      await refreshMissionDetails({ refresh: true, background: true });
       openRosterStatusSuccessModal("approved");
     } catch (err) {
       console.error(err);
