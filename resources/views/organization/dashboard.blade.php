@@ -76,6 +76,33 @@
   border: 2px solid #effff4;
 }
 
+.notif-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.notif-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 16px;
+  z-index: 50;
+}
+.notif-dropdown.open {
+  display: block;
+}
+.notif-dropdown p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  text-align: center;
+}
+
     /* Toolbar - search, filters, primary button */
     .toolbar {
       display: flex;
@@ -462,10 +489,14 @@
     </p>
     <h1 class="page-title">Mission Management</h1>
   </div>
-  <button type="button" class="notif-btn" id="orgNotifBtn" aria-label="Notifications" title="Notifications">
+  <div class="notif-wrap">
+  <button type="button" class="notif-btn" id="orgNotifBtn" aria-label="Notifications" title="Notifications" aria-expanded="false">
     <i class="bi bi-bell"></i>
-    <span class="notif-badge" id="orgNotifBadge" hidden></span>
   </button>
+  <div class="notif-dropdown" id="orgNotifDropdown">
+    <p>your notifications will be here</p>
+  </div>
+</div>
 </div>
 
     <div class="stats">
@@ -541,5 +572,17 @@
       @include('partials.org-cache-hydrate')
     </div>
   </main>
+  <script>
+  document.getElementById("orgNotifBtn")?.addEventListener("click", function (e) {
+    e.stopPropagation();
+    const menu = document.getElementById("orgNotifDropdown");
+    const open = menu.classList.toggle("open");
+    this.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", function () {
+    document.getElementById("orgNotifDropdown")?.classList.remove("open");
+    document.getElementById("orgNotifBtn")?.setAttribute("aria-expanded", "false");
+  });
+</script>
 </body>
 </html>

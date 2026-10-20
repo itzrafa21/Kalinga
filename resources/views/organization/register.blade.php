@@ -57,6 +57,37 @@
     max-width: 380px;
   }
 
+  .auth-form-side {
+  align-items: flex-start;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+.auth-box {
+  max-width: 460px;
+  padding: 24px 0;
+}
+.cso-section {
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+.cso-section h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.cso-checks {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.cso-checks label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
   .auth-box h2 {
     margin: 0 0 10px;
     font-size: 44px;
@@ -230,10 +261,54 @@
         <form id="registerForm">
           @csrf
           <input type="text" id="orgName" class="form-control" placeholder="Organization Name" required>
-          <input type="email" id="email" class="form-control" placeholder="Email" required>
-          <input type="password" id="password" class="form-control" placeholder="Password" required>
-          <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm Password" required>
+          <input type="text" id="completeAddress" class="form-control" placeholder="Complete Address">
+<input type="tel" id="officeTelephone" class="form-control" placeholder="Office Telephone Number">
+<input type="email" id="orgEmail" class="form-control" placeholder="Organizational Email Address">
 
+<div class="cso-section">
+  <h3>Contact person</h3>
+  <input type="text" id="contactPerson" class="form-control" placeholder="Contact Person">
+  <input type="text" id="designation" class="form-control" placeholder="Designation">
+  <input type="tel" id="contactNumber" class="form-control" placeholder="Contact Number">
+  <input type="email" id="contactEmail" class="form-control" placeholder="Contact Email Address">
+</div>
+
+<div class="cso-section">
+  <h3>Nature of organization</h3>
+  <div class="cso-checks">
+    <label><input type="checkbox" name="orgNature" value="ngo"> Non-Government Organization</label>
+    <label><input type="checkbox" name="orgNature" value="peoples"> People's Organization</label>
+    <label><input type="checkbox" name="orgNature" value="cooperative"> Cooperative</label>
+    <label><input type="checkbox" name="orgNature" value="federation"> Federation / Network / Coalition</label>
+    <label><input type="checkbox" name="orgNature" value="other"> Other</label>
+  </div>
+  <input type="text" id="orgNatureOther" class="form-control" placeholder="Other nature, please specify">
+</div>
+
+<div class="cso-section">
+  <h3>Core organizational programs</h3>
+  <div class="cso-checks">
+    <label><input type="checkbox" name="orgPrograms" value="advocacy"> Advocacy</label>
+    <label><input type="checkbox" name="orgPrograms" value="agriculture"> Agriculture / Agrarian Reform</label>
+    <label><input type="checkbox" name="orgPrograms" value="fisheries"> Fisheries</label>
+    <label><input type="checkbox" name="orgPrograms" value="children"> Children's Welfare</label>
+    <label><input type="checkbox" name="orgPrograms" value="drr"> Disaster Risk Reduction / Climate Change Adaptation</label>
+    <label><input type="checkbox" name="orgPrograms" value="education"> Education / Training</label>
+    <label><input type="checkbox" name="orgPrograms" value="livelihood"> Enterprise & Livelihood Development / Social Enterprise</label>
+    <label><input type="checkbox" name="orgPrograms" value="enr"> Environment & Natural Resources</label>
+    <label><input type="checkbox" name="orgPrograms" value="environment"> Environment Protection</label>
+    <label><input type="checkbox" name="orgPrograms" value="food"> Food Security</label>
+    <label><input type="checkbox" name="orgPrograms" value="gender"> Gender and Development</label>
+    <label><input type="checkbox" name="orgPrograms" value="governance"> Good Governance</label>
+    <label><input type="checkbox" name="orgPrograms" value="health"> Health & Nutrition</label>
+    <label><input type="checkbox" name="orgPrograms" value="housing"> Housing</label>
+    <label><input type="checkbox" name="orgPrograms" value="lending"> Lending / Financing / Microcredit / Cooperative Development</label>
+    <label><input type="checkbox" name="orgPrograms" value="networking"> Networking / Coalition Building</label>
+    <label><input type="checkbox" name="orgPrograms" value="values"> Religious & Spiritual Services / Values Formation</label>
+    <label><input type="checkbox" name="orgPrograms" value="other"> Other program</label>
+  </div>
+  <input type="text" id="orgProgramOther" class="form-control" placeholder="Other program, please specify">
+</div>
           <button type="submit" class="btn-auth">Create account</button>
 
           <div class="auth-links">
