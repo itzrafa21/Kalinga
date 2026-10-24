@@ -22,6 +22,64 @@ import { invalidateOrgCache, ORG_CACHE_KEYS } from "./org-data-cache.js";
 let currentUser = null;
 let selectedMissionImageFile = null;
 
+const MISSION_DONATION_FLAG = "kalinga-mission-donation-enabled";
+const CREATE_DRAFT_KEY = "kalinga-create-mission-draft";
+const DONATION_KEEP_KEY = "kalinga-mission-donation-keep";
+
+function clearMissionDonationChoice() {
+    localStorage.removeItem(MISSION_DONATION_FLAG);
+    sessionStorage.removeItem(MISSION_DONATION_FLAG);
+    sessionStorage.removeItem(CREATE_DRAFT_KEY);
+    localStorage.removeItem("kalinga-mission-donation-draft");
+    sessionStorage.removeItem("kalinga-mission-donation-draft");
+}
+
+function isMissionDonationEnabled() {
+    return (
+        localStorage.getItem(MISSION_DONATION_FLAG) === "1" ||
+        sessionStorage.getItem(MISSION_DONATION_FLAG) === "1"
+    );
+}
+
+function getSavedDonationDetails() {
+    try {
+        const raw =
+            sessionStorage.getItem("kalinga-mission-donation-draft") ||
+            localStorage.getItem("kalinga-mission-donation-draft");
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function updateMissionDonationStatusUi() {
+    const status = document.getElementById("missionDonationStatus");
+    if (!status) return;
+    status.textContent = isMissionDonationEnabled()
+        ? "Donation details will be used for this mission."
+        : "No donation details set for this mission yet.";
+}
+
+function initMissionDonationLifecycle() {
+    const returningFromDonation = sessionStorage.getItem(DONATION_KEEP_KEY) === "1";
+    sessionStorage.removeItem(DONATION_KEEP_KEY);
+
+    if (!returningFromDonation) {
+        clearMissionDonationChoice();
+    }
+    sessionStorage.setItem(CREATE_DRAFT_KEY, "1");
+    updateMissionDonationStatusUi();
+
+    const keepForDonationPage = () => sessionStorage.setItem(DONATION_KEEP_KEY, "1");
+    document.getElementById("openMissionDonationBtn")?.addEventListener("click", keepForDonationPage);
+    document.getElementById("viewMissionDonationBtn")?.addEventListener("click", keepForDonationPage);
+
+    window.addEventListener("pagehide", () => {
+        if (sessionStorage.getItem(DONATION_KEEP_KEY) === "1") return;
+        clearMissionDonationChoice();
+    });
+}
+
 function openMissionSuccessModal() {
     const overlay = document.getElementById("missionSuccessModal");
     if (!overlay) return;
@@ -80,6 +138,7 @@ onAuthStateChanged(auth, async (user) => {
     initializeImageUpload();
     initMissionSuccessModal();
     initUsDateInputs(["date", "end_date"]);
+    initMissionDonationLifecycle();
 });
 
 function getCreateFormSchedule() {
@@ -325,6 +384,7 @@ const pointsFields = await computeMissionPointsPayload(schedule);
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.PROFILE);
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.VOLUNTEERS);
+            clearMissionDonationChoice();
 
             openMissionSuccessModal();
         } catch (error) {

@@ -67,48 +67,106 @@
   </main>
 
   <script>
-    (function () {
-      const STORAGE_KEY = "kalinga-org-donation-gcash";
-      const MISSION_FLAG_KEY = "kalinga-mission-donation-enabled";
+  (function () {
+    const ORG_KEY = "kalinga-org-donation-gcash";
+    const DRAFT_KEY = "kalinga-mission-donation-draft";
+    const FLAG_KEY = "kalinga-mission-donation-enabled";
+    const CREATE_DRAFT_KEY = "kalinga-create-mission-draft";
+    const KEEP_KEY = "kalinga-mission-donation-keep";
+    const RETURN_KEY = "kalinga-mission-donation-return";
 
-      const loaded = document.getElementById("donationLoaded");
-      const empty = document.getElementById("donationEmpty");
-      const useBtn = document.getElementById("useForMissionBtn");
+    const viewOnly = new URLSearchParams(window.location.search).get("view") === "1";
+    const loaded = document.getElementById("donationLoaded");
+    const empty = document.getElementById("donationEmpty");
+    const useBtn = document.getElementById("useForMissionBtn");
 
-      let data = null;
+    function readJson(storage, key) {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        data = raw ? JSON.parse(raw) : null;
+        const raw = storage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
       } catch {
-        data = null;
+        return null;
       }
+    }
 
-      if (!data || (!data.accountName && !data.gcashNumber && !data.qrImage)) {
-        empty.hidden = false;
+    function showEmpty(message) {
+      empty.hidden = false;
+      empty.textContent = message;
+    }
+
+    let data = readJson(sessionStorage, DRAFT_KEY) || readJson(localStorage, DRAFT_KEY);
+
+function markReturnToCreate() {
+  sessionStorage.setItem(RETURN_KEY, "1");
+}
+
+document.querySelector('a[href="/missions/create"]')?.addEventListener("click", markReturnToCreate);
+
+function fillDonation(donation, showUse) {
+  loaded.hidden = false;
+  if (showUse) useBtn.hidden = false;
+  document.getElementById("viewAccountName").textContent = donation.accountName || "—";
+  document.getElementById("viewGcashNumber").textContent = donation.gcashNumber || "—";
+  document.getElementById("viewNote").textContent = donation.note || "—";
+
+  const img = document.getElementById("viewQrImg");
+  const missing = document.getElementById("viewQrMissing");
+  if (donation.qrImage) {
+    img.src = donation.qrImage;
+    img.hidden = false;
+  } else {
+    missing.hidden = false;
+  }
+
+  if (!showUse) return;
+  useBtn?.addEventListener("click", () => {
+    const snapshot = {
+      method: donation.method || "gcash",
+      accountName: donation.accountName || "",
+      gcashNumber: donation.gcashNumber || "",
+      qrImage: donation.qrImage || "",
+      note: donation.note || "",
+    };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(FLAG_KEY, "1");
+    sessionStorage.setItem(FLAG_KEY, "1");
+    markReturnToCreate();
+    window.location.href = "/missions/create";
+  });
+}
+
+if (!data) {
+  showEmpty("No donation details for this mission.");
+  const org = !viewOnly ? readJson(localStorage, ORG_KEY) : null;
+  if (org && (org.accountName || org.gcashNumber || org.qrImage)) {
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn btn-success mt-3";
+    addBtn.textContent = "Add donation details";
+    empty.appendChild(addBtn);
+    addBtn.addEventListener("click", () => {
+      empty.hidden = true;
+      fillDonation(org, true);
+    });
+  }
+} else {
+  fillDonation(data, !viewOnly);
+}
+
+    window.addEventListener("pagehide", () => {
+      if (sessionStorage.getItem(RETURN_KEY) === "1") {
+        sessionStorage.removeItem(RETURN_KEY);
         return;
       }
-
-      loaded.hidden = false;
-      useBtn.hidden = false;
-      document.getElementById("viewAccountName").textContent = data.accountName || "—";
-      document.getElementById("viewGcashNumber").textContent = data.gcashNumber || "—";
-      document.getElementById("viewNote").textContent = data.note || "—";
-
-      const img = document.getElementById("viewQrImg");
-      const missing = document.getElementById("viewQrMissing");
-      if (data.qrImage) {
-        img.src = data.qrImage;
-        img.hidden = false;
-      } else {
-        missing.hidden = false;
-      }
-
-      useBtn.addEventListener("click", () => {
-        localStorage.setItem(MISSION_FLAG_KEY, "1");
-        alert("These donation details will be used for this mission (saved in this browser for now).");
-        window.location.href = "/missions/create";
-      });
-    })();
-  </script>
+      sessionStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(DRAFT_KEY);
+      sessionStorage.removeItem(FLAG_KEY);
+      localStorage.removeItem(FLAG_KEY);
+      sessionStorage.removeItem(CREATE_DRAFT_KEY);
+      sessionStorage.removeItem(KEEP_KEY);
+    });
+  })();
+</script>
 </body>
 </html>
