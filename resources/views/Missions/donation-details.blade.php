@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mission Donation Details - Kalinga</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  @vite(['resources/css/app.css','resources/js/app.js','resources/js/auth-guard.js','resources/js/organization-sidebar.js','resources/js/organization-logout.js'])
+  @vite(['resources/css/app.css','resources/js/app.js','resources/js/auth-guard.js','resources/js/organization-sidebar.js','resources/js/organization-logout.js','resources/js/mission-donation-details.js'])
   @include('partials.org-layout-styles')
   <style>
     .org-main-content.main-content { max-width: 720px; }
@@ -94,9 +94,26 @@
       empty.textContent = message;
     }
 
-    let data = readJson(sessionStorage, DRAFT_KEY) || readJson(localStorage, DRAFT_KEY);
-
 const returnUrl = sessionStorage.getItem("kalinga-mission-donation-return-url") || "/missions/create";
+let missionId = "";
+try {
+  missionId = new URL(returnUrl, window.location.origin).searchParams.get("id") || "";
+} catch {
+  missionId = "";
+}
+
+function readDraft() {
+  if (missionId) {
+    const specific =
+      readJson(sessionStorage, `${DRAFT_KEY}:${missionId}`) ||
+      readJson(localStorage, `${DRAFT_KEY}:${missionId}`);
+    if (specific) return specific;
+  }
+  return readJson(sessionStorage, DRAFT_KEY) || readJson(localStorage, DRAFT_KEY);
+}
+
+let data = readDraft();
+
 const backLink = document.querySelector(".back-row a.btn-outline-secondary");
 if (backLink) {
   backLink.href = returnUrl;
@@ -135,11 +152,18 @@ function fillDonation(donation, showUse) {
       gcashNumber: donation.gcashNumber || "",
       qrImage: donation.qrImage || "",
       note: donation.note || "",
+      missionId: missionId || "",
     };
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+    const json = JSON.stringify(snapshot);
+    sessionStorage.setItem(DRAFT_KEY, json);
+    localStorage.setItem(DRAFT_KEY, json);
+    if (missionId) {
+      sessionStorage.setItem(`${DRAFT_KEY}:${missionId}`, json);
+      localStorage.setItem(`${DRAFT_KEY}:${missionId}`, json);
+    }
     localStorage.setItem(FLAG_KEY, "1");
     sessionStorage.setItem(FLAG_KEY, "1");
+    sessionStorage.setItem(KEEP_KEY, "1");
     markReturnToCreate();
     window.location.href = returnUrl;
   });
@@ -164,7 +188,17 @@ if (!data) {
 }
 
     window.addEventListener("pagehide", () => {
-      if (sessionStorage.getItem(RETURN_KEY) === "1") {
+      const returnTarget = sessionStorage.getItem("kalinga-mission-donation-return-url") || "";
+      const confirmed =
+        sessionStorage.getItem(FLAG_KEY) === "1" ||
+        localStorage.getItem(FLAG_KEY) === "1";
+      if (
+        sessionStorage.getItem(RETURN_KEY) === "1" ||
+        sessionStorage.getItem(KEEP_KEY) === "1" ||
+        viewOnly ||
+        confirmed ||
+        returnTarget.includes("/missions/edit")
+      ) {
         sessionStorage.removeItem(RETURN_KEY);
         return;
       }

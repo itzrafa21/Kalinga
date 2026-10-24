@@ -216,7 +216,7 @@ onAuthStateChanged(auth, async (user) => {
         autoAcceptEl.checked = mission.autoAcceptVolunteers === true;
     }
 
-    initEditDonation(mission, missionId);
+    await initEditDonation(mission, missionId, user.uid);
 
     const locationSearch = document.getElementById("locationSearch");
     if (locationSearch && mission.location) {
@@ -314,13 +314,7 @@ onAuthStateChanged(auth, async (user) => {
         if (!editDonationEnabled()) return deleteField();
         const data = readEditDonationDraft();
         if (!data) return deleteField();
-        return {
-          method: data.method || "gcash",
-          accountName: data.accountName || "",
-          gcashNumber: data.gcashNumber || "",
-          qrImage: data.qrImage || "",
-          note: data.note || "",
-        };
+        return donationFieldsFromDraft(data);
       })(),
     };
 
@@ -375,18 +369,48 @@ const EDIT_DONATION_DRAFT = "kalinga-mission-donation-draft";
 const EDIT_DONATION_FLAG = "kalinga-mission-donation-enabled";
 const EDIT_DONATION_KEEP = "kalinga-mission-donation-keep";
 const EDIT_DONATION_RETURN = "kalinga-mission-donation-return-url";
+let activeEditMissionId = "";
 
-function readEditDonationDraft() {
+function missionDonationKey(missionId) {
+  return missionId ? `${EDIT_DONATION_DRAFT}:${missionId}` : EDIT_DONATION_DRAFT;
+}
+
+function readStoredDonation(key) {
   try {
-    const raw = sessionStorage.getItem(EDIT_DONATION_DRAFT) || localStorage.getItem(EDIT_DONATION_DRAFT);
+    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
+function readEditDonationDraft(missionId = activeEditMissionId) {
+  if (missionId) {
+    const specific = readStoredDonation(missionDonationKey(missionId));
+    if (specific) return specific;
+  }
+  const generic = readStoredDonation(EDIT_DONATION_DRAFT);
+  if (!generic) return null;
+  if (missionId && generic.missionId && generic.missionId !== missionId) return null;
+  return generic;
+}
+
+function donationFieldsFromDraft(details) {
+  return {
+    method: details.method || "gcash",
+    accountName: details.accountName || "",
+    gcashNumber: details.gcashNumber || "",
+    qrImage: details.qrImage || "",
+    note: details.note || "",
+  };
+}
+
 function editDonationEnabled() {
-  return sessionStorage.getItem(EDIT_DONATION_FLAG) === "1" || localStorage.getItem(EDIT_DONATION_FLAG) === "1";
+  if (sessionStorage.getItem(EDIT_DONATION_FLAG) === "1" || localStorage.getItem(EDIT_DONATION_FLAG) === "1") {
+    return true;
+  }
+  const draft = readEditDonationDraft();
+  return !!(draft && (draft.accountName || draft.gcashNumber || draft.qrImage));
 }
 
 function clearEditDonationDraft() {
@@ -396,19 +420,50 @@ function clearEditDonationDraft() {
   localStorage.removeItem(EDIT_DONATION_FLAG);
 }
 
-function writeEditDonationDraft(details) {
+function writeEditDonationDraft(details, missionId) {
   const snapshot = {
-    method: details.method || "gcash",
-    accountName: details.accountName || "",
-    gcashNumber: details.gcashNumber || "",
-    qrImage: details.qrImage || "",
-    note: details.note || "",
+    ...donationFieldsFromDraft(details),
+    missionId: missionId || details.missionId || "",
   };
   const json = JSON.stringify(snapshot);
+  const storedId = snapshot.missionId;
   sessionStorage.setItem(EDIT_DONATION_DRAFT, json);
   localStorage.setItem(EDIT_DONATION_DRAFT, json);
+  if (storedId) {
+    sessionStorage.setItem(missionDonationKey(storedId), json);
+    localStorage.setItem(missionDonationKey(storedId), json);
+  }
   sessionStorage.setItem(EDIT_DONATION_FLAG, "1");
   localStorage.setItem(EDIT_DONATION_FLAG, "1");
+}
+
+async function persistEditDonation(userId, missionId, details) {
+  const payload = {
+    makeDonations: true,
+    donationDetails: donationFieldsFromDraft(details),
+  };
+  const refs = [
+    doc(db, "organizations", userId, "missions", missionId),
+    doc(db, "organizations", userId, "history", missionId),
+    doc(db, "mission_submissions", missionId),
+    doc(db, "missions", missionId),
+  ];
+
+  let saved = false;
+  for (const ref of refs) {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) continue;
+    await updateDoc(ref, payload);
+    saved = true;
+  }
+  if (!saved) {
+    throw new Error("Mission document was not found.");
+  }
+
+  invalidateOrgCache(userId, ORG_CACHE_KEYS.DASHBOARD);
+  invalidateOrgCache(userId, ORG_CACHE_KEYS.HISTORY);
+  invalidateOrgCache(userId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+  invalidateOrgCache(userId, missionDetailCacheKey(missionId));
 }
 
 function updateEditDonationStatus() {
@@ -419,14 +474,31 @@ function updateEditDonationStatus() {
     : "No donation details set for this mission yet.";
 }
 
-function initEditDonation(mission, missionId) {
+async function initEditDonation(mission, missionId, userId) {
+  activeEditMissionId = missionId;
   const returning = sessionStorage.getItem(EDIT_DONATION_KEEP) === "1";
   sessionStorage.removeItem(EDIT_DONATION_KEEP);
 
-  if (!returning) {
+  const draft = readEditDonationDraft(missionId);
+  const draftForThis =
+    !!draft &&
+    (draft.accountName || draft.gcashNumber || draft.qrImage) &&
+    (!draft.missionId || draft.missionId === missionId);
+
+  if (!draftForThis) {
     clearEditDonationDraft();
     if (mission.makeDonations === true && mission.donationDetails) {
-      writeEditDonationDraft(mission.donationDetails);
+      writeEditDonationDraft(mission.donationDetails, missionId);
+    }
+  } else {
+    writeEditDonationDraft(draft, missionId);
+    if (returning || mission.makeDonations !== true) {
+      try {
+        await persistEditDonation(userId, missionId, draft);
+      } catch (error) {
+        console.error("[ERROR] Error saving mission donation:", error);
+        alert("Donation details could not be saved. Please try again.");
+      }
     }
   }
   updateEditDonationStatus();
@@ -439,13 +511,14 @@ function initEditDonation(mission, missionId) {
     el.addEventListener("click", () => {
       sessionStorage.setItem(EDIT_DONATION_KEEP, "1");
       sessionStorage.setItem(EDIT_DONATION_RETURN, back);
+      const existing = readEditDonationDraft(missionId);
+      if (existing && (existing.accountName || existing.gcashNumber || existing.qrImage)) {
+        writeEditDonationDraft(existing, missionId);
+      } else if (mission.donationDetails) {
+        writeEditDonationDraft(mission.donationDetails, missionId);
+      }
     });
   };
   arm("openMissionDonationBtn", false);
   arm("viewMissionDonationBtn", true);
-
-  window.addEventListener("pagehide", () => {
-    if (sessionStorage.getItem(EDIT_DONATION_KEEP) === "1") return;
-    clearEditDonationDraft();
-  });
 }
