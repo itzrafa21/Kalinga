@@ -216,6 +216,8 @@ onAuthStateChanged(auth, async (user) => {
         autoAcceptEl.checked = mission.autoAcceptVolunteers === true;
     }
 
+    initEditDonation(mission, missionId);
+
     const locationSearch = document.getElementById("locationSearch");
     if (locationSearch && mission.location) {
       locationSearch.value = mission.location;
@@ -307,6 +309,19 @@ onAuthStateChanged(auth, async (user) => {
       volunteers: document.getElementById("volunteers").value,
       autoAcceptVolunteers:
         document.getElementById("autoAcceptVolunteers")?.checked === true,
+      makeDonations: editDonationEnabled(),
+      donationDetails: (() => {
+        if (!editDonationEnabled()) return deleteField();
+        const data = readEditDonationDraft();
+        if (!data) return deleteField();
+        return {
+          method: data.method || "gcash",
+          accountName: data.accountName || "",
+          gcashNumber: data.gcashNumber || "",
+          qrImage: data.qrImage || "",
+          note: data.note || "",
+        };
+      })(),
     };
 
     if (selectedMissionImageFile) {
@@ -343,6 +358,7 @@ onAuthStateChanged(auth, async (user) => {
       invalidateOrgCache(user.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
       invalidateOrgCache(user.uid, missionDetailCacheKey(missionId));
 
+      clearEditDonationDraft();
       openMissionEditSuccessModal(updatedData.missionName);
     } catch (error) {
       console.error("[ERROR] Error updating mission:", error?.code, error?.message, error);
@@ -354,3 +370,82 @@ onAuthStateChanged(auth, async (user) => {
     }
   });
 });
+
+const EDIT_DONATION_DRAFT = "kalinga-mission-donation-draft";
+const EDIT_DONATION_FLAG = "kalinga-mission-donation-enabled";
+const EDIT_DONATION_KEEP = "kalinga-mission-donation-keep";
+const EDIT_DONATION_RETURN = "kalinga-mission-donation-return-url";
+
+function readEditDonationDraft() {
+  try {
+    const raw = sessionStorage.getItem(EDIT_DONATION_DRAFT) || localStorage.getItem(EDIT_DONATION_DRAFT);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function editDonationEnabled() {
+  return sessionStorage.getItem(EDIT_DONATION_FLAG) === "1" || localStorage.getItem(EDIT_DONATION_FLAG) === "1";
+}
+
+function clearEditDonationDraft() {
+  sessionStorage.removeItem(EDIT_DONATION_DRAFT);
+  localStorage.removeItem(EDIT_DONATION_DRAFT);
+  sessionStorage.removeItem(EDIT_DONATION_FLAG);
+  localStorage.removeItem(EDIT_DONATION_FLAG);
+}
+
+function writeEditDonationDraft(details) {
+  const snapshot = {
+    method: details.method || "gcash",
+    accountName: details.accountName || "",
+    gcashNumber: details.gcashNumber || "",
+    qrImage: details.qrImage || "",
+    note: details.note || "",
+  };
+  const json = JSON.stringify(snapshot);
+  sessionStorage.setItem(EDIT_DONATION_DRAFT, json);
+  localStorage.setItem(EDIT_DONATION_DRAFT, json);
+  sessionStorage.setItem(EDIT_DONATION_FLAG, "1");
+  localStorage.setItem(EDIT_DONATION_FLAG, "1");
+}
+
+function updateEditDonationStatus() {
+  const status = document.getElementById("missionDonationStatus");
+  if (!status) return;
+  status.textContent = editDonationEnabled() && readEditDonationDraft()
+    ? "Donation details will be used for this mission."
+    : "No donation details set for this mission yet.";
+}
+
+function initEditDonation(mission, missionId) {
+  const returning = sessionStorage.getItem(EDIT_DONATION_KEEP) === "1";
+  sessionStorage.removeItem(EDIT_DONATION_KEEP);
+
+  if (!returning) {
+    clearEditDonationDraft();
+    if (mission.makeDonations === true && mission.donationDetails) {
+      writeEditDonationDraft(mission.donationDetails);
+    }
+  }
+  updateEditDonationStatus();
+
+  const back = `/missions/edit?id=${encodeURIComponent(missionId)}`;
+  const arm = (id, viewOnly) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.href = viewOnly ? "/missions/donation-details?view=1" : "/missions/donation-details";
+    el.addEventListener("click", () => {
+      sessionStorage.setItem(EDIT_DONATION_KEEP, "1");
+      sessionStorage.setItem(EDIT_DONATION_RETURN, back);
+    });
+  };
+  arm("openMissionDonationBtn", false);
+  arm("viewMissionDonationBtn", true);
+
+  window.addEventListener("pagehide", () => {
+    if (sessionStorage.getItem(EDIT_DONATION_KEEP) === "1") return;
+    clearEditDonationDraft();
+  });
+}

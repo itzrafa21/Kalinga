@@ -96,11 +96,20 @@
 
     let data = readJson(sessionStorage, DRAFT_KEY) || readJson(localStorage, DRAFT_KEY);
 
+const returnUrl = sessionStorage.getItem("kalinga-mission-donation-return-url") || "/missions/create";
+const backLink = document.querySelector(".back-row a.btn-outline-secondary");
+if (backLink) {
+  backLink.href = returnUrl;
+  backLink.textContent = returnUrl.includes("/missions/edit")
+    ? "← Back to edit mission"
+    : "← Back to create mission";
+}
+
 function markReturnToCreate() {
   sessionStorage.setItem(RETURN_KEY, "1");
 }
 
-document.querySelector('a[href="/missions/create"]')?.addEventListener("click", markReturnToCreate);
+backLink?.addEventListener("click", markReturnToCreate);
 
 function fillDonation(donation, showUse) {
   loaded.hidden = false;
@@ -132,7 +141,7 @@ function fillDonation(donation, showUse) {
     localStorage.setItem(FLAG_KEY, "1");
     sessionStorage.setItem(FLAG_KEY, "1");
     markReturnToCreate();
-    window.location.href = "/missions/create";
+    window.location.href = returnUrl;
   });
 }
 

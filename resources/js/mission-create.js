@@ -70,7 +70,10 @@ function initMissionDonationLifecycle() {
     sessionStorage.setItem(CREATE_DRAFT_KEY, "1");
     updateMissionDonationStatusUi();
 
-    const keepForDonationPage = () => sessionStorage.setItem(DONATION_KEEP_KEY, "1");
+    const keepForDonationPage = () => {
+        sessionStorage.setItem(DONATION_KEEP_KEY, "1");
+        sessionStorage.setItem("kalinga-mission-donation-return-url", "/missions/create");
+    };
     document.getElementById("openMissionDonationBtn")?.addEventListener("click", keepForDonationPage);
     document.getElementById("viewMissionDonationBtn")?.addEventListener("click", keepForDonationPage);
 

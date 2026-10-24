@@ -601,6 +601,17 @@
               </div>
               <p class="text-muted small mb-0 mt-2">When enabled, new applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
             </div>
+            <div class="option-card mt-3">
+              <a href="/missions/donation-details" class="btn btn-outline-success w-100" id="openMissionDonationBtn">
+                <i class="bi bi-heart"></i> Make donations for this mission
+              </a>
+              <p class="text-muted small mb-0 mt-2" id="missionDonationStatus">
+                No donation details set for this mission yet.
+              </p>
+              <a href="/missions/donation-details?view=1" class="btn btn-outline-success w-100 mt-2" id="viewMissionDonationBtn">
+                <i class="bi bi-eye"></i> View Donation Details
+              </a>
+            </div>
           </div>
         </section>
 
