@@ -32,6 +32,7 @@ function clearMissionDonationChoice() {
     sessionStorage.removeItem(CREATE_DRAFT_KEY);
     localStorage.removeItem("kalinga-mission-donation-draft");
     sessionStorage.removeItem("kalinga-mission-donation-draft");
+    sessionStorage.removeItem("kalinga-create-donation-added");
 }
 
 function isMissionDonationEnabled() {
@@ -61,10 +62,12 @@ function updateMissionDonationStatusUi() {
 }
 
 function initMissionDonationLifecycle() {
+    const nav = performance.getEntriesByType("navigation")[0];
+    const reloaded = !nav || nav.type === "reload";
     const returningFromDonation = sessionStorage.getItem(DONATION_KEEP_KEY) === "1";
     sessionStorage.removeItem(DONATION_KEEP_KEY);
 
-    if (!returningFromDonation) {
+    if (reloaded || !returningFromDonation) {
         clearMissionDonationChoice();
     }
     sessionStorage.setItem(CREATE_DRAFT_KEY, "1");

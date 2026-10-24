@@ -61,6 +61,9 @@ if (new URLSearchParams(window.location.search).get("view") === "1") {
   onAuthStateChanged(auth, async (user) => {
     if (!user) return;
 
+    const returnUrl = sessionStorage.getItem("kalinga-mission-donation-return-url") || "";
+    if (!returnUrl.includes("/missions/edit")) return;
+
     const loaded = document.getElementById("donationLoaded");
     if (loaded && !loaded.hidden) return;
 

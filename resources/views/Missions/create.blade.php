@@ -801,6 +801,23 @@
     </div>
 </div>
 
+<script>
+  (function () {
+    const nav = performance.getEntriesByType("navigation")[0];
+    const reloaded = !nav || nav.type === "reload";
+    const returning = sessionStorage.getItem("kalinga-mission-donation-keep") === "1";
+    if (reloaded || !returning) {
+      sessionStorage.setItem("kalinga-mission-donation-return-url", "/missions/create");
+      sessionStorage.setItem("kalinga-create-donation-session", String(Date.now()));
+      sessionStorage.removeItem("kalinga-mission-donation-keep");
+      sessionStorage.removeItem("kalinga-create-donation-added");
+      sessionStorage.removeItem("kalinga-mission-donation-enabled");
+      localStorage.removeItem("kalinga-mission-donation-enabled");
+      sessionStorage.removeItem("kalinga-mission-donation-draft");
+      localStorage.removeItem("kalinga-mission-donation-draft");
+    }
+  })();
+</script>
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 @vite(['resources/js/mission-map.js'])
 </body>

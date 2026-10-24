@@ -102,13 +102,39 @@ try {
   missionId = "";
 }
 
+if (!missionId) {
+  const nav = performance.getEntriesByType("navigation")[0];
+  const reloaded = !nav || nav.type === "reload";
+  if (reloaded) {
+    sessionStorage.removeItem("kalinga-create-donation-added");
+    sessionStorage.removeItem("kalinga-mission-donation-keep");
+    sessionStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(DRAFT_KEY);
+    sessionStorage.removeItem(FLAG_KEY);
+    localStorage.removeItem(FLAG_KEY);
+  }
+}
+
+function addedForThisCreate() {
+  const session = sessionStorage.getItem("kalinga-create-donation-session");
+  const added = sessionStorage.getItem("kalinga-create-donation-added");
+  return !!session && session === added;
+}
+
+function markAddedForThisCreate() {
+  const session = sessionStorage.getItem("kalinga-create-donation-session") || String(Date.now());
+  sessionStorage.setItem("kalinga-create-donation-session", session);
+  sessionStorage.setItem("kalinga-create-donation-added", session);
+}
+
 function readDraft() {
   if (missionId) {
-    const specific =
+    return (
       readJson(sessionStorage, `${DRAFT_KEY}:${missionId}`) ||
-      readJson(localStorage, `${DRAFT_KEY}:${missionId}`);
-    if (specific) return specific;
+      readJson(localStorage, `${DRAFT_KEY}:${missionId}`)
+    );
   }
+  if (!addedForThisCreate()) return null;
   return readJson(sessionStorage, DRAFT_KEY) || readJson(localStorage, DRAFT_KEY);
 }
 
@@ -164,6 +190,7 @@ function fillDonation(donation, showUse) {
     localStorage.setItem(FLAG_KEY, "1");
     sessionStorage.setItem(FLAG_KEY, "1");
     sessionStorage.setItem(KEEP_KEY, "1");
+    if (!missionId) markAddedForThisCreate();
     markReturnToCreate();
     window.location.href = returnUrl;
   });
@@ -179,6 +206,7 @@ if (!data) {
     addBtn.textContent = "Add donation details";
     empty.appendChild(addBtn);
     addBtn.addEventListener("click", () => {
+      if (!missionId) markAddedForThisCreate();
       empty.hidden = true;
       fillDonation(org, true);
     });
