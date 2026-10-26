@@ -24,6 +24,42 @@
     .qr-box img { max-width: 220px; border-radius: 10px; border: 1px solid #e2e8f0; }
     .empty-state { color: #64748b; padding: 1rem; background: #fff8e6; border-radius: 10px; }
     .back-row { margin-top: 1.25rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .back-row a,
+    .back-row button,
+    .empty-state .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.7rem 1.15rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      line-height: 1.2;
+      text-decoration: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    .back-row .btn-outline-secondary {
+      background: #f8fafc;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+    .back-row .btn-outline-secondary:hover { background: #e2e8f0; }
+    .back-row .btn-outline-success {
+      background: #ecfdf3;
+      color: #166534;
+      border-color: #22a447;
+    }
+    .back-row .btn-outline-success:hover { background: #d1fae5; }
+    .back-row .btn-success,
+    .empty-state .btn {
+      background: #275735;
+      color: #fff;
+      border-color: #275735;
+    }
+    .back-row .btn-success:hover,
+    .empty-state .btn:hover { background: #1e4529; }
   </style>
 </head>
 <body class="org-app">

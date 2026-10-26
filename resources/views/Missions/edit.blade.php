@@ -285,6 +285,28 @@
       border-color: #22a447;
     }
 
+    .donation-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+    .donation-action-btn.make {
+      background: #275735;
+      color: #fff;
+    }
+    .donation-action-btn.make:hover { background: #1e4529; color: #fff; }
+    .donation-action-btn.view {
+      background: #0f766e;
+      color: #fff;
+    }
+    .donation-action-btn.view:hover { background: #115e59; color: #fff; }
     .option-card .form-check-label {
       font-weight: 600;
       color: #1e3a2f;
@@ -602,13 +624,13 @@
               <p class="text-muted small mb-0 mt-2">When enabled, new applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
             </div>
             <div class="option-card mt-3">
-              <a href="/missions/donation-details" class="btn btn-outline-success w-100" id="openMissionDonationBtn">
+              <a href="/missions/donation-details" class="donation-action-btn make" id="openMissionDonationBtn">
                 <i class="bi bi-heart"></i> Make donations for this mission
               </a>
               <p class="text-muted small mb-0 mt-2" id="missionDonationStatus">
                 No donation details set for this mission yet.
               </p>
-              <a href="/missions/donation-details?view=1" class="btn btn-outline-success w-100 mt-2" id="viewMissionDonationBtn">
+              <a href="/missions/donation-details?view=1" class="donation-action-btn view mt-2" id="viewMissionDonationBtn">
                 <i class="bi bi-eye"></i> View Donation Details
               </a>
             </div>
