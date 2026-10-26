@@ -15,12 +15,111 @@ import {
 import {
     initUsDateInputs,
     readUsDateInputValue,
+    setUsDateInputValue,
     validateUsDateInput,
 } from "./us-date-input.js";
 import { invalidateOrgCache, ORG_CACHE_KEYS } from "./org-data-cache.js";
 
 let currentUser = null;
 let selectedMissionImageFile = null;
+let restoredMissionImageDataUrl = null;
+
+const CREATE_FORM_DRAFT_KEY = "kalinga-create-mission-form";
+
+function readCreateFormDraft() {
+    try {
+        const raw = sessionStorage.getItem(CREATE_FORM_DRAFT_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function saveCreateFormDraft() {
+    const previewImg = document.querySelector("#missionImagePreview img");
+    const image = previewImg?.src?.startsWith("data:") ? previewImg.src : restoredMissionImageDataUrl || "";
+    const draft = {
+        name: document.getElementById("name")?.value || "",
+        description: document.getElementById("description")?.value || "",
+        type: document.getElementById("type")?.value || "",
+        date: readUsDateInputValue(document.getElementById("date")),
+        endDate: readUsDateInputValue(document.getElementById("end_date")),
+        startTime: document.getElementById("start_time")?.value || "",
+        endTime: document.getElementById("end_time")?.value || "",
+        volunteers: document.getElementById("volunteers")?.value || "",
+        autoAccept: document.getElementById("autoAcceptVolunteers")?.checked === true,
+        locationSearch: document.getElementById("locationSearch")?.value || "",
+        location: document.getElementById("location")?.value || "",
+        latitude: document.getElementById("latitude")?.value || "",
+        longitude: document.getElementById("longitude")?.value || "",
+        image: image && image.length < 1500000 ? image : "",
+    };
+    const hasContent = draft.name || draft.description || draft.date || draft.location || draft.volunteers;
+    if (!hasContent) {
+        const existing = readCreateFormDraft();
+        if (existing && (existing.name || existing.description || existing.date || existing.location)) {
+            return;
+        }
+    }
+    try {
+        sessionStorage.setItem(CREATE_FORM_DRAFT_KEY, JSON.stringify(draft));
+    } catch (err) {
+        console.warn("[WARN] Could not keep the mission form draft:", err);
+    }
+}
+
+function clearCreateFormDraft() {
+    sessionStorage.removeItem(CREATE_FORM_DRAFT_KEY);
+    restoredMissionImageDataUrl = null;
+}
+
+function restoreCreateFormDraft() {
+    const draft = readCreateFormDraft();
+    if (!draft) return;
+
+    const name = document.getElementById("name");
+    const description = document.getElementById("description");
+    const type = document.getElementById("type");
+    const volunteers = document.getElementById("volunteers");
+    const autoAccept = document.getElementById("autoAcceptVolunteers");
+    const locationSearch = document.getElementById("locationSearch");
+    const location = document.getElementById("location");
+    const latitude = document.getElementById("latitude");
+    const longitude = document.getElementById("longitude");
+
+    if (name) name.value = draft.name || "";
+    if (description) description.value = draft.description || "";
+    if (type && draft.type) type.value = draft.type;
+    setUsDateInputValue(document.getElementById("date"), draft.date || "");
+    setUsDateInputValue(document.getElementById("end_date"), draft.endDate || "");
+    const startTime = document.getElementById("start_time");
+    const endTime = document.getElementById("end_time");
+    if (startTime) startTime.value = draft.startTime || "";
+    if (endTime) endTime.value = draft.endTime || "";
+    if (volunteers) volunteers.value = draft.volunteers || "";
+    if (autoAccept) autoAccept.checked = draft.autoAccept === true;
+    if (locationSearch) locationSearch.value = draft.locationSearch || draft.location || "";
+    if (location) location.value = draft.location || "";
+    if (latitude) latitude.value = draft.latitude || "";
+    if (longitude) longitude.value = draft.longitude || "";
+
+    if (draft.image) {
+        restoredMissionImageDataUrl = draft.image;
+        const imagePreview = document.getElementById("missionImagePreview");
+        const imageContainer = document.getElementById("missionImageContainer");
+        const removeBtn = document.getElementById("removeMissionImage");
+        if (imagePreview) {
+            imagePreview.innerHTML = `<img src="${draft.image}" alt="Mission cover preview">`;
+        }
+        imageContainer?.classList.add("has-image");
+        if (removeBtn) removeBtn.hidden = false;
+    }
+
+    if (typeof window.restoreMissionMapPin === "function") {
+        window.restoreMissionMapPin();
+    }
+    document.getElementById("type")?.dispatchEvent(new Event("change"));
+}
 
 const MISSION_DONATION_FLAG = "kalinga-mission-donation-enabled";
 const CREATE_DRAFT_KEY = "kalinga-create-mission-draft";
@@ -74,6 +173,7 @@ function initMissionDonationLifecycle() {
     updateMissionDonationStatusUi();
 
     const keepForDonationPage = () => {
+        saveCreateFormDraft();
         sessionStorage.setItem(DONATION_KEEP_KEY, "1");
         sessionStorage.setItem("kalinga-mission-donation-return-url", "/missions/create");
     };
@@ -81,6 +181,7 @@ function initMissionDonationLifecycle() {
     document.getElementById("viewMissionDonationBtn")?.addEventListener("click", keepForDonationPage);
 
     window.addEventListener("pagehide", () => {
+        saveCreateFormDraft();
         if (sessionStorage.getItem(DONATION_KEEP_KEY) === "1") return;
         clearMissionDonationChoice();
     });
@@ -137,14 +238,22 @@ onAuthStateChanged(auth, async (user) => {
     console.log("[SUCCESS] User authenticated:", user.uid);
 
     await loadPlatformConfig();
-    populateMissionTypeSelect(document.getElementById("type"));
+    const savedForm = readCreateFormDraft();
+    populateMissionTypeSelect(document.getElementById("type"), {
+        selectedValue: savedForm?.type || "",
+    });
 
     initializePointsPreview();
     initializeFormSubmission();
     initializeImageUpload();
     initMissionSuccessModal();
     initUsDateInputs(["date", "end_date"]);
+    restoreCreateFormDraft();
     initMissionDonationLifecycle();
+
+    document.querySelector(".form-panel-actions .btn-light")?.addEventListener("click", () => {
+        clearCreateFormDraft();
+    });
 });
 
 function getCreateFormSchedule() {
@@ -362,6 +471,8 @@ const pointsFields = await computeMissionPointsPayload(schedule);
                     alert(`Failed to process mission image: ${conversionError.message}`);
                     return;
                 }
+            } else if (restoredMissionImageDataUrl) {
+                missionData.missionImage = restoredMissionImageDataUrl;
             }
 
             console.log("[INFO] Mission data prepared:", missionData);
@@ -391,6 +502,7 @@ const pointsFields = await computeMissionPointsPayload(schedule);
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.VOLUNTEERS);
             clearMissionDonationChoice();
+            clearCreateFormDraft();
 
             openMissionSuccessModal();
         } catch (error) {
@@ -431,6 +543,7 @@ function initializeImageUpload() {
 
     removeBtn?.addEventListener("click", () => {
         selectedMissionImageFile = null;
+        restoredMissionImageDataUrl = null;
         if (missionImageInput) missionImageInput.value = "";
         if (imagePreview) {
             imagePreview.innerHTML =

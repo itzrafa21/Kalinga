@@ -825,9 +825,68 @@
 
 <script>
   (function () {
+    const FORM_KEY = "kalinga-create-mission-form";
+    const fields = ["name", "description", "type", "date", "end_date", "start_time", "end_time", "volunteers", "locationSearch", "location", "latitude", "longitude"];
+
+    function collectForm() {
+      const data = {};
+      fields.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) data[id] = el.value || "";
+      });
+      const auto = document.getElementById("autoAcceptVolunteers");
+      data.autoAccept = auto ? auto.checked === true : false;
+      return data;
+    }
+
+    function hasFormContent(data) {
+      return !!(data && (data.name || data.description || data.date || data.end_date || data.location || data.volunteers || data.type));
+    }
+
+    function persistForm() {
+      const data = collectForm();
+      if (!hasFormContent(data)) {
+        try {
+          const existing = JSON.parse(sessionStorage.getItem(FORM_KEY) || "null");
+          if (hasFormContent(existing)) return;
+        } catch (err) {}
+      }
+      try {
+        sessionStorage.setItem(FORM_KEY, JSON.stringify(data));
+      } catch (err) {}
+    }
+
     const nav = performance.getEntriesByType("navigation")[0];
     const reloaded = !nav || nav.type === "reload";
     const returning = sessionStorage.getItem("kalinga-mission-donation-keep") === "1";
+
+    if (!reloaded && !returning) {
+      sessionStorage.removeItem(FORM_KEY);
+    } else {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(FORM_KEY) || "null");
+        if (hasFormContent(saved)) {
+          fields.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el && saved[id] != null) el.value = saved[id];
+          });
+          const auto = document.getElementById("autoAcceptVolunteers");
+          if (auto) auto.checked = saved.autoAccept === true;
+        }
+      } catch (err) {}
+    }
+
+    const form = document.getElementById("createMissionForm");
+    form?.addEventListener("input", persistForm);
+    form?.addEventListener("change", persistForm);
+    const keepFormForDonation = () => {
+      persistForm();
+      sessionStorage.setItem("kalinga-mission-donation-keep", "1");
+      sessionStorage.setItem("kalinga-mission-donation-return-url", "/missions/create");
+    };
+    document.getElementById("openMissionDonationBtn")?.addEventListener("click", keepFormForDonation);
+    document.getElementById("viewMissionDonationBtn")?.addEventListener("click", keepFormForDonation);
+    window.addEventListener("pagehide", persistForm);
     if (reloaded || !returning) {
       sessionStorage.setItem("kalinga-mission-donation-return-url", "/missions/create");
       sessionStorage.setItem("kalinga-create-donation-session", String(Date.now()));
