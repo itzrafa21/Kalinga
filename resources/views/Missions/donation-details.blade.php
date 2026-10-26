@@ -60,6 +60,48 @@
     }
     .back-row .btn-success:hover,
     .empty-state .btn:hover { background: #1e4529; }
+    .donation-added-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 36, 25, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 5000;
+      padding: 1rem;
+    }
+    .donation-added-overlay.is-open { display: flex; }
+    .donation-added-overlay[hidden] { display: none !important; }
+    .donation-added-modal {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 420px;
+      width: 100%;
+      padding: 1.75rem 1.5rem 1.25rem;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    .donation-added-modal i {
+      font-size: 3rem;
+      color: #22a447;
+      line-height: 1;
+    }
+    .donation-added-modal h2 {
+      margin: 0.75rem 0 1.25rem;
+      font-size: 1.2rem;
+      color: #0f2419;
+    }
+    .donation-added-modal button {
+      border: none;
+      border-radius: 10px;
+      padding: 0.6rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #22a447;
+      color: #fff;
+    }
+    .donation-added-modal button:hover { background: #1d8f3c; }
   </style>
 </head>
 <body class="org-app">
@@ -101,6 +143,14 @@
       </div>
     </div>
   </main>
+
+  <div id="donationAddedModal" class="donation-added-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="donationAddedTitle">
+    <div class="donation-added-modal" role="document">
+      <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+      <h2 id="donationAddedTitle">A Donation has been added for this mission</h2>
+      <button type="button" id="donationAddedOk">OK</button>
+    </div>
+  </div>
 
   <script>
   (function () {
@@ -245,11 +295,25 @@ if (!data) {
       if (!missionId) markAddedForThisCreate();
       empty.hidden = true;
       fillDonation(org, true);
+      const modal = document.getElementById("donationAddedModal");
+      modal?.removeAttribute("hidden");
+      modal?.classList.add("is-open");
+      document.getElementById("donationAddedOk")?.focus();
     });
   }
 } else {
   fillDonation(data, !viewOnly);
 }
+
+    const addedModal = document.getElementById("donationAddedModal");
+    const closeAddedModal = () => {
+      addedModal?.setAttribute("hidden", "");
+      addedModal?.classList.remove("is-open");
+    };
+    document.getElementById("donationAddedOk")?.addEventListener("click", closeAddedModal);
+    addedModal?.addEventListener("click", (event) => {
+      if (event.target === addedModal) closeAddedModal();
+    });
 
     window.addEventListener("pagehide", () => {
       const returnTarget = sessionStorage.getItem("kalinga-mission-donation-return-url") || "";
