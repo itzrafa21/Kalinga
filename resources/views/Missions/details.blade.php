@@ -223,6 +223,12 @@
       flex: 1 1 auto;
       min-width: 0;
     }
+    .md-donation-badge {
+      font-size: 12px;
+      padding: 6px 12px;
+      white-space: normal;
+      text-align: center;
+    }
     .md-type-badge {
       flex-shrink: 0;
       padding: 5px 12px;

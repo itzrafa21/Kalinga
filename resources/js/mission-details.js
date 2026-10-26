@@ -143,6 +143,18 @@ function pointsBreakdown(mission) {
   return "";
 }
 
+function missionDonationBadge(mission) {
+  const details = mission && mission.donationDetails;
+  const hasDetails = !!(
+    details &&
+    (details.accountName || details.gcashNumber || details.qrImage)
+  );
+  const isSet = mission && mission.makeDonations === true && hasDetails;
+  return isSet
+    ? { cls: "md-b-green", label: "Donation has been set for this mission" }
+    : { cls: "md-b-gray", label: "Donation has not been set for this mission" };
+}
+
 function missionStatusBadge(status) {
   const s = (status || "").toLowerCase();
   if (s === "open" || s === "ongoing" || s === "approved")
@@ -1030,6 +1042,7 @@ function renderMissionFrame(
     ["open", "ongoing", "approved"].includes(statusLower);
 
   const badge = missionStatusBadge(status);
+  const donationBadge = missionDonationBadge(mission);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
   const ptsSub = pointsBreakdown(mission);
@@ -1060,6 +1073,7 @@ function renderMissionFrame(
           <div class="md-title-row">
             <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
             <span class="md-badge md-b-blue md-type-badge">${escapeHtml(mission.type || "General")}</span>
+            <span class="md-badge ${donationBadge.cls} md-donation-badge">${escapeHtml(donationBadge.label)}</span>
           </div>
           <p class="md-desc">${escapeHtml(mission.description || "No description provided.")}</p>
           <div class="md-info-grid">
@@ -1199,6 +1213,7 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
     (mission.rejectionReason || "").trim() ||
     "No reason was provided by the administrator.";
   const badge = missionStatusBadge("rejected");
+  const donationBadge = missionDonationBadge(mission);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
   const ptsSub = pointsBreakdown(mission);
@@ -1224,6 +1239,7 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
           <div class="md-title-row">
             <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
             <span class="md-badge md-b-blue md-type-badge">${escapeHtml(mission.type || "General")}</span>
+            <span class="md-badge ${donationBadge.cls} md-donation-badge">${escapeHtml(donationBadge.label)}</span>
           </div>
           <p class="md-desc">${escapeHtml(mission.description || "No description provided.")}</p>
           <div class="md-info-grid">
