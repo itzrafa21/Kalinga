@@ -338,11 +338,6 @@
     border: 1px solid transparent;
     cursor: pointer;
 }
-.letter-action-btn.generate {
-    background: #275735;
-    color: #fff;
-}
-.letter-action-btn.generate:hover { background: #1e4529; color: #fff; }
 .letter-action-btn.submit {
     background: #0f766e;
     color: #fff;
@@ -745,9 +740,6 @@
     <span>Select a type and schedule to see earned points</span>
 </p>
 <div class="mt-3 d-grid gap-2">
-    <button type="button" class="letter-action-btn generate" id="generateRequestLettersBtn">
-        <i class="bi bi-file-earmark-text"></i> Generate Request Letters
-    </button>
     <button type="button" class="letter-action-btn submit" id="submitLettersBtn">
         <i class="bi bi-send"></i> Submit Letters to Government officers
     </button>
