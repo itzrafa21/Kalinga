@@ -13,6 +13,7 @@
         'resources/js/organization-sidebar.js',
         'resources/js/organization-logout.js',
         'resources/js/mission-create.js',
+        'resources/js/mission-letters.js',
     ])
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
