@@ -324,6 +324,30 @@
             cursor: pointer;
         }
 
+        .letter-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+.letter-action-btn.generate {
+    background: #275735;
+    color: #fff;
+}
+.letter-action-btn.generate:hover { background: #1e4529; color: #fff; }
+.letter-action-btn.submit {
+    background: #0f766e;
+    color: #fff;
+}
+.letter-action-btn.submit:hover { background: #115e59; color: #fff; }
+
         .mission-image-container {
             display: flex;
             flex-direction: column;
@@ -716,9 +740,17 @@
                                     <option value="" disabled selected>Loading mission types…</option>
                                 </select>
                                 <p id="missionPointsPreview" class="points-preview mb-0">
-                                    <i class="bi bi-star-fill" aria-hidden="true"></i>
-                                    <span>Select a type and schedule to see earned points</span>
-                                </p>
+    <i class="bi bi-star-fill" aria-hidden="true"></i>
+    <span>Select a type and schedule to see earned points</span>
+</p>
+<div class="mt-3 d-grid gap-2">
+    <button type="button" class="letter-action-btn generate" id="generateRequestLettersBtn">
+        <i class="bi bi-file-earmark-text"></i> Generate Request Letters
+    </button>
+    <button type="button" class="letter-action-btn submit" id="submitLettersBtn">
+        <i class="bi bi-send"></i> Submit Letters to Government officers
+    </button>
+</div>
                             </div>
                             <div class="col-md-6 form-split-col" aria-labelledby="section-volunteers">
                                 <h2 class="form-block-title" id="section-volunteers">
