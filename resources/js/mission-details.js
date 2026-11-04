@@ -231,8 +231,8 @@ async function fetchApplicantProfileExtras(uid) {
   } catch {
     /* ignore */
   }
-  return { phone: "" };
-}
+    return { phone: "" };
+  }
 
 function isApprovedSignupStatus(status) {
   const st = (status || "").toLowerCase();
@@ -995,7 +995,7 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
       <div class="md-roster-head">
         <span class="md-sec-label md-sec-label--title">Volunteer List</span>
         <span class="md-badge md-b-gray">${volunteers.length} total</span>
-      </div>
+        </div>
       <div class="md-table-wrap">
         <table class="md-table">
           <thead>
@@ -1081,7 +1081,7 @@ function renderMissionFrame(
               <div class="md-cell-label"><i class="ti ti-calendar" aria-hidden="true"></i> Date</div>
               <div class="md-cell-val">${escapeHtml(formatDisplayDate(mission.date))}</div>
               <div class="md-cell-sub">${escapeHtml(formatWeekday(mission.date))}</div>
-            </div>
+          </div>
             <div class="md-cell">
               <div class="md-cell-label"><i class="ti ti-clock" aria-hidden="true"></i> Time</div>
               <div class="md-cell-val">${escapeHtml(formatTimeRange(mission))}</div>
@@ -1533,20 +1533,20 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
     return;
   }
 
-  try {
-    const loaded = await loadMissionDocument(missionId, user);
-    if (!loaded) {
+    try {
+      const loaded = await loadMissionDocument(missionId, user);
+      if (!loaded) {
       clearMissionPageNav();
       container.innerHTML = `<p class="md-error">Mission not found.</p>`;
-      return;
-    }
-    const mission = loaded.mission;
+        return;
+      }
+      const mission = loaded.mission;
     const inHistory = Boolean(loaded.inHistory);
     const orgId =
       mission.orgId || mission.organizationId || user?.uid || "";
-    const status = (mission.status || "").toLowerCase();
+      const status = (mission.status || "").toLowerCase();
 
-    if (status === "rejected") {
+      if (status === "rejected") {
       renderRejectedMissionPage(container, mission, missionId, user, inHistory);
       if (orgId) {
         saveMissionDetailCache(orgId, missionId, {
@@ -1557,8 +1557,8 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
           signedUp: 0,
         });
       }
-      return;
-    }
+        return;
+      }
 
     const isOwner = Boolean(user && orgId && orgId === user.uid);
     let volunteers = isOwner
@@ -1605,8 +1605,8 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
         signedUp,
       });
     }
-  } catch (err) {
-    console.error(err);
+    } catch (err) {
+      console.error(err);
     if (
       !hasCache ||
       container.querySelector(".md-loading, .missions-loading")
