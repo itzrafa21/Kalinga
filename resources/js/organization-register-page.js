@@ -61,6 +61,14 @@ function readValue(id) {
   return document.getElementById(id)?.value?.trim() || "";
 }
 
+function readMultiValues(fieldKey) {
+  const root = document.querySelector(`[data-multi-field="${fieldKey}"]`);
+  if (!root) return [];
+  return Array.from(root.querySelectorAll(".multi-field-row input"))
+    .map((input) => input.value.trim())
+    .filter(Boolean);
+}
+
 function clearFieldErrors(scope = document) {
   scope.querySelectorAll(".field-error").forEach((el) => el.remove());
   scope.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
@@ -72,12 +80,17 @@ function showFieldError(targetId, message) {
 
   field.classList.add("is-invalid");
 
-  let host = field.closest(".file-box") || field.closest(".terms-row") || field;
+  const multiField = field.closest(".multi-field");
+  const fileBox = field.closest(".file-box");
+  let host = fileBox || field.closest(".terms-row") || multiField || field;
   if (host.classList?.contains("terms-row")) {
     host.classList.add("is-invalid");
   }
+  if (fileBox) {
+    fileBox.querySelector(".file-upload")?.classList.add("is-invalid");
+  }
 
-  const existing = host.parentElement?.querySelector(`.field-error[data-for="${targetId}"]`);
+  const existing = (multiField || host.parentElement)?.querySelector(`.field-error[data-for="${targetId}"]`);
   if (existing) {
     existing.querySelector(".field-error-text").textContent = message;
     existing.classList.add("is-visible");
@@ -88,19 +101,135 @@ function showFieldError(targetId, message) {
     error.innerHTML = `<span class="field-error-icon" aria-hidden="true">!</span><span class="field-error-text"></span>`;
     error.querySelector(".field-error-text").textContent = message;
 
-    if (host.classList?.contains("file-box") || host.classList?.contains("terms-row")) {
+    if (multiField) {
+      multiField.appendChild(error);
+    } else if (host.classList?.contains("file-box") || host.classList?.contains("terms-row")) {
       host.insertAdjacentElement("afterend", error);
     } else {
       field.insertAdjacentElement("afterend", error);
     }
   }
 
-  field.focus();
+  if (field.type === "file") {
+    fileBox?.scrollIntoView({ behavior: "smooth", block: "center" });
+  } else {
+    field.focus();
+  }
   return false;
+}
+
+function syncMultiFieldPrimary(root, fieldKey) {
+  const inputs = root.querySelectorAll(".multi-field-row input");
+  inputs.forEach((input, index) => {
+    input.removeAttribute("id");
+    input.removeAttribute("data-multi-primary");
+    if (index === 0) {
+      input.id = fieldKey;
+      input.setAttribute("data-multi-primary", "");
+    }
+  });
+
+  const label = root.querySelector(".form-label");
+  if (label && inputs[0]) label.setAttribute("for", fieldKey);
+}
+
+function syncMultiFieldActions(root) {
+  const rows = root.querySelectorAll(".multi-field-row");
+  rows.forEach((row, index) => {
+    const btn = row.querySelector(".multi-field-action");
+    if (!btn) return;
+
+    if (index === rows.length - 1) {
+      btn.classList.remove("is-remove");
+      btn.removeAttribute("data-multi-remove");
+      btn.setAttribute("data-multi-add", "");
+      btn.setAttribute("aria-label", btn.dataset.addLabel || "Add another field");
+      btn.textContent = "+";
+    } else {
+      btn.classList.add("is-remove");
+      btn.removeAttribute("data-multi-add");
+      btn.setAttribute("data-multi-remove", "");
+      btn.setAttribute("aria-label", "Remove this field");
+      btn.textContent = "−";
+    }
+  });
+}
+
+function createMultiFieldRow(templateInput, fieldKey) {
+  const row = document.createElement("div");
+  row.className = "multi-field-row";
+
+  const input = document.createElement("input");
+  input.type = templateInput.type || "text";
+  input.className = "form-control";
+  input.name = `${fieldKey}[]`;
+  input.placeholder = templateInput.placeholder || "";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "multi-field-action";
+  btn.dataset.addLabel = templateInput.closest(".multi-field")
+    ?.querySelector("[data-multi-add]")
+    ?.getAttribute("aria-label") || "Add another field";
+  btn.setAttribute("data-multi-add", "");
+  btn.setAttribute("aria-label", btn.dataset.addLabel);
+  btn.textContent = "+";
+
+  row.append(input, btn);
+  return row;
+}
+
+function initMultiFields() {
+  document.querySelectorAll("[data-multi-field]").forEach((root) => {
+    const fieldKey = root.dataset.multiField;
+    const list = root.querySelector(".multi-field-list");
+    const primary = root.querySelector("[data-multi-primary]");
+    if (!list || !primary) return;
+
+    const addLabel = root.querySelector("[data-multi-add]")?.getAttribute("aria-label") || "Add another field";
+    root.querySelectorAll(".multi-field-action").forEach((btn) => {
+      btn.dataset.addLabel = addLabel;
+    });
+
+    syncMultiFieldActions(root);
+
+    root.addEventListener("click", (e) => {
+      const addBtn = e.target.closest("[data-multi-add]");
+      const removeBtn = e.target.closest("[data-multi-remove]");
+
+      if (addBtn && root.contains(addBtn)) {
+        e.preventDefault();
+        const template = root.querySelector("[data-multi-primary]") || primary;
+        const row = createMultiFieldRow(template, fieldKey);
+        list.appendChild(row);
+        syncMultiFieldPrimary(root, fieldKey);
+        syncMultiFieldActions(root);
+        row.querySelector("input")?.focus();
+        return;
+      }
+
+      if (removeBtn && root.contains(removeBtn)) {
+        e.preventDefault();
+        const rows = root.querySelectorAll(".multi-field-row");
+        if (rows.length <= 1) return;
+        const row = removeBtn.closest(".multi-field-row");
+        if (!row) return;
+        row.remove();
+        syncMultiFieldPrimary(root, fieldKey);
+        syncMultiFieldActions(root);
+      }
+    });
+  });
 }
 
 function requireFilled(id, message) {
   if (readValue(id)) return true;
+  return showFieldError(id, message);
+}
+
+function requireFile(id, message) {
+  const input = document.getElementById(id);
+  if (input?.files?.length) return true;
   return showFieldError(id, message);
 }
 
@@ -162,27 +291,50 @@ function validateStep(step) {
   if (step === 0) {
     if (!requireFilled("orgName", "Enter the organization name")) return false;
     if (!requireFilled("orgType", "Select an organization type")) return false;
+    if (!requireFilled("orgDescription", "Enter the organization description")) return false;
+    if (!requireFile("orgLogo", "Upload the organization logo")) return false;
+    if (!requireFilled("yearEstablished", "Enter the year established")) return false;
+    if (!requireFilled("orgWebsite", "Enter a website or social media account")) return false;
     if (!requireFilled("orgEmail", "Enter an organization email")) return false;
+    if (!requireFilled("orgContactNumber", "Enter a contact number")) return false;
+    if (!requireFilled("completeAddress", "Enter the complete address")) return false;
+    if (!requireFilled("orgScope", "Select an organization scope")) return false;
     return true;
   }
 
   if (step === 1) {
     if (!requireFilled("repFullName", "Enter the representative’s full name")) return false;
-    if (!requireFilled("repEmail", "Enter an email or phone number")) return false;
+    if (!requireFilled("repPosition", "Enter the position or designation")) return false;
+    if (!requireFilled("repEmail", "Enter an email address")) return false;
+    if (!requireFilled("repContactNumber", "Enter a contact number")) return false;
+    if (!requireFilled("repGovIdType", "Select a government-issued ID type")) return false;
+    if (!requireFilled("repGovIdNumber", "Enter the ID number")) return false;
+    if (!requireFile("repGovIdFront", "Upload the front side of the ID")) return false;
+    if (!requireFile("repGovIdBack", "Upload the back side of the ID")) return false;
+    if (!requireFile("repAuthorization", "Upload proof of authorization")) return false;
     return true;
   }
 
   if (step === 2) {
+    if (!requireFile("docRegistration", "Upload the certificate of registration")) return false;
+    if (!requireFile("docAddress", "Upload proof of official address")) return false;
+    if (!requireFile("docTypeSpecific", "Upload the type-specific document")) return false;
     return true;
   }
 
   if (step === 3) {
     if (!requireFilled("username", "Enter a username")) return false;
-    if (!requireFilled("email", "Enter an email or phone number")) return false;
+    if (!requireFilled("email", "Enter an email address")) return false;
     const password = document.getElementById("password")?.value || "";
     const confirmPassword = document.getElementById("confirmPassword")?.value || "";
+    if (!password) {
+      return showFieldError("password", "Enter a password");
+    }
     if (password.length < 6) {
       return showFieldError("password", "Enter a password with at least 6 characters");
+    }
+    if (!confirmPassword) {
+      return showFieldError("confirmPassword", "Confirm your password");
     }
     if (password !== confirmPassword) {
       return showFieldError("confirmPassword", "Passwords do not match");
@@ -225,28 +377,68 @@ function initStepNavigation() {
     showStep(Math.max(currentStep - 1, 0));
   });
 
-  document.getElementById("registerForm")?.addEventListener("input", (e) => {
-    const target = e.target;
-    if (!(target instanceof HTMLElement) || !target.id) return;
+  const clearLiveFieldError = (target) => {
+    if (!(target instanceof HTMLElement)) return;
     target.classList.remove("is-invalid");
-    document.querySelector(`.field-error[data-for="${target.id}"]`)?.remove();
     target.closest(".terms-row")?.classList.remove("is-invalid");
+
+    const multiField = target.closest(".multi-field");
+    if (multiField) {
+      multiField.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+      multiField.querySelectorAll(".field-error").forEach((el) => el.remove());
+      return;
+    }
+
+    const fileBox = target.closest(".file-box");
+    if (fileBox) {
+      fileBox.querySelector(".file-upload")?.classList.remove("is-invalid");
+      if (target.id) {
+        document.querySelector(`.field-error[data-for="${target.id}"]`)?.remove();
+      }
+      return;
+    }
+
+    if (!target.id) return;
+    document.querySelector(`.field-error[data-for="${target.id}"]`)?.remove();
+  };
+
+  document.getElementById("registerForm")?.addEventListener("input", (e) => {
+    clearLiveFieldError(e.target);
   });
 
   document.getElementById("registerForm")?.addEventListener("change", (e) => {
-    const target = e.target;
-    if (!(target instanceof HTMLElement) || !target.id) return;
-    target.classList.remove("is-invalid");
-    document.querySelector(`.field-error[data-for="${target.id}"]`)?.remove();
-    target.closest(".terms-row")?.classList.remove("is-invalid");
+    clearLiveFieldError(e.target);
   });
 
   showStep(0);
 }
 
+function initLabelInfoTips() {
+  document.querySelectorAll(".label-info").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const wasOpen = btn.classList.contains("is-open");
+      document.querySelectorAll(".label-info.is-open").forEach((el) => {
+        el.classList.remove("is-open");
+      });
+      if (!wasOpen) btn.classList.add("is-open");
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (e.target.closest(".label-info")) return;
+    document.querySelectorAll(".label-info.is-open").forEach((el) => {
+      el.classList.remove("is-open");
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initRegisterSuccessModal();
   initFileUploads();
+  initMultiFields();
+  initLabelInfoTips();
   initStepNavigation();
 
   const form = document.getElementById("registerForm");
@@ -292,8 +484,11 @@ document.addEventListener("DOMContentLoaded", () => {
         orgDescription: readValue("orgDescription"),
         yearEstablished: readValue("yearEstablished"),
         orgWebsite: readValue("orgWebsite"),
+        orgWebsites: readMultiValues("orgWebsite"),
         orgEmail: readValue("orgEmail"),
+        orgEmails: readMultiValues("orgEmail"),
         orgContactNumber: readValue("orgContactNumber"),
+        orgContactNumbers: readMultiValues("orgContactNumber"),
         completeAddress: readValue("completeAddress"),
         orgScope: readValue("orgScope"),
         representative: {
@@ -301,13 +496,15 @@ document.addEventListener("DOMContentLoaded", () => {
           position: readValue("repPosition"),
           email: readValue("repEmail"),
           contactNumber: readValue("repContactNumber"),
+          govIdType: readValue("repGovIdType"),
+          govIdNumber: readValue("repGovIdNumber"),
         },
         documents: {
           logo: fileMeta("orgLogo"),
-          govId: fileMeta("repGovId"),
+          govIdFront: fileMeta("repGovIdFront"),
+          govIdBack: fileMeta("repGovIdBack"),
           authorization: fileMeta("repAuthorization"),
           registration: fileMeta("docRegistration"),
-          articles: fileMeta("docArticles"),
           addressProof: fileMeta("docAddress"),
           typeSpecific: fileMeta("docTypeSpecific"),
         },

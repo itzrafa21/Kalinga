@@ -95,11 +95,78 @@
     }
 
     .form-label {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
       margin: 0 0 0.3rem;
       font-size: 0.8rem;
       font-weight: 600;
       color: #374151;
+    }
+
+    .label-info {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border: none;
+      border-radius: 50%;
+      background: #d1fae5;
+      color: #275735;
+      font-size: 0.68rem;
+      font-weight: 700;
+      font-style: italic;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1;
+      cursor: help;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .label-info:hover,
+    .label-info:focus-visible {
+      background: #275735;
+      color: #fff;
+      outline: none;
+    }
+    .label-info-tip {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%);
+      width: min(260px, 70vw);
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      background: #1f2937;
+      color: #f9fafb;
+      font-size: 0.72rem;
+      font-weight: 500;
+      font-style: normal;
+      font-family: "Poppins", "Segoe UI", Tahoma, sans-serif;
+      line-height: 1.4;
+      text-align: left;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+      z-index: 20;
+    }
+    .label-info-tip::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+    }
+    .label-info:hover .label-info-tip,
+    .label-info:focus-visible .label-info-tip,
+    .label-info.is-open .label-info-tip {
+      opacity: 1;
+      visibility: visible;
     }
 
     .form-control,
@@ -169,6 +236,10 @@
     .form-control.is-invalid,
     .form-select.is-invalid {
       box-shadow: 0 0 0 2px rgba(224, 122, 106, 0.35);
+      background: #fff7f5;
+    }
+    .file-upload.is-invalid {
+      border-color: #e07a6a;
       background: #fff7f5;
     }
     .terms-row.is-invalid {
@@ -407,6 +478,66 @@
       margin-top: 0.35rem;
     }
     .reg-nav .btn-auth { margin-top: 0; }
+
+    .multi-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin-bottom: 0.85rem;
+    }
+    .multi-field > .form-label {
+      margin-bottom: 0;
+    }
+    .multi-field-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .multi-field-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .multi-field-row .form-control {
+      width: 100%;
+      margin-bottom: 0;
+      padding-right: 46px;
+    }
+    .multi-field-action {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 8px;
+      background: #ecfdf3;
+      color: #275735;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .multi-field-action:hover {
+      background: #275735;
+      color: #fff;
+    }
+    .multi-field-action.is-remove {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+    .multi-field-action.is-remove:hover {
+      background: #b91c1c;
+      color: #fff;
+    }
+    .multi-field .field-error {
+      margin: 0;
+    }
     .btn-back {
       width: 100%;
       height: 48px;
@@ -497,7 +628,7 @@
             <label class="form-label" for="orgType">Organization Type</label>
             <select id="orgType" class="form-select">
               <option value="" disabled selected>Select organization type</option>
-              <option value="NGO">NGO</option>
+              <option value="Non-Government Organization">Non-Government Organization</option>
               <option value="Foundation">Foundation</option>
               <option value="Government Agency / Office">Government Agency / Office</option>
               <option value="Barangay">Barangay</option>
@@ -511,7 +642,13 @@
             <textarea id="orgDescription" class="form-control" rows="3" placeholder="Brief background, purpose, and communities or causes served"></textarea>
 
             <div class="file-box">
-              <label class="form-label" for="orgLogo">Organization Logo</label>
+              <label class="form-label" for="orgLogo">
+                Organization Logo
+                <button type="button" class="label-info" aria-label="About Organization Logo">
+                  i
+                  <span class="label-info-tip">Official logo or institutional image of the organization.</span>
+                </button>
+              </label>
               <input type="file" id="orgLogo" class="form-control" accept="image/*">
               <label class="file-upload" for="orgLogo" data-file-for="orgLogo">
                 <span class="file-upload-icon" aria-hidden="true"><i class="bi bi-image"></i></span>
@@ -521,20 +658,40 @@
                 </span>
                 <span class="file-upload-btn">Choose file</span>
               </label>
-              <span class="hint">Official logo or institutional image</span>
             </div>
 
             <label class="form-label" for="yearEstablished">Year Established</label>
             <input type="number" id="yearEstablished" class="form-control" min="1800" max="2100" placeholder="e.g. 2015">
 
-            <label class="form-label" for="orgWebsite">Official Website / Social Media Account</label>
-            <input type="url" id="orgWebsite" class="form-control" placeholder="https://">
+            <div class="multi-field" data-multi-field="orgWebsite">
+              <label class="form-label" for="orgWebsite">Official Website / Social Media Account</label>
+              <div class="multi-field-list">
+                <div class="multi-field-row">
+                  <input type="url" id="orgWebsite" name="orgWebsite[]" class="form-control" placeholder="https://" data-multi-primary>
+                  <button type="button" class="multi-field-action" data-multi-add aria-label="Add another website or social media account">+</button>
+                </div>
+              </div>
+            </div>
 
-            <label class="form-label" for="orgEmail">Organization Email</label>
-            <input type="email" id="orgEmail" class="form-control" placeholder="organization@email.com">
+            <div class="multi-field" data-multi-field="orgEmail">
+              <label class="form-label" for="orgEmail">Organization Email</label>
+              <div class="multi-field-list">
+                <div class="multi-field-row">
+                  <input type="email" id="orgEmail" name="orgEmail[]" class="form-control" placeholder="organization@email.com" data-multi-primary>
+                  <button type="button" class="multi-field-action" data-multi-add aria-label="Add another organization email">+</button>
+                </div>
+              </div>
+            </div>
 
-            <label class="form-label" for="orgContactNumber">Contact Number</label>
-            <input type="tel" id="orgContactNumber" class="form-control" placeholder="Official telephone or mobile number">
+            <div class="multi-field" data-multi-field="orgContactNumber">
+              <label class="form-label" for="orgContactNumber">Contact Number</label>
+              <div class="multi-field-list">
+                <div class="multi-field-row">
+                  <input type="tel" id="orgContactNumber" name="orgContactNumber[]" class="form-control" placeholder="Official telephone or mobile number" data-multi-primary>
+                  <button type="button" class="multi-field-action" data-multi-add aria-label="Add another contact number">+</button>
+                </div>
+              </div>
+            </div>
 
             <label class="form-label" for="completeAddress">Complete Address</label>
             <textarea id="completeAddress" class="form-control" rows="2" placeholder="Street/building, barangay, city/municipality, province, region"></textarea>
@@ -564,22 +721,56 @@
             <label class="form-label" for="repContactNumber">Contact Number</label>
             <input type="tel" id="repContactNumber" class="form-control" placeholder="Mobile or telephone number">
 
+            <label class="form-label" for="repGovIdType">Government-issued ID Type</label>
+            <select id="repGovIdType" class="form-select">
+              <option value="" disabled selected>Select ID type</option>
+              <option value="Philippine National ID (PhilID)">Philippine National ID (PhilID)</option>
+              <option value="Passport">Passport</option>
+              <option value="Driver's License">Driver's License</option>
+              <option value="UMID">UMID</option>
+              <option value="PRC ID">PRC ID</option>
+              <option value="Voter's Certification">Voter's Certification</option>
+              <option value="Postal ID">Postal ID</option>
+              <option value="ePhilID">ePhilID</option>
+            </select>
+
+            <label class="form-label" for="repGovIdNumber">ID Number</label>
+            <input type="text" id="repGovIdNumber" class="form-control" placeholder="Enter ID number">
+
             <div class="file-box">
-              <label class="form-label" for="repGovId">Government-issued ID</label>
-              <input type="file" id="repGovId" class="form-control" accept="image/*,.pdf">
-              <label class="file-upload" for="repGovId" data-file-for="repGovId">
+              <label class="form-label" for="repGovIdFront">Upload Front Side</label>
+              <input type="file" id="repGovIdFront" class="form-control" accept="image/*,.pdf">
+              <label class="file-upload" for="repGovIdFront" data-file-for="repGovIdFront">
                 <span class="file-upload-icon" aria-hidden="true"><i class="bi bi-person-vcard"></i></span>
                 <span class="file-upload-copy">
-                  <span class="file-upload-title">Upload ID</span>
+                  <span class="file-upload-title">Upload front of ID</span>
                   <span class="file-upload-name">No file chosen</span>
                 </span>
                 <span class="file-upload-btn">Choose file</span>
               </label>
-              <span class="hint">Valid government-issued ID of the authorized representative</span>
             </div>
 
             <div class="file-box">
-              <label class="form-label" for="repAuthorization">Proof of Authorization</label>
+              <label class="form-label" for="repGovIdBack">Upload Back Side</label>
+              <input type="file" id="repGovIdBack" class="form-control" accept="image/*,.pdf">
+              <label class="file-upload" for="repGovIdBack" data-file-for="repGovIdBack">
+                <span class="file-upload-icon" aria-hidden="true"><i class="bi bi-person-vcard-fill"></i></span>
+                <span class="file-upload-copy">
+                  <span class="file-upload-title">Upload back of ID</span>
+                  <span class="file-upload-name">No file chosen</span>
+                </span>
+                <span class="file-upload-btn">Choose file</span>
+              </label>
+            </div>
+
+            <div class="file-box">
+              <label class="form-label" for="repAuthorization">
+                Proof of Authorization
+                <button type="button" class="label-info" aria-label="About Proof of Authorization">
+                  i
+                  <span class="label-info-tip">An authorization letter, board resolution, or equivalent document showing that the person may manage the organization’s account.</span>
+                </button>
+              </label>
               <input type="file" id="repAuthorization" class="form-control" accept="image/*,.pdf">
               <label class="file-upload" for="repAuthorization" data-file-for="repAuthorization">
                 <span class="file-upload-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
@@ -589,7 +780,6 @@
                 </span>
                 <span class="file-upload-btn">Choose file</span>
               </label>
-              <span class="hint">Authorization letter, board resolution, or equivalent</span>
             </div>
           </section>
 
@@ -610,19 +800,6 @@
             </div>
 
             <div class="file-box">
-              <label class="form-label" for="docArticles">Articles of Incorporation and By-Laws (if applicable)</label>
-              <input type="file" id="docArticles" class="form-control" accept="image/*,.pdf">
-              <label class="file-upload" for="docArticles" data-file-for="docArticles">
-                <span class="file-upload-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
-                <span class="file-upload-copy">
-                  <span class="file-upload-title">Upload articles / by-laws</span>
-                  <span class="file-upload-name">No file chosen</span>
-                </span>
-                <span class="file-upload-btn">Choose file</span>
-              </label>
-            </div>
-
-            <div class="file-box">
               <label class="form-label" for="docAddress">Proof of Official Address</label>
               <input type="file" id="docAddress" class="form-control" accept="image/*,.pdf">
               <label class="file-upload" for="docAddress" data-file-for="docAddress">
@@ -636,7 +813,13 @@
             </div>
 
             <div class="file-box">
-              <label class="form-label" for="docTypeSpecific">Additional document for organization type</label>
+              <label class="form-label" for="docTypeSpecific">
+                Additional document for organization type
+                <button type="button" class="label-info" aria-label="About additional document for organization type">
+                  i
+                  <span class="label-info-tip">e.g. SEC, DOH LTO, CDA, CHED, barangay certification — whichever applies to your organization type.</span>
+                </button>
+              </label>
               <input type="file" id="docTypeSpecific" class="form-control" accept="image/*,.pdf">
               <label class="file-upload" for="docTypeSpecific" data-file-for="docTypeSpecific">
                 <span class="file-upload-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></span>
@@ -646,7 +829,6 @@
                 </span>
                 <span class="file-upload-btn">Choose file</span>
               </label>
-              <span class="hint">e.g. SEC, DOH LTO, CDA, CHED, barangay certification — whichever applies</span>
             </div>
           </section>
 
