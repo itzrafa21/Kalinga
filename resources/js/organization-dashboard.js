@@ -12,7 +12,11 @@ function updateSidebarAvatar(data) {
   const img = document.getElementById("sidebarUserAvatarImg");
   if (!wrap || !img) return;
   const pic =
-    (data && (data.profilePictureBase64 || data.profilePictureURL)) || null;
+    (data &&
+      (data.profilePictureBase64 ||
+        data.profilePictureURL ||
+        data.documents?.logo?.url)) ||
+    null;
   if (pic) {
     img.src = pic;
     wrap.classList.add("has-photo");

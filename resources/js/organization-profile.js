@@ -27,6 +27,208 @@ import { countOrgApprovedVolunteers } from "./application-storage.js";
 
 const PROFILE_STATS_VERSION = 2;
 
+function readValue(id) {
+  return document.getElementById(id)?.value?.trim() || "";
+}
+
+function setValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value ?? "";
+}
+
+function setSelectValue(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const next = value ?? "";
+  if (!next) {
+    el.value = "";
+    return;
+  }
+  const exists = Array.from(el.options).some((o) => o.value === next);
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = next;
+    opt.textContent = next;
+    el.appendChild(opt);
+  }
+  el.value = next;
+}
+
+function readMultiValues(fieldKey) {
+  const root = document.querySelector(`[data-multi-field="${fieldKey}"]`);
+  if (!root) return [];
+  return Array.from(root.querySelectorAll(".multi-field-row input"))
+    .map((input) => input.value.trim())
+    .filter(Boolean);
+}
+
+function syncMultiFieldPrimary(root, fieldKey) {
+  const inputs = root.querySelectorAll(".multi-field-row input");
+  inputs.forEach((input, index) => {
+    input.removeAttribute("id");
+    input.removeAttribute("data-multi-primary");
+    if (index === 0) {
+      input.id = fieldKey;
+      input.setAttribute("data-multi-primary", "");
+    }
+  });
+  const label = root.querySelector(".form-label");
+  if (label && inputs[0]) label.setAttribute("for", fieldKey);
+}
+
+function syncMultiFieldActions(root) {
+  const rows = root.querySelectorAll(".multi-field-row");
+  rows.forEach((row, index) => {
+    const btn = row.querySelector(".multi-field-action");
+    if (!btn) return;
+    if (index === rows.length - 1) {
+      btn.classList.remove("is-remove");
+      btn.removeAttribute("data-multi-remove");
+      btn.setAttribute("data-multi-add", "");
+      btn.setAttribute("aria-label", btn.dataset.addLabel || "Add another field");
+      btn.textContent = "+";
+    } else {
+      btn.classList.add("is-remove");
+      btn.removeAttribute("data-multi-add");
+      btn.setAttribute("data-multi-remove", "");
+      btn.setAttribute("aria-label", "Remove this field");
+      btn.textContent = "−";
+    }
+  });
+}
+
+function createMultiFieldRow(templateInput, fieldKey) {
+  const row = document.createElement("div");
+  row.className = "multi-field-row";
+
+  const input = document.createElement("input");
+  input.type = templateInput.type || "text";
+  input.className = "form-control";
+  input.name = `${fieldKey}[]`;
+  input.placeholder = templateInput.placeholder || "";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "multi-field-action";
+  btn.dataset.addLabel =
+    templateInput.closest(".multi-field")?.querySelector("[data-multi-add]")?.getAttribute("aria-label") ||
+    "Add another field";
+  btn.setAttribute("data-multi-add", "");
+  btn.setAttribute("aria-label", btn.dataset.addLabel);
+  btn.textContent = "+";
+
+  row.append(input, btn);
+  return row;
+}
+
+function fillMultiField(fieldKey, values) {
+  const root = document.querySelector(`[data-multi-field="${fieldKey}"]`);
+  if (!root) return;
+  const list = root.querySelector(".multi-field-list");
+  const primary = root.querySelector("[data-multi-primary]");
+  if (!list || !primary) return;
+
+  const items = (Array.isArray(values) ? values : [values])
+    .map((v) => String(v ?? "").trim())
+    .filter(Boolean);
+
+  list.querySelectorAll(".multi-field-row").forEach((row, index) => {
+    if (index > 0) row.remove();
+  });
+
+  primary.value = items[0] || "";
+  items.slice(1).forEach((value) => {
+    const row = createMultiFieldRow(primary, fieldKey);
+    const input = row.querySelector("input");
+    if (input) input.value = value;
+    list.appendChild(row);
+  });
+
+  syncMultiFieldPrimary(root, fieldKey);
+  syncMultiFieldActions(root);
+}
+
+function initMultiFields() {
+  document.querySelectorAll("[data-multi-field]").forEach((root) => {
+    const fieldKey = root.dataset.multiField;
+    const list = root.querySelector(".multi-field-list");
+    const primary = root.querySelector("[data-multi-primary]");
+    if (!list || !primary) return;
+
+    const addLabel =
+      root.querySelector("[data-multi-add]")?.getAttribute("aria-label") || "Add another field";
+    root.querySelectorAll(".multi-field-action").forEach((btn) => {
+      btn.dataset.addLabel = addLabel;
+    });
+    syncMultiFieldActions(root);
+
+    root.addEventListener("click", (e) => {
+      const addBtn = e.target.closest("[data-multi-add]");
+      const removeBtn = e.target.closest("[data-multi-remove]");
+
+      if (addBtn && root.contains(addBtn)) {
+        e.preventDefault();
+        const template = root.querySelector("[data-multi-primary]") || primary;
+        const row = createMultiFieldRow(template, fieldKey);
+        list.appendChild(row);
+        syncMultiFieldPrimary(root, fieldKey);
+        syncMultiFieldActions(root);
+        row.querySelector("input")?.focus();
+        return;
+      }
+
+      if (removeBtn && root.contains(removeBtn)) {
+        e.preventDefault();
+        if (root.querySelectorAll(".multi-field-row").length <= 1) return;
+        removeBtn.closest(".multi-field-row")?.remove();
+        syncMultiFieldPrimary(root, fieldKey);
+        syncMultiFieldActions(root);
+      }
+    });
+  });
+}
+
+function fillProfileForm(data, user) {
+  setValue("orgId", user.uid);
+  setValue("orgName", data.name || data.orgName || "");
+  setSelectValue("orgType", data.orgType || "");
+  setValue("orgDescription", data.orgDescription || "");
+  setValue("yearEstablished", data.yearEstablished || "");
+  setValue("completeAddress", data.completeAddress || data.address || "");
+  setSelectValue("orgScope", data.orgScope || "");
+  setValue("username", data.username || "");
+  setValue("email", user.email || data.email || "");
+
+  const websites =
+    data.orgWebsites?.length ? data.orgWebsites : data.orgWebsite ? [data.orgWebsite] : [];
+  const emails =
+    data.orgEmails?.length
+      ? data.orgEmails
+      : data.orgEmail
+        ? [data.orgEmail]
+        : data.email && data.email !== user.email
+          ? [data.email]
+          : [];
+  const contacts =
+    data.orgContactNumbers?.length
+      ? data.orgContactNumbers
+      : data.orgContactNumber
+        ? [data.orgContactNumber]
+        : data.phone
+          ? [data.phone]
+          : [];
+
+  fillMultiField("orgWebsite", websites);
+  fillMultiField("orgEmail", emails);
+  fillMultiField("orgContactNumber", contacts);
+
+  const rep = data.representative || {};
+  setValue("repFullName", rep.fullName || "");
+  setValue("repPosition", rep.position || "");
+  setValue("repEmail", rep.email || "");
+  setValue("repContactNumber", rep.contactNumber || "");
+}
+
 function openProfileSaveSuccessModal(message) {
   const overlay = document.getElementById("profileSaveSuccessModal");
   const messageEl = document.getElementById("profileSaveSuccessMessage");
@@ -75,7 +277,9 @@ function normalizeProfilePictureSrc(src) {
 }
 
 function resolveProfilePicture(data) {
-  const url = normalizeProfilePictureSrc(data?.profilePictureURL);
+  const url = normalizeProfilePictureSrc(
+    data?.profilePictureURL || data?.documents?.logo?.url || data?.logoURL
+  );
   if (url) {
     return cloudinaryUrlWithTransform(url, ORG_CLOUDINARY.avatarTransform);
   }
@@ -235,30 +439,11 @@ onAuthStateChanged(auth, async (user) => {
 
   const orgSnap = await getDoc(orgRef);
 
+  initMultiFields();
+
   if (orgSnap.exists()) {
     const data = orgSnap.data();
-
-    document.getElementById("orgId").value = user.uid;
-    document.getElementById("orgName").value = data.name || data.orgName || "";
-    document.getElementById("email").value = user.email || "";
-    document.getElementById("phone").value = data.phone || "";
-    document.getElementById("address").value = data.address || "";
-    document.getElementById("city").value = data.city || "";
-    document.getElementById("state").value = data.state || "";
-    document.getElementById("postalCode").value = data.postalCode || "";
-    const countryEl = document.getElementById("country");
-    if (countryEl && countryEl.tagName === "SELECT") {
-      countryEl.value = data.country || "";
-      if (data.country && !Array.from(countryEl.options).some((o) => o.value === data.country)) {
-        const opt = document.createElement("option");
-        opt.value = data.country;
-        opt.textContent = data.country;
-        countryEl.appendChild(opt);
-        countryEl.value = data.country;
-      }
-    } else if (countryEl) {
-      countryEl.value = data.country || "";
-    }
+    fillProfileForm(data, user);
 
     updateProfileHeader(data, user);
     setLastUpdatedFooter(data);
@@ -275,25 +460,31 @@ onAuthStateChanged(auth, async (user) => {
       name: user.displayName || "New Organization",
       orgName: user.displayName || "New Organization",
       email: user.email,
-      phone: "",
-      address: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "",
+      orgType: "",
+      orgDescription: "",
+      yearEstablished: "",
+      orgWebsite: "",
+      orgWebsites: [],
+      orgEmail: "",
+      orgEmails: [],
+      orgContactNumber: "",
+      orgContactNumbers: [],
+      completeAddress: "",
+      orgScope: "",
+      username: "",
+      representative: {},
       createdAt: new Date(),
       orgId: user.uid,
     });
 
-    document.getElementById("orgId").value = user.uid;
-    document.getElementById("orgName").value = user.displayName || "New Organization";
-    document.getElementById("email").value = user.email || "";
-    document.getElementById("phone").value = "";
-    document.getElementById("address").value = "";
-    document.getElementById("city").value = "";
-    document.getElementById("state").value = "";
-    document.getElementById("postalCode").value = "";
-    document.getElementById("country").value = "";
+    fillProfileForm(
+      {
+        name: user.displayName || "New Organization",
+        orgName: user.displayName || "New Organization",
+        email: user.email,
+      },
+      user
+    );
 
     updateProfileHeader(
       { name: user.displayName || "New Organization", orgName: user.displayName },
@@ -348,7 +539,11 @@ function loadProfilePicture(imageData) {
     if (!img) {
       img = document.createElement("img");
       img.id = "profileAvatarImg";
-      img.alt = "Profile picture";
+      img.alt = "Organization logo";
+      img.addEventListener("error", () => {
+        console.warn("[WARN] Profile logo failed to load");
+        resetProfilePicture();
+      });
       avatar.appendChild(img);
     }
     img.src = imageData;
@@ -569,30 +764,50 @@ function initializeFormHandlers() {
     e.preventDefault();
 
     const saveBtn = document.getElementById("saveBtn");
+    const prevSaveHtml = saveBtn?.innerHTML;
     if (saveBtn) {
       saveBtn.disabled = true;
       saveBtn.textContent = "Saving...";
     }
 
     try {
-      const orgName = document.getElementById("orgName").value;
-      const phone = document.getElementById("phone").value;
-      const address = document.getElementById("address").value;
-      const city = document.getElementById("city").value;
-      const state = document.getElementById("state").value;
-      const postalCode = document.getElementById("postalCode").value;
-      const country = document.getElementById("country").value;
+      const orgName = readValue("orgName");
+      const orgWebsites = readMultiValues("orgWebsite");
+      const orgEmails = readMultiValues("orgEmail");
+      const orgContactNumbers = readMultiValues("orgContactNumber");
+      const completeAddress = readValue("completeAddress");
+      const orgContactNumber = orgContactNumbers[0] || "";
+      const orgEmail = orgEmails[0] || "";
+      const orgWebsite = orgWebsites[0] || "";
+
+      const existingSnap = await getDoc(orgRef);
+      const existingRep = existingSnap.exists() ? existingSnap.data()?.representative || {} : {};
 
       await updateDoc(orgRef, {
         name: orgName,
         orgName: orgName,
-        phone,
-        address,
-        city,
-        state,
-        postalCode,
-        country,
+        username: readValue("username"),
+        orgType: readValue("orgType"),
+        orgDescription: readValue("orgDescription"),
+        yearEstablished: readValue("yearEstablished"),
+        orgWebsite,
+        orgWebsites,
+        orgEmail,
+        orgEmails,
+        orgContactNumber,
+        orgContactNumbers,
+        completeAddress,
+        orgScope: readValue("orgScope"),
+        phone: orgContactNumber,
+        address: completeAddress,
         email: currentUser.email,
+        representative: {
+          ...existingRep,
+          fullName: readValue("repFullName"),
+          position: readValue("repPosition"),
+          email: readValue("repEmail"),
+          contactNumber: readValue("repContactNumber"),
+        },
         updatedAt: new Date(),
       });
 
@@ -618,7 +833,8 @@ function initializeFormHandlers() {
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
-        saveBtn.textContent = "Save Changes";
+        if (prevSaveHtml != null) saveBtn.innerHTML = prevSaveHtml;
+        else saveBtn.innerHTML = '<i class="bi bi-save"></i> Save Changes';
       }
     }
   });

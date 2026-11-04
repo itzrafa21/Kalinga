@@ -6,6 +6,10 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { ORG_VERIFICATION_STATUS } from "./org-verification.js";
+import {
+  ORG_CLOUDINARY,
+  uploadImageToCloudinary,
+} from "./cloudinary-upload.js";
 
 const STEP_LABELS = [
   "Step 1 of 4 — Organization Information",
@@ -55,6 +59,46 @@ function fileMeta(inputId) {
     size: file.size,
     type: file.type || "",
   };
+}
+
+/** Resize logo to a small JPEG data URL so the profile can display it without relying only on Cloudinary. */
+function fileToProfileDataUrl(file, { maxSize = 256, quality = 0.85 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!file?.type?.startsWith("image/")) {
+      reject(new Error("Organization logo must be an image file."));
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Could not process the organization logo."));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      } catch (err) {
+        reject(err);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read the organization logo image."));
+    };
+    img.src = objectUrl;
+  });
 }
 
 function readValue(id) {
@@ -466,6 +510,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
+      const logoFile = document.getElementById("orgLogo")?.files?.[0];
+      if (!logoFile) {
+        throw new Error("Please upload the organization logo.");
+      }
+
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -475,6 +524,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
       await updateProfile(user, { displayName: orgName });
 
+      if (submitBtn) submitBtn.textContent = "Saving logo…";
+      const logoMeta = fileMeta("orgLogo");
+      const profilePictureBase64 = await fileToProfileDataUrl(logoFile);
+
+      let logoUrl = "";
+      try {
+        logoUrl = await uploadImageToCloudinary(logoFile, {
+          folder: ORG_CLOUDINARY.folder,
+          publicId: `${user.uid}/${ORG_CLOUDINARY.avatarPublicId}`,
+          tags: ["organization", "logo", "avatar", user.uid],
+        });
+      } catch (uploadErr) {
+        console.warn("[WARN] Cloudinary logo upload failed; using embedded logo:", uploadErr);
+      }
+
+      if (submitBtn) submitBtn.textContent = "Saving organization…";
       await setDoc(doc(db, "organizations", user.uid), {
         orgName,
         name: orgName,
@@ -491,6 +556,8 @@ document.addEventListener("DOMContentLoaded", () => {
         orgContactNumbers: readMultiValues("orgContactNumber"),
         completeAddress: readValue("completeAddress"),
         orgScope: readValue("orgScope"),
+        profilePictureURL: logoUrl || "",
+        profilePictureBase64,
         representative: {
           fullName: readValue("repFullName"),
           position: readValue("repPosition"),
@@ -500,7 +567,10 @@ document.addEventListener("DOMContentLoaded", () => {
           govIdNumber: readValue("repGovIdNumber"),
         },
         documents: {
-          logo: fileMeta("orgLogo"),
+          logo: {
+            ...(logoMeta || {}),
+            ...(logoUrl ? { url: logoUrl } : {}),
+          },
           govIdFront: fileMeta("repGovIdFront"),
           govIdBack: fileMeta("repGovIdBack"),
           authorization: fileMeta("repAuthorization"),
