@@ -231,8 +231,7 @@
         <button type="submit" class="btn-auth">Login</button>
 
         <div class="auth-links">
-          Don’t have an account? <a href="/organization/register">Register</a><br>
-          <a href="/government/login">Government office login</a>
+          Don’t have an account? <a href="/organization/register">Register</a>
         </div>
       </form>
     </div>

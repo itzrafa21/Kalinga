@@ -48,15 +48,6 @@ Route::get('/settings', function () {
 Route::get('/organization/settings', function () {
     return view('organization.settings');
 });
-Route::get('/government/login', function () {
-    return view('government.login');
-});
-Route::get('/government/register', function () {
-    return view('government.register');
-});
-Route::get('/government/dashboard', function () {
-    return view('government.dashboard');
-});
 Route::get('/admin/login', function () {
     return view('admin.login');
 });

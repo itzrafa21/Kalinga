@@ -13,7 +13,6 @@
         'resources/js/organization-sidebar.js',
         'resources/js/organization-logout.js',
         'resources/js/mission-create.js',
-        'resources/js/mission-letters.js',
     ])
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
@@ -324,25 +323,6 @@
             color: #1e3a2f;
             cursor: pointer;
         }
-
-        .letter-action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    width: 100%;
-    padding: 0.7rem 1rem;
-    border-radius: 10px;
-    font-weight: 600;
-    text-decoration: none;
-    border: 1px solid transparent;
-    cursor: pointer;
-}
-.letter-action-btn.submit {
-    background: #0f766e;
-    color: #fff;
-}
-.letter-action-btn.submit:hover { background: #115e59; color: #fff; }
 
         .mission-image-container {
             display: flex;
@@ -736,14 +716,9 @@
                                     <option value="" disabled selected>Loading mission types…</option>
                                 </select>
                                 <p id="missionPointsPreview" class="points-preview mb-0">
-    <i class="bi bi-star-fill" aria-hidden="true"></i>
-    <span>Select a type and schedule to see earned points</span>
-</p>
-<div class="mt-3 d-grid gap-2">
-    <button type="button" class="letter-action-btn submit" id="submitLettersBtn">
-        <i class="bi bi-send"></i> Submit Letters to Government officers
-    </button>
-</div>
+                                    <i class="bi bi-star-fill" aria-hidden="true"></i>
+                                    <span>Select a type and schedule to see earned points</span>
+                                </p>
                             </div>
                             <div class="col-md-6 form-split-col" aria-labelledby="section-volunteers">
                                 <h2 class="form-block-title" id="section-volunteers">
