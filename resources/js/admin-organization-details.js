@@ -44,12 +44,9 @@ function joinedList(primary, extras) {
     return values.length ? escapeHtml(values.join(", ")) : "—";
 }
 
-function detailRow(iconClass, label, valueHtml, wide = false, extraClass = "") {
-    const classes = ["org-detail-row"];
-    if (wide) classes.push("org-detail-row--wide");
-    if (extraClass) classes.push(extraClass);
+function detailRow(iconClass, label, valueHtml) {
     return `
-        <div class="${classes.join(" ")}">
+        <div class="org-detail-row org-detail-row--wide">
             <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
             <div class="org-detail-row__content">
                 <span class="org-detail-row__label">${escapeHtml(label)}</span>
@@ -201,25 +198,19 @@ function renderOrganization(data) {
     const hasReview = Boolean(String(data.rejectionReason || "").trim());
 
     const organizationRows = [
-        detailRow("fa-image", "Organization Logo:", logoHtml(data), true),
+        detailRow("fa-image", "Organization Logo:", logoHtml(data)),
         detailRow("fa-building", "Organization Name:", showText(name)),
         detailRow("fa-tag", "Organization Type:", showText(data.orgType)),
-        detailRow(
-            "fa-align-left",
-            "Organization Description:",
-            showText(data.orgDescription),
-            true,
-            "org-detail-row--justify"
-        ),
+        detailRow("fa-align-left", "Organization Description:", showText(data.orgDescription)),
         detailRow("fa-calendar", "Year Established:", showText(data.yearEstablished)),
-        detailRow("fa-link", "Official Website / Social Media:", websiteHtml(data.orgWebsite, data.orgWebsites), true),
+        detailRow("fa-link", "Official Website / Social Media:", websiteHtml(data.orgWebsite, data.orgWebsites)),
         detailRow("fa-envelope", "Organization Email:", joinedList(data.orgEmail, data.orgEmails)),
         detailRow(
             "fa-phone",
             "Contact Number:",
             joinedList(data.orgContactNumber || data.phone, data.orgContactNumbers)
         ),
-        detailRow("fa-map-marker-alt", "Complete Address:", showText(address), true),
+        detailRow("fa-map-marker-alt", "Complete Address:", showText(address)),
         detailRow("fa-earth-asia", "Organization Scope:", showText(data.orgScope)),
         detailRow(
             "fa-check-circle",
@@ -246,20 +237,17 @@ function renderOrganization(data) {
         detailRow(
             "fa-file-contract",
             "Certificate of Registration / Legal Recognition:",
-            documentMetaHtml(docs.registration),
-            true
+            documentMetaHtml(docs.registration)
         ),
         detailRow(
             "fa-file-alt",
             "Proof of Official Address:",
-            documentMetaHtml(docs.addressProof),
-            true
+            documentMetaHtml(docs.addressProof)
         ),
         detailRow(
             "fa-folder-open",
             "Additional document for organization type:",
-            documentMetaHtml(docs.typeSpecific),
-            true
+            documentMetaHtml(docs.typeSpecific)
         ),
     ].join("");
 
@@ -270,7 +258,7 @@ function renderOrganization(data) {
     ].join("");
 
     const reviewRows = hasReview
-        ? detailRow("fa-comment-alt", "Rejection reason:", showText(data.rejectionReason), true)
+        ? detailRow("fa-comment-alt", "Rejection reason:", showText(data.rejectionReason))
         : "";
 
     const tabsHtml = `

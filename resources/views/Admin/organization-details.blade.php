@@ -114,10 +114,7 @@
     }
     .org-fields {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
-    @media (max-width: 860px) {
-      .org-fields { grid-template-columns: 1fr; }
+      grid-template-columns: 1fr;
     }
     .org-section-label {
       grid-column: 1 / -1;
@@ -141,23 +138,6 @@
       min-width: 0;
     }
     .org-detail-row--wide { grid-column: 1 / -1; }
-    .org-detail-row--wide .org-detail-row__content {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 0.45rem;
-    }
-    .org-detail-row--wide .org-detail-row__value {
-      text-align: justify;
-      text-justify: inter-word;
-      line-height: 1.55;
-      white-space: pre-wrap;
-    }
-    .org-detail-row--justify .org-detail-row__value {
-      text-align: justify;
-      text-justify: inter-word;
-      line-height: 1.55;
-      white-space: pre-wrap;
-    }
     .org-detail-row__icon {
       width: 36px;
       height: 36px;
@@ -169,32 +149,44 @@
       justify-content: center;
       flex-shrink: 0;
       font-size: 0.9rem;
+      margin-top: 0.1rem;
     }
     .org-detail-row__content {
       flex: 1;
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 0.35rem;
       min-width: 0;
     }
     .org-detail-row__label {
       font-weight: 600;
       color: #333;
       font-size: 0.92rem;
-      flex-shrink: 0;
     }
     .org-detail-row__value {
       color: #555;
       font-size: 0.92rem;
-      text-align: right;
+      text-align: justify;
+      text-justify: inter-word;
+      line-height: 1.55;
       word-break: break-word;
+      white-space: pre-wrap;
+      width: 100%;
     }
     .org-detail-row__value a {
       color: #15803d;
       text-decoration: none;
     }
     .org-detail-row__value a:hover { text-decoration: underline; }
+    .org-logo-preview {
+      margin-left: 0;
+    }
+    .org-doc-meta {
+      align-items: flex-start;
+      width: 100%;
+    }
     .org-status-badge {
       display: inline-block;
       padding: 0.25rem 0.75rem;
