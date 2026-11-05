@@ -256,12 +256,12 @@
       border: 1px solid #dbe4dc;
       background: #f8faf9;
       display: block;
-      margin-left: auto;
+      margin-left: 0;
     }
     .org-doc-meta {
       display: inline-flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: flex-start;
       gap: 0.15rem;
       max-width: 100%;
     }
@@ -274,12 +274,23 @@
       font-size: 0.78rem;
       color: #64748b;
     }
-    .org-doc-meta a {
+    .org-doc-meta a,
+    .org-doc-download {
       color: #15803d;
-      text-decoration: none;
+      text-decoration: underline;
       font-weight: 600;
+      word-break: break-word;
     }
-    .org-doc-meta a:hover { text-decoration: underline; }
+    .org-doc-meta a:hover,
+    .org-doc-download:hover {
+      color: #166534;
+    }
+    .org-doc-meta--logo {
+      gap: 0.55rem;
+    }
+    .org-doc-meta--logo .org-logo-preview {
+      margin-bottom: 0.15rem;
+    }
     .org-page__footer {
       padding: 1rem 1.5rem;
       border-top: 1px solid #eee;

@@ -12,6 +12,10 @@ import {
     getOrgVerificationLabel,
     ORG_VERIFICATION_STATUS,
 } from "./org-verification.js";
+import {
+    ORG_CLOUDINARY,
+    cloudinaryUrlWithTransform,
+} from "./cloudinary-upload.js";
 
 const orgId = document.body.dataset.orgId || "";
 
@@ -98,51 +102,116 @@ function formatRegisteredAt(value) {
     return escapeHtml(date.toLocaleString());
 }
 
-function resolveOrgLogoSrc(data) {
+function normalizeLogoSrc(src) {
+    let raw = String(src ?? "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("//")) return `https:${raw}`;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/cloudinary\.com/i.test(raw)) return `https://${raw.replace(/^\/+/, "")}`;
+    if (raw.startsWith("data:image/") || raw.startsWith("data:application/octet-stream")) {
+        return raw;
+    }
+    // Raw base64 payload without a data-URL prefix
+    if (raw.length > 64 && /^[A-Za-z0-9+/=\s]+$/.test(raw.slice(0, 200))) {
+        return `data:image/jpeg;base64,${raw.replace(/\s+/g, "")}`;
+    }
+    return "";
+}
+
+function guessCloudinaryLogoUrl(id = orgId) {
+    const uid = String(id || "").trim();
+    const cloud = String(ORG_CLOUDINARY?.cloudName || "").trim();
+    const folder = String(ORG_CLOUDINARY?.folder || "kalinga/organizations").trim();
+    const avatarId = String(ORG_CLOUDINARY?.avatarPublicId || "avatar").trim();
+    if (!uid || !cloud) return "";
+    return `https://res.cloudinary.com/${cloud}/image/upload/${folder}/${uid}/${avatarId}`;
+}
+
+function resolveOrgLogoSrc(data, { forDownload = false } = {}) {
     const docs = data?.documents || {};
+    const logoDoc = docs?.logo && typeof docs.logo === "object" ? docs.logo : null;
+
+    // Prefer embedded/base64 first (always available offline), then remote URLs.
     const candidates = [
-        data?.profilePictureURL,
         data?.profilePictureBase64,
+        logoDoc?.base64,
+        logoDoc?.dataUrl,
+        logoDoc?.dataURL,
+        data?.profilePictureURL,
         data?.logoURL,
-        docs?.logo?.url,
+        data?.logoUrl,
+        data?.photoURL,
+        data?.avatarURL,
+        data?.avatarUrl,
+        logoDoc?.url,
+        logoDoc?.secure_url,
+        typeof docs?.logo === "string" ? docs.logo : "",
+        typeof data?.logo === "string" ? data.logo : "",
+        guessCloudinaryLogoUrl(orgId),
     ];
+
     for (const candidate of candidates) {
-        const value = String(candidate || "").trim();
+        const normalized = normalizeLogoSrc(candidate);
+        if (!normalized) continue;
         if (
-            value.startsWith("data:image/") ||
-            /^https?:\/\//i.test(value) ||
-            value.startsWith("//")
+            !forDownload &&
+            (/res\.cloudinary\.com/i.test(normalized) || /cloudinary\.com/i.test(normalized))
         ) {
-            return value.startsWith("//") ? `https:${value}` : value;
+            return cloudinaryUrlWithTransform(
+                normalized,
+                ORG_CLOUDINARY.avatarTransform
+            );
         }
+        return normalized;
     }
     return "";
 }
 
 function logoHtml(data) {
-    const src = resolveOrgLogoSrc(data);
-    if (!src) return "—";
-    return `<img class="org-logo-preview" src="${escapeHtml(src)}" alt="Organization logo">`;
+    const downloadSrc = resolveOrgLogoSrc(data, { forDownload: true });
+    const logoDoc =
+        data?.documents?.logo && typeof data.documents.logo === "object"
+            ? data.documents.logo
+            : null;
+    const fileName =
+        String(logoDoc?.name || "").trim() ||
+        (downloadSrc ? "organization-logo.jpg" : "");
+    const sizeLabel = formatBytes(logoDoc?.size);
+    const sub = [logoDoc?.type, sizeLabel].filter(Boolean).join(" · ");
+
+    if (!fileName && !downloadSrc) return "—";
+
+    const title = fileName || "organization-logo.jpg";
+    const titleHtml = downloadSrc
+        ? `<a class="org-doc-download" href="${escapeHtml(downloadSrc)}" download="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+        : `<span class="org-doc-meta__name">${escapeHtml(title)}</span>`;
+
+    return `
+        <span class="org-doc-meta">
+            ${titleHtml}
+            ${sub ? `<span class="org-doc-meta__sub">${escapeHtml(sub)}</span>` : ""}
+        </span>`;
 }
 
 function documentMetaHtml(docItem) {
     if (!docItem || typeof docItem !== "object") return "—";
     const name = String(docItem.name || "").trim();
-    const url = String(docItem.url || "").trim();
+    const url = normalizeLogoSrc(
+        docItem.url || docItem.secure_url || docItem.base64 || docItem.dataUrl || ""
+    );
     const type = String(docItem.type || "").trim();
     const sizeLabel = formatBytes(docItem.size);
     const subParts = [type, sizeLabel].filter(Boolean);
     if (!name && !url) return "—";
 
     const title = name || "Document";
-    const titleHtml =
-        url && /^https?:\/\//i.test(url)
-            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
-            : escapeHtml(title);
+    const titleHtml = url
+        ? `<a class="org-doc-download" href="${escapeHtml(url)}" download="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+        : `<span class="org-doc-meta__name">${escapeHtml(title)}</span>`;
 
     return `
         <span class="org-doc-meta">
-            <span class="org-doc-meta__name">${titleHtml}</span>
+            ${titleHtml}
             ${subParts.length ? `<span class="org-doc-meta__sub">${escapeHtml(subParts.join(" · "))}</span>` : ""}
         </span>`;
 }
