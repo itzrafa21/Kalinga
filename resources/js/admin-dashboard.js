@@ -87,10 +87,15 @@ function checkAdminAuth() {
                 const sidebarEmail = document.getElementById('adminEmailSidebar');
                 if (sidebarEmail) sidebarEmail.textContent = email;
                 
-                // Initialize dashboard
+                // Initialize dashboard on the tab from the URL hash (no Dashboard flash)
                 initializeDashboard();
-                loadDashboardData();
                 setupEventListeners();
+                const hashTab = window.location.hash.replace(/^#/, "");
+                const initialTab =
+                    hashTab && document.getElementById(`${hashTab}-tab`)
+                        ? hashTab
+                        : "dashboard";
+                showTab(initialTab);
             } else {
                 console.log("[ERROR] Access denied. Admin credentials required.");
                 alert('Access denied. Admin credentials required.');
@@ -596,6 +601,7 @@ function showTab(tabName) {
     if (window.location.hash !== nextHash) {
         history.replaceState(null, "", nextHash);
     }
+    document.documentElement.setAttribute("data-admin-tab", tabName);
 
     loadTabData(tabName);
 }
@@ -1702,11 +1708,6 @@ function setupEventListeners() {
         }
     });
 
-    const hashTab = window.location.hash.replace(/^#/, "");
-    if (hashTab && document.getElementById(`${hashTab}-tab`)) {
-        showTab(hashTab);
-    }
-    
     // Search functionality with null checks
     const orgSearch = document.getElementById("orgSearch");
     const missionSearch = document.getElementById("missionSearch");

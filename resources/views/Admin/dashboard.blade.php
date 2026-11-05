@@ -11,7 +11,32 @@
     'resources/css/app.css',
     'resources/js/admin-dashboard.js'
   ])
+  <script>
+    (function () {
+      var tab = (window.location.hash || "").replace(/^#/, "");
+      var allowed = { dashboard: 1, organizations: 1, missions: 1, volunteers: 1 };
+      if (!allowed[tab]) tab = "dashboard";
+      document.documentElement.setAttribute("data-admin-tab", tab);
+    })();
+  </script>
   <style>
+    /* Show the hash tab immediately so returning from details does not flash Dashboard */
+    html[data-admin-tab] .tab-content { display: none !important; }
+    html[data-admin-tab="dashboard"] #dashboard-tab,
+    html[data-admin-tab="organizations"] #organizations-tab,
+    html[data-admin-tab="missions"] #missions-tab,
+    html[data-admin-tab="volunteers"] #volunteers-tab {
+      display: block !important;
+    }
+    html[data-admin-tab] .nav-item[data-tab].active { background: transparent; color: #666; font-weight: 400; }
+    html[data-admin-tab="dashboard"] .nav-item[data-tab="dashboard"],
+    html[data-admin-tab="organizations"] .nav-item[data-tab="organizations"],
+    html[data-admin-tab="missions"] .nav-item[data-tab="missions"],
+    html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"] {
+      background: #aaf0ba;
+      color: #000;
+      font-weight: 500;
+    }
     .org-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -514,6 +539,19 @@
       <span class="topbar-title" id="topbarTitle">Dashboard</span>
       <span class="topbar-user" id="adminEmail"></span>
     </div>
+    <script>
+      (function () {
+        var titles = {
+          dashboard: "Dashboard",
+          organizations: "Organizations",
+          missions: "Missions",
+          volunteers: "Volunteers"
+        };
+        var tab = document.documentElement.getAttribute("data-admin-tab") || "dashboard";
+        var el = document.getElementById("topbarTitle");
+        if (el && titles[tab]) el.textContent = titles[tab];
+      })();
+    </script>
     <div class="content">
 
     <div id="dashboard-tab" class="tab-content">
