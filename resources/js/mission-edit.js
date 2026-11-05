@@ -23,6 +23,8 @@ import {
 import {
     ORG_CLOUDINARY,
     uploadFileToCloudinary,
+    buildMissionDocumentPublicId,
+    normalizeMissionDocuments,
 } from "./cloudinary-upload.js";
 
 let selectedMissionImageFile = null;
@@ -115,7 +117,7 @@ function renderMissionDocumentsList() {
 }
 
 function loadExistingMissionDocuments(mission) {
-  const docs = Array.isArray(mission?.documents) ? mission.documents : [];
+  const docs = normalizeMissionDocuments(mission?.documents);
   missionDocuments = docs
     .filter((d) => d && (d.url || d.name))
     .map((d) => ({
@@ -175,12 +177,9 @@ async function uploadNewMissionDocuments(files, orgId) {
   const uploaded = [];
   for (let i = 0; i < files.length; i += 1) {
     const file = files[i];
-    const safeName = String(file.name || `document-${i + 1}`)
-      .replace(/[^\w.\-]+/g, "_")
-      .slice(0, 80);
     const result = await uploadFileToCloudinary(file, {
       folder: `${ORG_CLOUDINARY.folder}/${orgId}/missions/documents`,
-      publicId: `${Date.now()}-${i}-${safeName.replace(/\.[^.]+$/, "")}`,
+      publicId: buildMissionDocumentPublicId(file, i),
       maxBytes: MISSION_DOC_MAX_BYTES,
       resourceType: "raw",
       tags: ["mission-document", orgId],

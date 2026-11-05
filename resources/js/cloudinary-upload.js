@@ -64,11 +64,137 @@ export function sanitizeCloudinaryDocumentUrl(url) {
     if (!raw || !/res\.cloudinary\.com/i.test(raw) || !raw.includes("/upload/")) {
         return raw;
     }
-    // Remove one or more transformation segments between /upload/ and /vNNNN/
-    return raw.replace(
-        /\/upload\/(?:[^/]+\/)*?(?=v\d+\/)/,
-        "/upload/"
-    );
+    // Only strip fl_attachment (and similar flag) segments — do not touch the asset path.
+    return raw.replace(/\/upload\/(?:fl_[^/]+\/)+/gi, "/upload/");
+}
+
+/**
+ * Build a collision-safe Cloudinary public_id for mission documents.
+ * @param {File|string} fileOrName
+ * @param {number} [index]
+ */
+export function buildMissionDocumentPublicId(fileOrName, index = 0) {
+    const name =
+        typeof fileOrName === "string"
+            ? fileOrName
+            : String(fileOrName?.name || `document-${index + 1}`);
+    const extMatch = name.toLowerCase().match(/\.([a-z0-9]{1,8})$/);
+    const ext = extMatch ? extMatch[1] : "";
+    const rand =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID().replace(/-/g, "").slice(0, 12)
+            : Math.random().toString(36).slice(2, 14);
+    const base = `${Date.now()}-${index}-${rand}`;
+    return ext ? `${base}.${ext}` : base;
+}
+
+/**
+ * Normalize mission.documents from Firestore (array or map-like object).
+ * @param {unknown} value
+ * @returns {object[]}
+ */
+export function normalizeMissionDocuments(value) {
+    if (Array.isArray(value)) {
+        return value.filter((d) => d && typeof d === "object");
+    }
+    if (value && typeof value === "object") {
+        return Object.keys(value)
+            .sort((a, b) => Number(a) - Number(b))
+            .map((key) => value[key])
+            .filter((d) => d && typeof d === "object");
+    }
+    return [];
+}
+
+/**
+ * Build alternate Cloudinary delivery URLs (resource type swaps).
+ * Free Cloudinary plans block PDF delivery for `image` assets (HTTP 401);
+ * `raw` delivery usually still works.
+ * @param {string} url
+ * @returns {string[]}
+ */
+export function candidateCloudinaryDocumentUrls(url) {
+    const primary = sanitizeCloudinaryDocumentUrl(String(url || "").trim());
+    if (!primary) return [];
+
+    const variants = [primary];
+    const pushUnique = (next) => {
+        if (next && !variants.includes(next)) variants.push(next);
+    };
+
+    if (primary.includes("/image/upload/")) {
+        pushUnique(primary.replace("/image/upload/", "/raw/upload/"));
+        pushUnique(primary.replace("/image/upload/", "/auto/upload/"));
+    } else if (primary.includes("/raw/upload/")) {
+        pushUnique(primary.replace("/raw/upload/", "/image/upload/"));
+        pushUnique(primary.replace("/raw/upload/", "/auto/upload/"));
+    } else if (primary.includes("/auto/upload/")) {
+        pushUnique(primary.replace("/auto/upload/", "/raw/upload/"));
+        pushUnique(primary.replace("/auto/upload/", "/image/upload/"));
+    }
+
+    return variants;
+}
+
+/**
+ * Download a Cloudinary (or other) document URL as a file.
+ * Tries resource-type variants so PDFs blocked as `image` can still download as `raw`.
+ * @param {string} url
+ * @param {string} [filename]
+ * @returns {Promise<boolean>}
+ */
+export async function downloadCloudinaryDocument(url, filename = "document") {
+    const name = String(filename || "document").trim() || "document";
+    const candidates = candidateCloudinaryDocumentUrls(url);
+    if (!candidates.length) return false;
+
+    const triggerAnchorDownload = (hrefValue, downloadName) => {
+        const anchor = document.createElement("a");
+        anchor.href = hrefValue;
+        if (downloadName) anchor.setAttribute("download", downloadName);
+        anchor.rel = "noopener noreferrer";
+        anchor.style.display = "none";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    };
+
+    let sawUnauthorized = false;
+    for (const href of candidates) {
+        try {
+            const response = await fetch(href, {
+                mode: "cors",
+                credentials: "omit",
+                cache: "no-store",
+            });
+            if (response.status === 401 || response.status === 403) {
+                sawUnauthorized = true;
+                continue;
+            }
+            if (!response.ok) continue;
+            const blob = await response.blob();
+            if (!blob || blob.size <= 0) continue;
+            const objectUrl = URL.createObjectURL(blob);
+            triggerAnchorDownload(objectUrl, name);
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+            return true;
+        } catch (error) {
+            console.warn("Document download candidate failed:", href, error);
+        }
+    }
+
+    if (sawUnauthorized) {
+        alert(
+            `“${name}” could not be downloaded (Cloudinary blocked this file type).\n\n` +
+                "Fix options:\n" +
+                "1) Edit this mission, remove the PDF, and upload it again; or\n" +
+                "2) In Cloudinary Console → Settings → Security, enable “Allow delivery of PDF and ZIP files”."
+        );
+        return false;
+    }
+
+    alert(`“${name}” could not be downloaded. Please try again or re-upload the file.`);
+    return false;
 }
 
 /**
@@ -152,7 +278,8 @@ export async function uploadFileToCloudinary(file, options = {}) {
         throw new Error(getCloudinaryConfigHint());
     }
 
-    const resourceType = options.resourceType || "auto";
+    // Prefer raw for documents so PDFs are not stored as `image` (blocked with HTTP 401 on free plans).
+    const resourceType = options.resourceType || "raw";
     const body = new FormData();
     body.append("file", file);
     body.append("upload_preset", UPLOAD_PRESET);
@@ -182,9 +309,21 @@ export async function uploadFileToCloudinary(file, options = {}) {
         throw new Error(msg);
     }
 
-    const url = payload.secure_url || payload.url;
+    let url = payload.secure_url || payload.url;
     if (!url) {
         throw new Error("Cloudinary did not return a file URL.");
+    }
+
+    let resolvedType = payload.resource_type || resourceType;
+    const isPdf =
+        /\.pdf$/i.test(file.name || "") ||
+        file.type === "application/pdf" ||
+        String(payload.format || "").toLowerCase() === "pdf";
+
+    // If a PDF landed as `image`, rewrite delivery URL to raw when possible and warn via type.
+    if (isPdf && String(url).includes("/image/upload/")) {
+        url = String(url).replace("/image/upload/", "/raw/upload/");
+        resolvedType = "raw";
     }
 
     return {
@@ -192,6 +331,6 @@ export async function uploadFileToCloudinary(file, options = {}) {
         publicId: payload.public_id || "",
         bytes: Number(payload.bytes) || file.size,
         format: payload.format || "",
-        resourceType: payload.resource_type || resourceType,
+        resourceType: resolvedType,
     };
 }
