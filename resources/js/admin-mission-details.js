@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { fetchOrganizationDisplayName } from "./org-verification.js";
+import { sanitizeCloudinaryDocumentUrl } from "./cloudinary-upload.js";
 
 const missionId = document.body.dataset.missionId || "";
 
@@ -45,6 +46,46 @@ function detailRow(iconClass, label, valueHtml, wide = false) {
 
 function sectionLabel(title) {
     return `<div class="org-section-label">${escapeHtml(title)}</div>`;
+}
+
+async function downloadMissionDocument(url, filename) {
+    const href = sanitizeCloudinaryDocumentUrl(String(url || "").trim());
+    if (!href) return;
+    const name = String(filename || "document").trim() || "document";
+    try {
+        const response = await fetch(href, { mode: "cors", credentials: "omit" });
+        if (!response.ok) throw new Error(`Download failed (${response.status})`);
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = name;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+        console.warn("Blob download failed, opening file URL instead.", error);
+        window.open(href, "_blank", "noopener,noreferrer");
+    }
+}
+
+function wireMissionDocumentsDownloads(root) {
+    const list = root?.querySelector?.(".mission-docs");
+    if (!list || list.dataset.downloadWired === "1") return;
+    list.dataset.downloadWired = "1";
+    list.addEventListener("click", (event) => {
+        const link = event.target.closest("a.mission-doc-link");
+        if (!link) return;
+        const url = link.getAttribute("href") || "";
+        const name =
+            link.getAttribute("data-download-name") ||
+            link.getAttribute("download") ||
+            "document";
+        if (!url || url === "#") return;
+        event.preventDefault();
+        void downloadMissionDocument(url, name);
+    });
 }
 
 function formatSubmittedAt(mission) {
@@ -119,6 +160,38 @@ function renderMission(mission, orgDisplayName) {
         rows.push(detailRow("fa-image", "Image:", image, true));
     }
 
+    const docs = Array.isArray(mission.documents)
+        ? mission.documents.filter((d) => d?.url && /^https?:\/\//i.test(String(d.url)))
+        : [];
+    if (docs.length) {
+        const docsHtml = docs
+            .map((docItem) => {
+                const name = String(docItem.name || "document").trim() || "document";
+                const format = String(docItem.format || "").toUpperCase();
+                const size = Number(docItem.size) || 0;
+                let sizeLabel = "";
+                if (size > 0) {
+                    sizeLabel =
+                        size < 1024
+                            ? `${size} B`
+                            : size < 1024 * 1024
+                              ? `${(size / 1024).toFixed(1)} KB`
+                              : `${(size / (1024 * 1024)).toFixed(1)} MB`;
+                }
+                const meta = [format, sizeLabel].filter(Boolean).join(" · ");
+                const href = sanitizeCloudinaryDocumentUrl(String(docItem.url));
+                return `<a class="mission-doc-link" href="${escapeHtml(href)}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">
+                    <i class="fas fa-file-download" aria-hidden="true"></i>
+                    <span>${escapeHtml(name)}${meta ? ` <small>(${escapeHtml(meta)})</small>` : ""}</span>
+                </a>`;
+            })
+            .join("");
+        rows.push(
+            sectionLabel("Documents"),
+            detailRow("fa-folder-open", "Files:", `<div class="mission-docs">${docsHtml}</div>`, true)
+        );
+    }
+
     rows.push(
         sectionLabel("Schedule"),
         detailRow("fa-calendar", "Date:", showText(mission.date)),
@@ -170,6 +243,7 @@ function renderMission(mission, orgDisplayName) {
     if (body) {
         body.hidden = false;
         body.innerHTML = `<div class="org-fields">${rows.join("")}</div>`;
+        wireMissionDocumentsDownloads(body);
     }
     if (status) status.hidden = true;
     if (footer) footer.hidden = false;

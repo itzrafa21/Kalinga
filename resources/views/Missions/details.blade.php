@@ -344,6 +344,64 @@
       letter-spacing: 0.08em;
       margin-bottom: 10px;
     }
+    .md-docs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .md-doc-link {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.7rem 0.85rem;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      background: #f8fafc;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .md-doc-link:hover {
+      background: #ecfdf3;
+      border-color: #86efac;
+    }
+    .md-doc-link__icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: #ecfdf3;
+      color: #166534;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+    .md-doc-link__meta {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .md-doc-link__name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .md-doc-link__sub {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .md-doc-link__action {
+      flex-shrink: 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #15803d;
+    }
     .md-sec-label--title {
       font-size: 0.95rem;
       font-weight: 600;

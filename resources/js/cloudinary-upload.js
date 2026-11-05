@@ -55,6 +55,23 @@ export function cloudinaryUrlWithTransform(url, transform) {
 }
 
 /**
+ * Strip delivery transforms (e.g. fl_attachment:filename) that break raw file URLs.
+ * Keeps the original uploaded asset path so downloads stay valid.
+ * @param {string} url
+ */
+export function sanitizeCloudinaryDocumentUrl(url) {
+    const raw = String(url ?? "").trim();
+    if (!raw || !/res\.cloudinary\.com/i.test(raw) || !raw.includes("/upload/")) {
+        return raw;
+    }
+    // Remove one or more transformation segments between /upload/ and /vNNNN/
+    return raw.replace(
+        /\/upload\/(?:[^/]+\/)*?(?=v\d+\/)/,
+        "/upload/"
+    );
+}
+
+/**
  * @param {File} file
  * @param {{ folder?: string, publicId?: string, maxBytes?: number, tags?: string[] }} [options]
  * @returns {Promise<string>} secure HTTPS URL

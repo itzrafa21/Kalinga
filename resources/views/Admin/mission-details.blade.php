@@ -177,6 +177,35 @@
       border-radius: 10px;
       border: 1px solid #e5e7eb;
     }
+    .mission-docs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      align-items: flex-end;
+    }
+    .mission-doc-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.7rem;
+      border-radius: 8px;
+      background: #ecfdf3;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      text-decoration: none;
+      font-size: 0.86rem;
+      font-weight: 600;
+      max-width: 100%;
+    }
+    .mission-doc-link:hover {
+      background: #dcfce7;
+      text-decoration: none;
+      color: #14532d;
+    }
+    .mission-doc-link small {
+      font-weight: 500;
+      color: #64748b;
+    }
     .org-status-badge {
       display: inline-block;
       padding: 0.25rem 0.75rem;

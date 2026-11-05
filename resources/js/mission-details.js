@@ -35,6 +35,7 @@ import {
   invalidateOrgCache,
   missionDetailCacheKey,
 } from "./org-data-cache.js";
+import { sanitizeCloudinaryDocumentUrl } from "./cloudinary-upload.js";
 
 let pendingRejectVolunteer = null;
 let currentMissionContext = null;
@@ -1073,6 +1074,97 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotIn
     </tr>`;
 }
 
+function formatDocumentSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (size <= 0) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function documentDownloadName(docItem) {
+  const name = String(docItem?.name || "").trim();
+  if (name) return name;
+  const format = String(docItem?.format || "").trim();
+  return format ? `document.${format}` : "document";
+}
+
+async function downloadMissionDocument(url, filename) {
+  const href = sanitizeCloudinaryDocumentUrl(String(url || "").trim());
+  if (!href) return;
+  const name = String(filename || "document").trim() || "document";
+  try {
+    const response = await fetch(href, { mode: "cors", credentials: "omit" });
+    if (!response.ok) throw new Error(`Download failed (${response.status})`);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = name;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch (error) {
+    console.warn("Blob download failed, opening file URL instead.", error);
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
+}
+
+function wireMissionDocumentsDownloads(root) {
+  const list = root?.querySelector?.(".md-docs-list");
+  if (!list || list.dataset.downloadWired === "1") return;
+  list.dataset.downloadWired = "1";
+  list.addEventListener("click", (event) => {
+    const link = event.target.closest("a.md-doc-link");
+    if (!link) return;
+    const url = link.getAttribute("href") || "";
+    const name = link.getAttribute("data-download-name") || link.getAttribute("download") || "document";
+    if (!url || url === "#") return;
+    event.preventDefault();
+    void downloadMissionDocument(url, name);
+  });
+}
+
+function renderMissionDocumentsSection(mission) {
+  const docs = Array.isArray(mission?.documents)
+    ? mission.documents.filter((d) => d && (d.url || d.name))
+    : [];
+  if (!docs.length) return "";
+
+  const items = docs
+    .map((docItem) => {
+      const url = sanitizeCloudinaryDocumentUrl(String(docItem.url || "").trim());
+      if (!url || !(url.startsWith("https://") || url.startsWith("http://"))) {
+        return "";
+      }
+      const name = documentDownloadName(docItem);
+      const sizeLabel = formatDocumentSize(docItem.size);
+      const format = String(docItem.format || "").toUpperCase();
+      const metaParts = [format, sizeLabel].filter(Boolean);
+      const meta = metaParts.length ? metaParts.join(" · ") : "Document";
+      return `
+        <a class="md-doc-link" href="${escapeHtml(url)}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">
+          <span class="md-doc-link__icon" aria-hidden="true"><i class="ti ti-file-download"></i></span>
+          <span class="md-doc-link__meta">
+            <span class="md-doc-link__name">${escapeHtml(name)}</span>
+            <span class="md-doc-link__sub">${escapeHtml(meta)}</span>
+          </span>
+          <span class="md-doc-link__action">Download</span>
+        </a>`;
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!items) return "";
+
+  return `
+    <section class="md-card">
+      <div class="md-sec-label">Documents</div>
+      <div class="md-docs-list">${items}</div>
+    </section>`;
+}
+
 function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
   if (!isOwner) return "";
 
@@ -1166,6 +1258,7 @@ function renderMissionFrame(
     mission
   );
   const rosterHtml = renderRosterSection(volunteers, mission, isOwner, slotInfo);
+  const documentsHtml = renderMissionDocumentsSection(mission);
 
   setMissionPageNav(backHref, backLabel, topEdit);
 
@@ -1219,6 +1312,7 @@ function renderMissionFrame(
           </div>
         </section>
 
+        ${documentsHtml}
         ${rosterHtml}
       </div>
 
@@ -1231,6 +1325,7 @@ function renderMissionFrame(
 
   wireRejectModal(missionId);
   bindMissionInteractions(container, mission, missionId, user, volunteers, isOwner);
+  wireMissionDocumentsDownloads(container);
 }
 
 function bindMissionInteractions(container, mission, missionId, user, volunteers, isOwner) {

@@ -675,7 +675,7 @@ async function uploadMissionDocuments(files, orgId) {
             folder: `${ORG_CLOUDINARY.folder}/${orgId}/missions/documents`,
             publicId: `${Date.now()}-${i}-${safeName.replace(/\.[^.]+$/, "")}`,
             maxBytes: MISSION_DOC_MAX_BYTES,
-            resourceType: "auto",
+            resourceType: "raw",
             tags: ["mission-document", orgId],
         });
         uploaded.push({
