@@ -67,21 +67,23 @@
     .topbar-title:hover { color: #16a34a; text-decoration: underline; }
     .topbar-user { font-size: 12px; color: #b0b0b0; }
     .content {
-      padding: 24px;
+      padding: 0;
       flex: 1;
       min-height: 0;
       display: flex;
+      background: #fff;
     }
     .org-page {
       background: #fff;
-      border: 1px solid #eaecef;
-      border-radius: 12px;
+      border: none;
+      border-radius: 0;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       flex: 1;
       min-height: 0;
       width: 100%;
+      height: 100%;
     }
     .org-page__header {
       background: #16a34a;
