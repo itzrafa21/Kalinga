@@ -141,6 +141,23 @@
       min-width: 0;
     }
     .org-detail-row--wide { grid-column: 1 / -1; }
+    .org-detail-row--wide .org-detail-row__content {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.45rem;
+    }
+    .org-detail-row--wide .org-detail-row__value {
+      text-align: justify;
+      text-justify: inter-word;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .org-detail-row--justify .org-detail-row__value {
+      text-align: justify;
+      text-justify: inter-word;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
     .org-detail-row__icon {
       width: 36px;
       height: 36px;
@@ -192,6 +209,83 @@
     .org-status-badge.pending { background: #f59e0b; color: #111; }
     .org-status-badge.rejected { background: #ef4444; }
     .org-status-badge.verified { background: #16a34a; }
+    .org-detail-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      padding: 1rem 1.5rem 0.85rem;
+      border-bottom: 1px solid #eef2f0;
+      background: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .org-detail-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid #dbe4dc;
+      background: #fff;
+      color: #64748b;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .org-detail-tab:hover {
+      background: #f8faf9;
+      color: #166534;
+      border-color: #86efac;
+    }
+    .org-detail-tab.active {
+      background: #ecfdf3;
+      color: #166534;
+      border-color: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+    }
+    .org-detail-panel[hidden] { display: none !important; }
+    .org-detail-panel__title {
+      margin: 0;
+      padding: 1rem 1.5rem 0.35rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #14532d;
+    }
+    .org-logo-preview {
+      width: 96px;
+      height: 96px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid #dbe4dc;
+      background: #f8faf9;
+      display: block;
+      margin-left: auto;
+    }
+    .org-doc-meta {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.15rem;
+      max-width: 100%;
+    }
+    .org-doc-meta__name {
+      font-weight: 600;
+      color: #1e293b;
+      word-break: break-word;
+    }
+    .org-doc-meta__sub {
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+    .org-doc-meta a {
+      color: #15803d;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .org-doc-meta a:hover { text-decoration: underline; }
     .org-page__footer {
       padding: 1rem 1.5rem;
       border-top: 1px solid #eee;

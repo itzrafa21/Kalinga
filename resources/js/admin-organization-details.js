@@ -44,9 +44,12 @@ function joinedList(primary, extras) {
     return values.length ? escapeHtml(values.join(", ")) : "—";
 }
 
-function detailRow(iconClass, label, valueHtml, wide = false) {
+function detailRow(iconClass, label, valueHtml, wide = false, extraClass = "") {
+    const classes = ["org-detail-row"];
+    if (wide) classes.push("org-detail-row--wide");
+    if (extraClass) classes.push(extraClass);
     return `
-        <div class="org-detail-row${wide ? " org-detail-row--wide" : ""}">
+        <div class="${classes.join(" ")}">
             <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
             <div class="org-detail-row__content">
                 <span class="org-detail-row__label">${escapeHtml(label)}</span>
@@ -76,49 +79,233 @@ function websiteHtml(primary, extras) {
         .join(", ");
 }
 
+function formatBytes(bytes) {
+    const size = Number(bytes) || 0;
+    if (size <= 0) return "";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatRegisteredAt(value) {
+    if (!value) return "—";
+    if (value?.toDate) {
+        try {
+            return escapeHtml(value.toDate().toLocaleString());
+        } catch {
+            return "—";
+        }
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return showText(value);
+    return escapeHtml(date.toLocaleString());
+}
+
+function resolveOrgLogoSrc(data) {
+    const docs = data?.documents || {};
+    const candidates = [
+        data?.profilePictureURL,
+        data?.profilePictureBase64,
+        data?.logoURL,
+        docs?.logo?.url,
+    ];
+    for (const candidate of candidates) {
+        const value = String(candidate || "").trim();
+        if (
+            value.startsWith("data:image/") ||
+            /^https?:\/\//i.test(value) ||
+            value.startsWith("//")
+        ) {
+            return value.startsWith("//") ? `https:${value}` : value;
+        }
+    }
+    return "";
+}
+
+function logoHtml(data) {
+    const src = resolveOrgLogoSrc(data);
+    if (!src) return "—";
+    return `<img class="org-logo-preview" src="${escapeHtml(src)}" alt="Organization logo">`;
+}
+
+function documentMetaHtml(docItem) {
+    if (!docItem || typeof docItem !== "object") return "—";
+    const name = String(docItem.name || "").trim();
+    const url = String(docItem.url || "").trim();
+    const type = String(docItem.type || "").trim();
+    const sizeLabel = formatBytes(docItem.size);
+    const subParts = [type, sizeLabel].filter(Boolean);
+    if (!name && !url) return "—";
+
+    const title = name || "Document";
+    const titleHtml =
+        url && /^https?:\/\//i.test(url)
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+            : escapeHtml(title);
+
+    return `
+        <span class="org-doc-meta">
+            <span class="org-doc-meta__name">${titleHtml}</span>
+            ${subParts.length ? `<span class="org-doc-meta__sub">${escapeHtml(subParts.join(" · "))}</span>` : ""}
+        </span>`;
+}
+
+function yesNo(value) {
+    if (value === true) return "Yes";
+    if (value === false) return "No";
+    return "—";
+}
+
+function fieldsPanel(title, rowsHtml) {
+    return `
+        <div class="org-fields">
+            <h3 class="org-detail-panel__title">${escapeHtml(title)}</h3>
+            ${rowsHtml}
+        </div>`;
+}
+
+function wireOrganizationTabs(root, initialTab = "organization") {
+    const tabs = Array.from(root.querySelectorAll("[data-org-tab]"));
+    const panels = Array.from(root.querySelectorAll("[data-org-panel]"));
+    if (!tabs.length || !panels.length) return;
+
+    const activate = (key) => {
+        tabs.forEach((tab) => {
+            const active = tab.getAttribute("data-org-tab") === key;
+            tab.classList.toggle("active", active);
+            tab.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        panels.forEach((panel) => {
+            const active = panel.getAttribute("data-org-panel") === key;
+            panel.hidden = !active;
+        });
+    };
+
+    tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+            activate(tab.getAttribute("data-org-tab") || "organization");
+        });
+    });
+
+    const hasInitial = tabs.some((tab) => tab.getAttribute("data-org-tab") === initialTab);
+    activate(hasInitial ? initialTab : tabs[0].getAttribute("data-org-tab") || "organization");
+}
+
 function renderOrganization(data) {
     const statusKey = getOrgVerificationKey(data);
     const statusLabel = getOrgVerificationLabel(data).toUpperCase();
     const rep = data.representative || {};
+    const docs = data.documents || {};
     const name = data.name || data.orgName || "";
     const address = data.completeAddress || data.address || "";
+    const hasReview = Boolean(String(data.rejectionReason || "").trim());
 
-    const rows = [
-        sectionLabel("Organization"),
+    const organizationRows = [
+        detailRow("fa-image", "Organization Logo:", logoHtml(data), true),
         detailRow("fa-building", "Organization Name:", showText(name)),
-        detailRow("fa-tag", "Type:", showText(data.orgType)),
-        detailRow("fa-calendar", "Year established:", showText(data.yearEstablished)),
-        detailRow("fa-earth-asia", "Scope:", showText(data.orgScope)),
-        detailRow("fa-align-left", "Description:", showText(data.orgDescription), true),
+        detailRow("fa-tag", "Organization Type:", showText(data.orgType)),
+        detailRow(
+            "fa-align-left",
+            "Organization Description:",
+            showText(data.orgDescription),
+            true,
+            "org-detail-row--justify"
+        ),
+        detailRow("fa-calendar", "Year Established:", showText(data.yearEstablished)),
+        detailRow("fa-link", "Official Website / Social Media:", websiteHtml(data.orgWebsite, data.orgWebsites), true),
+        detailRow("fa-envelope", "Organization Email:", joinedList(data.orgEmail, data.orgEmails)),
+        detailRow(
+            "fa-phone",
+            "Contact Number:",
+            joinedList(data.orgContactNumber || data.phone, data.orgContactNumbers)
+        ),
+        detailRow("fa-map-marker-alt", "Complete Address:", showText(address), true),
+        detailRow("fa-earth-asia", "Organization Scope:", showText(data.orgScope)),
         detailRow(
             "fa-check-circle",
             "Status:",
             `<span class="org-status-badge ${escapeHtml(statusKey)}">${escapeHtml(statusLabel)}</span>`
         ),
         detailRow("fa-fingerprint", "Org ID:", showText(orgId)),
-        sectionLabel("Contact"),
-        detailRow("fa-envelope", "Email:", joinedList(data.email || data.orgEmail, data.orgEmails)),
-        detailRow("fa-phone", "Phone:", joinedList(data.phone || data.orgContactNumber, data.orgContactNumbers)),
-        detailRow("fa-link", "Website:", websiteHtml(data.orgWebsite, data.orgWebsites)),
-        sectionLabel("Location"),
-        detailRow("fa-map-marker-alt", "Address:", showText(address), true),
-        detailRow("fa-city", "City:", showText(data.city)),
-        detailRow("fa-map", "State / Province:", showText(data.state)),
-        detailRow("fa-mail-bulk", "Postal Code:", showText(data.postalCode)),
-        detailRow("fa-globe", "Country:", showText(data.country)),
-        sectionLabel("Representative"),
-        detailRow("fa-user", "Full name:", showText(rep.fullName)),
-        detailRow("fa-id-badge", "Position:", showText(rep.position)),
-        detailRow("fa-envelope", "Email:", showText(rep.email)),
-        detailRow("fa-phone", "Contact number:", showText(rep.contactNumber)),
-    ];
+        detailRow("fa-clock", "Registered At:", formatRegisteredAt(data.createdAt)),
+    ].join("");
 
-    if (data.rejectionReason) {
-        rows.push(
-            sectionLabel("Review"),
-            detailRow("fa-comment-alt", "Rejection reason:", showText(data.rejectionReason), true)
-        );
-    }
+    const representativeRows = [
+        detailRow("fa-user", "Full Name:", showText(rep.fullName)),
+        detailRow("fa-id-badge", "Position / Designation:", showText(rep.position)),
+        detailRow("fa-envelope", "Email Address:", showText(rep.email)),
+        detailRow("fa-phone", "Contact Number:", showText(rep.contactNumber)),
+        detailRow("fa-id-card", "Government-issued ID Type:", showText(rep.govIdType)),
+        detailRow("fa-hashtag", "ID Number:", showText(rep.govIdNumber)),
+        detailRow("fa-id-card", "ID Front Side:", documentMetaHtml(docs.govIdFront)),
+        detailRow("fa-id-card", "ID Back Side:", documentMetaHtml(docs.govIdBack)),
+        detailRow("fa-file-signature", "Proof of Authorization:", documentMetaHtml(docs.authorization)),
+    ].join("");
+
+    const documentsRows = [
+        detailRow(
+            "fa-file-contract",
+            "Certificate of Registration / Legal Recognition:",
+            documentMetaHtml(docs.registration),
+            true
+        ),
+        detailRow(
+            "fa-file-alt",
+            "Proof of Official Address:",
+            documentMetaHtml(docs.addressProof),
+            true
+        ),
+        detailRow(
+            "fa-folder-open",
+            "Additional document for organization type:",
+            documentMetaHtml(docs.typeSpecific),
+            true
+        ),
+    ].join("");
+
+    const accountRows = [
+        detailRow("fa-user-tag", "Username:", showText(data.username)),
+        detailRow("fa-envelope", "Sign-in Email:", showText(data.email)),
+        detailRow("fa-check-double", "Terms Accepted:", showText(yesNo(data.acceptedTerms))),
+    ].join("");
+
+    const reviewRows = hasReview
+        ? detailRow("fa-comment-alt", "Rejection reason:", showText(data.rejectionReason), true)
+        : "";
+
+    const tabsHtml = `
+        <div class="org-detail-tabs" role="tablist" aria-label="Organization registration sections">
+            <button type="button" class="org-detail-tab active" role="tab" aria-selected="true" data-org-tab="organization">A. Organization</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="representative">B. Representative</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="documents">Documents</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="account">C. Account</button>
+            ${
+                hasReview
+                    ? `<button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="review">Review</button>`
+                    : ""
+            }
+        </div>`;
+
+    const panelsHtml = `
+        <section class="org-detail-panel" data-org-panel="organization" role="tabpanel">
+            ${fieldsPanel("A. Organization Information", organizationRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="representative" role="tabpanel" hidden>
+            ${fieldsPanel("B. Authorized Representative", representativeRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="documents" role="tabpanel" hidden>
+            ${fieldsPanel("Supporting Documents", documentsRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="account" role="tabpanel" hidden>
+            ${fieldsPanel("C. Account Credentials", accountRows)}
+        </section>
+        ${
+            hasReview
+                ? `<section class="org-detail-panel" data-org-panel="review" role="tabpanel" hidden>
+                    ${fieldsPanel("Review", reviewRows)}
+                   </section>`
+                : ""
+        }`;
 
     const body = document.getElementById("orgPageBody");
     const status = document.getElementById("orgPageStatus");
@@ -126,7 +313,8 @@ function renderOrganization(data) {
     const actions = document.getElementById("orgPageActions");
     if (body) {
         body.hidden = false;
-        body.innerHTML = `<div class="org-fields">${rows.join("")}</div>`;
+        body.innerHTML = `${tabsHtml}${panelsHtml}`;
+        wireOrganizationTabs(body, "organization");
     }
     if (status) status.hidden = true;
     if (footer) footer.hidden = false;
