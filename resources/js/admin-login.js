@@ -12,6 +12,21 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    const passwordInput = document.getElementById("adminPassword");
+    const passwordToggle = document.getElementById("adminPasswordToggle");
+    passwordToggle?.addEventListener("click", () => {
+        if (!passwordInput) return;
+        const showing = passwordInput.type === "text";
+        passwordInput.type = showing ? "password" : "text";
+        passwordToggle.classList.toggle("is-visible", !showing);
+        passwordToggle.setAttribute("aria-pressed", showing ? "false" : "true");
+        passwordToggle.setAttribute(
+            "aria-label",
+            showing ? "Show password" : "Hide password"
+        );
+        passwordInput.focus();
+    });
+
     // Show alert function
     function showAlert(message, type = 'danger') {
         alertContainer.innerHTML = `

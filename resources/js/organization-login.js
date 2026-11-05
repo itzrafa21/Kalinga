@@ -71,8 +71,24 @@ function initLoginErrorModal() {
     });
 }
 
+function initPasswordToggle() {
+    const input = document.getElementById("password");
+    const toggle = document.getElementById("passwordToggle");
+    if (!input || !toggle) return;
+
+    toggle.addEventListener("click", () => {
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        toggle.classList.toggle("is-visible", !showing);
+        toggle.setAttribute("aria-pressed", showing ? "false" : "true");
+        toggle.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+        input.focus();
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initLoginErrorModal();
+    initPasswordToggle();
 
     const blocked = sessionStorage.getItem("orgLoginBlockReason");
     if (blocked) {

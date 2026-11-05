@@ -78,6 +78,45 @@
       border-color: #28a745;
       box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
     }
+
+    .password-field {
+      position: relative;
+    }
+    .password-field .form-control {
+      padding-right: 48px;
+      width: 100%;
+    }
+    .password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #6b7280;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+    }
+    .password-toggle:hover,
+    .password-toggle:focus-visible {
+      color: #28a745;
+      outline: none;
+      background: rgba(40, 167, 69, 0.1);
+    }
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+    .password-toggle .icon-eye-off { display: none; }
+    .password-toggle.is-visible .icon-eye { display: none; }
+    .password-toggle.is-visible .icon-eye-off { display: block; }
     
     .btn-admin-login {
       background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
@@ -144,7 +183,28 @@
       </div>
       
       <div class="form-group">
-        <input type="password" id="adminPassword" class="form-control" placeholder="Admin Password" required>
+        <div class="password-field">
+          <input type="password" id="adminPassword" class="form-control" placeholder="Admin Password" required autocomplete="current-password">
+          <button
+            type="button"
+            class="password-toggle"
+            id="adminPasswordToggle"
+            aria-label="Show password"
+            aria-pressed="false"
+            aria-controls="adminPassword"
+          >
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-5.94"></path>
+              <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-2.16 3.19"></path>
+              <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <button type="submit" class="btn btn-admin-login">
