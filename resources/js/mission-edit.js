@@ -20,9 +20,230 @@ import {
     ORG_CACHE_KEYS,
     missionDetailCacheKey,
 } from "./org-data-cache.js";
+import {
+    ORG_CLOUDINARY,
+    uploadFileToCloudinary,
+} from "./cloudinary-upload.js";
 
 let selectedMissionImageFile = null;
 let removeMissionImage = false;
+
+/** @type {Array<{ kind: "existing", name: string, size?: number, type?: string, url?: string, publicId?: string, format?: string, resourceType?: string, uploadedAt?: string } | { kind: "file", file: File }>} */
+let missionDocuments = [];
+
+const MISSION_DOC_MAX_BYTES = 50 * 1024 * 1024;
+const MISSION_DOC_ACCEPT_EXT = new Set(["pdf", "doc", "docx", "xls", "xlsx"]);
+const MISSION_DOC_ACCEPT_MIME = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+function fileExtension(name) {
+  const parts = String(name || "").split(".");
+  return parts.length > 1 ? parts.pop().toLowerCase() : "";
+}
+
+function formatFileSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (size <= 0) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isAllowedMissionDocument(file) {
+  const ext = fileExtension(file.name);
+  if (MISSION_DOC_ACCEPT_EXT.has(ext)) return true;
+  if (file.type && MISSION_DOC_ACCEPT_MIME.has(file.type)) return true;
+  return false;
+}
+
+function showMissionDocumentsError(message) {
+  const el = document.getElementById("missionDocumentsError");
+  if (!el) return;
+  if (!message) {
+    el.textContent = "";
+    el.classList.remove("is-visible");
+    return;
+  }
+  el.textContent = message;
+  el.classList.add("is-visible");
+}
+
+function renderMissionDocumentsList() {
+  const list = document.getElementById("missionDocumentsList");
+  if (!list) return;
+
+  if (!missionDocuments.length) {
+    list.innerHTML = "";
+    return;
+  }
+
+  list.innerHTML = missionDocuments
+    .map((entry, index) => {
+      const name =
+        entry.kind === "file"
+          ? entry.file.name
+          : entry.name || "document";
+      const size =
+        entry.kind === "file"
+          ? entry.file.size
+          : entry.size || 0;
+      const ext =
+        (entry.kind === "existing" && entry.format
+          ? String(entry.format)
+          : fileExtension(name)
+        ).toUpperCase() || "FILE";
+      const sizeLabel = formatFileSize(size);
+      const sub = [sizeLabel, ext].filter(Boolean).join(" · ");
+      return `
+        <div class="mission-doc-row" data-doc-index="${index}">
+          <span class="mission-doc-row__icon" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
+          <span class="mission-doc-row__meta">
+            <span class="mission-doc-row__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+            <span class="mission-doc-row__size">${escapeHtml(sub)}</span>
+          </span>
+          <button type="button" class="mission-doc-row__remove" data-remove-doc="${index}" aria-label="Remove ${escapeHtml(name)}">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>`;
+    })
+    .join("");
+}
+
+function loadExistingMissionDocuments(mission) {
+  const docs = Array.isArray(mission?.documents) ? mission.documents : [];
+  missionDocuments = docs
+    .filter((d) => d && (d.url || d.name))
+    .map((d) => ({
+      kind: "existing",
+      name: String(d.name || "document"),
+      size: Number(d.size) || 0,
+      type: String(d.type || ""),
+      url: String(d.url || ""),
+      publicId: String(d.publicId || ""),
+      format: String(d.format || fileExtension(d.name || "")),
+      resourceType: String(d.resourceType || "raw"),
+      uploadedAt: d.uploadedAt || "",
+    }));
+  renderMissionDocumentsList();
+  showMissionDocumentsError("");
+}
+
+function addMissionDocuments(fileList) {
+  const incoming = Array.from(fileList || []);
+  if (!incoming.length) return;
+
+  const errors = [];
+  const next = [...missionDocuments];
+
+  incoming.forEach((file) => {
+    if (!isAllowedMissionDocument(file)) {
+      errors.push(`“${file.name}” must be PDF, DOC/DOCX, or Excel.`);
+      return;
+    }
+    if (file.size > MISSION_DOC_MAX_BYTES) {
+      errors.push(`“${file.name}” exceeds the 50MB limit.`);
+      return;
+    }
+    const duplicate = next.some((existing) => {
+      if (existing.kind === "file") {
+        return (
+          existing.file.name === file.name &&
+          existing.file.size === file.size &&
+          existing.file.lastModified === file.lastModified
+        );
+      }
+      return (
+        existing.name === file.name &&
+        Number(existing.size) === file.size
+      );
+    });
+    if (duplicate) return;
+    next.push({ kind: "file", file });
+  });
+
+  missionDocuments = next;
+  renderMissionDocumentsList();
+  showMissionDocumentsError(errors[0] || "");
+}
+
+async function uploadNewMissionDocuments(files, orgId) {
+  const uploaded = [];
+  for (let i = 0; i < files.length; i += 1) {
+    const file = files[i];
+    const safeName = String(file.name || `document-${i + 1}`)
+      .replace(/[^\w.\-]+/g, "_")
+      .slice(0, 80);
+    const result = await uploadFileToCloudinary(file, {
+      folder: `${ORG_CLOUDINARY.folder}/${orgId}/missions/documents`,
+      publicId: `${Date.now()}-${i}-${safeName.replace(/\.[^.]+$/, "")}`,
+      maxBytes: MISSION_DOC_MAX_BYTES,
+      resourceType: "raw",
+      tags: ["mission-document", orgId],
+    });
+    uploaded.push({
+      name: file.name,
+      size: file.size,
+      type: file.type || "",
+      url: result.url,
+      publicId: result.publicId || "",
+      format: result.format || fileExtension(file.name),
+      resourceType: result.resourceType || "raw",
+      uploadedAt: new Date().toISOString(),
+    });
+  }
+  return uploaded;
+}
+
+async function resolveMissionDocumentsForSave(orgId) {
+  const kept = missionDocuments
+    .filter((entry) => entry.kind === "existing" && entry.url)
+    .map((entry) => ({
+      name: entry.name,
+      size: entry.size || 0,
+      type: entry.type || "",
+      url: entry.url,
+      publicId: entry.publicId || "",
+      format: entry.format || fileExtension(entry.name),
+      resourceType: entry.resourceType || "raw",
+      uploadedAt: entry.uploadedAt || "",
+    }));
+
+  const newFiles = missionDocuments
+    .filter((entry) => entry.kind === "file")
+    .map((entry) => entry.file);
+
+  if (!newFiles.length) return kept;
+
+  const uploaded = await uploadNewMissionDocuments(newFiles, orgId);
+  return [...kept, ...uploaded];
+}
+
+function initializeMissionDocuments() {
+  const input = document.getElementById("missionDocumentsInput");
+  const pickBtn = document.getElementById("missionDocumentsPickBtn");
+  const list = document.getElementById("missionDocumentsList");
+  if (!input || !pickBtn || !list) return;
+
+  pickBtn.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    addMissionDocuments(input.files);
+    input.value = "";
+  });
+  list.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-remove-doc]");
+    if (!btn) return;
+    const index = Number(btn.getAttribute("data-remove-doc"));
+    if (!Number.isInteger(index)) return;
+    missionDocuments.splice(index, 1);
+    renderMissionDocumentsList();
+    showMissionDocumentsError("");
+  });
+}
 
 function convertToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -164,6 +385,7 @@ onAuthStateChanged(auth, async (user) => {
 
   initMissionEditSuccessModal();
   initializeImageUpload();
+  initializeMissionDocuments();
   initUsDateInputs(["date", "endDate"]);
 
   await loadPlatformConfig();
@@ -230,6 +452,8 @@ onAuthStateChanged(auth, async (user) => {
     if (mission.missionImage) {
       updateMissionImagePreview(mission.missionImage);
     }
+
+    loadExistingMissionDocuments(mission);
 
     initializePointsPreview();
 
@@ -330,6 +554,25 @@ onAuthStateChanged(auth, async (user) => {
       updatedData.missionImage = deleteField();
     }
 
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const prevSubmitHtml = submitBtn?.innerHTML;
+    try {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML =
+          '<i class="bi bi-hourglass-split"></i> Saving…';
+      }
+      updatedData.documents = await resolveMissionDocumentsForSave(user.uid);
+    } catch (docErr) {
+      console.error("[ERROR] Mission document upload:", docErr);
+      alert(docErr?.message || "Failed to upload documents.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        if (prevSubmitHtml != null) submitBtn.innerHTML = prevSubmitHtml;
+      }
+      return;
+    }
+
     console.log("[INFO] Updating mission with data:", updatedData);
 
     try {
@@ -361,6 +604,11 @@ onAuthStateChanged(auth, async (user) => {
           ? "You do not have permission to update this mission."
           : "[ERROR] Failed to update mission. Please try again."
       );
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        if (prevSubmitHtml != null) submitBtn.innerHTML = prevSubmitHtml;
+      }
     }
   });
 });

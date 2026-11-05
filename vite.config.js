@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/js/mission-create.js',
                 'resources/js/mission-details.js',
+                'resources/js/mission-edit.js',
                 'resources/js/mission-dashboard.js',
                 'resources/js/auth-guard.js',
                 'resources/js/organization-dashboard.js',

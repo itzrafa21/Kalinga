@@ -274,6 +274,112 @@
       border: 1px solid #e8ecef;
     }
 
+    .mission-docs-inline {
+      margin-top: 1.15rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .mission-docs-inline .form-section-docs-title {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin: 0 0 0.65rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e3a2f;
+    }
+    .mission-docs-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .mission-docs-hint {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .mission-docs-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .mission-docs-actions .btn {
+      border-radius: 10px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.45rem 1rem;
+    }
+    .mission-docs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .mission-doc-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+    .mission-doc-row__icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: #ecfdf3;
+      color: #166534;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mission-doc-row__meta {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .mission-doc-row__name {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mission-doc-row__size {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .mission-doc-row__remove {
+      border: none;
+      background: #fef2f2;
+      color: #b91c1c;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .mission-doc-row__remove:hover {
+      background: #b91c1c;
+      color: #fff;
+    }
+    .mission-docs-error {
+      margin: 0;
+      font-size: 0.82rem;
+      color: #b91c1c;
+      display: none;
+    }
+    .mission-docs-error.is-visible { display: block; }
+
     .option-card .form-check-input {
       width: 2.5em;
       height: 1.25em;
@@ -575,6 +681,29 @@
               <i class="bi bi-star-fill" aria-hidden="true"></i>
               <span>Select a type and schedule to see earned points</span>
             </p>
+
+            <div class="mission-docs-inline" aria-labelledby="section-documents">
+              <h3 class="form-section-docs-title" id="section-documents">
+                <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Documents
+              </h3>
+              <div class="mission-docs-box">
+                <p class="mission-docs-hint">Upload PDF, DOCX, or Excel files. Maximum 50MB per file.</p>
+                <div class="mission-docs-actions">
+                  <input
+                    type="file"
+                    id="missionDocumentsInput"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    multiple
+                    hidden
+                  >
+                  <button type="button" class="btn btn-outline-success" id="missionDocumentsPickBtn">
+                    <i class="bi bi-upload"></i> Add documents
+                  </button>
+                </div>
+                <div class="mission-docs-list" id="missionDocumentsList"></div>
+                <p class="mission-docs-error" id="missionDocumentsError" role="alert"></p>
+              </div>
+            </div>
           </div>
         </section>
 
