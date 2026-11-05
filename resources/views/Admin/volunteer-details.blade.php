@@ -67,21 +67,23 @@
     .topbar-title:hover { color: #16a34a; text-decoration: underline; }
     .topbar-user { font-size: 12px; color: #b0b0b0; }
     .content {
-      padding: 24px;
+      padding: 0;
       flex: 1;
       min-height: 0;
       display: flex;
+      background: #fff;
     }
     .org-page {
       background: #fff;
-      border: 1px solid #eaecef;
-      border-radius: 12px;
+      border: none;
+      border-radius: 0;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       flex: 1;
       min-height: 0;
       width: 100%;
+      height: 100%;
     }
     .org-page__header {
       background: #16a34a;
@@ -114,10 +116,7 @@
     }
     .org-fields {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
-    @media (max-width: 860px) {
-      .org-fields { grid-template-columns: 1fr; }
+      grid-template-columns: 1fr;
     }
     .org-section-label {
       grid-column: 1 / -1;
@@ -139,8 +138,8 @@
       padding: 1rem 1.5rem;
       border-bottom: 1px solid #eee;
       min-width: 0;
+      grid-column: 1 / -1;
     }
-    .org-detail-row--wide { grid-column: 1 / -1; }
     .org-detail-row__icon {
       width: 36px;
       height: 36px;
@@ -152,26 +151,81 @@
       justify-content: center;
       flex-shrink: 0;
       font-size: 0.9rem;
+      margin-top: 0.1rem;
     }
     .org-detail-row__content {
       flex: 1;
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 0.35rem;
       min-width: 0;
     }
     .org-detail-row__label {
       font-weight: 600;
       color: #333;
       font-size: 0.92rem;
-      flex-shrink: 0;
     }
     .org-detail-row__value {
       color: #555;
       font-size: 0.92rem;
-      text-align: right;
+      text-align: justify;
+      text-justify: inter-word;
+      line-height: 1.55;
       word-break: break-word;
+      white-space: pre-wrap;
+      width: 100%;
+    }
+    .org-detail-row__value a {
+      color: #15803d;
+      text-decoration: none;
+    }
+    .org-detail-row__value a:hover { text-decoration: underline; }
+    .org-detail-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      padding: 1rem 1.5rem 0.85rem;
+      border-bottom: 1px solid #eef2f0;
+      background: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .org-detail-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid #dbe4dc;
+      background: #fff;
+      color: #64748b;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .org-detail-tab:hover {
+      background: #f8faf9;
+      color: #166534;
+      border-color: #86efac;
+    }
+    .org-detail-tab.active {
+      background: #ecfdf3;
+      color: #166534;
+      border-color: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+    }
+    .org-detail-panel[hidden] { display: none !important; }
+    .org-detail-panel__title {
+      margin: 0;
+      padding: 1rem 1.5rem 0.35rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #14532d;
     }
     .vol-status-badge {
       display: inline-block;

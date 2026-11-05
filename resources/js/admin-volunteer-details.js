@@ -27,9 +27,9 @@ function showText(value) {
   return text ? escapeHtml(text) : "—";
 }
 
-function detailRow(iconClass, label, valueHtml, wide = false) {
+function detailRow(iconClass, label, valueHtml) {
   return `
-    <div class="org-detail-row${wide ? " org-detail-row--wide" : ""}">
+    <div class="org-detail-row">
       <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
       <div class="org-detail-row__content">
         <span class="org-detail-row__label">${escapeHtml(label)}</span>
@@ -38,8 +38,38 @@ function detailRow(iconClass, label, valueHtml, wide = false) {
     </div>`;
 }
 
-function sectionLabel(title) {
-  return `<div class="org-section-label">${escapeHtml(title)}</div>`;
+function fieldsPanel(title, rowsHtml) {
+  return `
+    <div class="org-fields">
+      <h3 class="org-detail-panel__title">${escapeHtml(title)}</h3>
+      ${rowsHtml}
+    </div>`;
+}
+
+function wireDetailTabs(root, initialTab = "profile") {
+  const tabs = Array.from(root.querySelectorAll("[data-org-tab]"));
+  const panels = Array.from(root.querySelectorAll("[data-org-panel]"));
+  if (!tabs.length || !panels.length) return;
+
+  const activate = (key) => {
+    tabs.forEach((tab) => {
+      const active = tab.getAttribute("data-org-tab") === key;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    panels.forEach((panel) => {
+      panel.hidden = panel.getAttribute("data-org-panel") !== key;
+    });
+  };
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activate(tab.getAttribute("data-org-tab") || initialTab);
+    });
+  });
+
+  const hasInitial = tabs.some((tab) => tab.getAttribute("data-org-tab") === initialTab);
+  activate(hasInitial ? initialTab : tabs[0].getAttribute("data-org-tab") || initialTab);
 }
 
 function deriveVolunteerStatus(volunteer) {
@@ -121,26 +151,46 @@ function renderVolunteer(volunteer) {
   const hoursLabel =
     volunteer.hoursVolunteered > 0 ? `${volunteer.hoursVolunteered}h` : "0h";
 
+  const profileRows = [
+    detailRow("fa-user", "Name:", showText(volunteer.name)),
+    detailRow("fa-envelope", "Email:", showText(volunteer.email)),
+    detailRow("fa-phone", "Phone:", showText(volunteer.phone)),
+    detailRow("fa-map-marker-alt", "Address:", showText(volunteer.address)),
+    detailRow(
+      "fa-circle-check",
+      "Status:",
+      `<span class="vol-status-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>`
+    ),
+    detailRow("fa-fingerprint", "User ID:", showText(volunteer.id)),
+  ].join("");
+
+  const activityRows = [
+    detailRow(
+      "fa-bullseye",
+      "Missions joined:",
+      escapeHtml(String(volunteer.missionsJoined))
+    ),
+    detailRow("fa-clock", "Hours volunteered:", escapeHtml(hoursLabel)),
+    detailRow("fa-layer-group", "Level:", showText(volunteer.level)),
+    detailRow(
+      "fa-star",
+      "Total points:",
+      escapeHtml(String(volunteer.totalPoints))
+    ),
+    detailRow("fa-award", "Badges:", escapeHtml(String(volunteer.badgeCount))),
+  ].join("");
+
   return `
-    <div class="org-fields">
-      ${sectionLabel("Profile")}
-      ${detailRow("fa-user", "Name:", showText(volunteer.name))}
-      ${detailRow("fa-envelope", "Email:", showText(volunteer.email))}
-      ${detailRow("fa-phone", "Phone:", showText(volunteer.phone))}
-      ${detailRow("fa-map-marker-alt", "Address:", showText(volunteer.address), true)}
-      ${detailRow(
-        "fa-circle-check",
-        "Status:",
-        `<span class="vol-status-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>`
-      )}
-      ${detailRow("fa-fingerprint", "User ID:", showText(volunteer.id), true)}
-      ${sectionLabel("Activity")}
-      ${detailRow("fa-bullseye", "Missions joined:", escapeHtml(String(volunteer.missionsJoined)))}
-      ${detailRow("fa-clock", "Hours volunteered:", escapeHtml(hoursLabel))}
-      ${detailRow("fa-layer-group", "Level:", showText(volunteer.level))}
-      ${detailRow("fa-star", "Total points:", escapeHtml(String(volunteer.totalPoints)))}
-      ${detailRow("fa-award", "Badges:", escapeHtml(String(volunteer.badgeCount)))}
-    </div>`;
+    <div class="org-detail-tabs" role="tablist" aria-label="Volunteer detail sections">
+      <button type="button" class="org-detail-tab active" role="tab" aria-selected="true" data-org-tab="profile">Profile</button>
+      <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="activity">Activity</button>
+    </div>
+    <section class="org-detail-panel" data-org-panel="profile" role="tabpanel">
+      ${fieldsPanel("Profile", profileRows)}
+    </section>
+    <section class="org-detail-panel" data-org-panel="activity" role="tabpanel" hidden>
+      ${fieldsPanel("Activity", activityRows)}
+    </section>`;
 }
 
 async function loadVolunteer() {
@@ -167,6 +217,7 @@ async function loadVolunteer() {
     if (body) {
       body.innerHTML = renderVolunteer(volunteer);
       body.hidden = false;
+      wireDetailTabs(body, "profile");
     }
     if (status) status.hidden = true;
     if (footer) footer.hidden = false;

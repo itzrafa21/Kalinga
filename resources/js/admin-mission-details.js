@@ -38,9 +38,9 @@ function showText(value) {
     return text ? escapeHtml(text) : "—";
 }
 
-function detailRow(iconClass, label, valueHtml, wide = false) {
+function detailRow(iconClass, label, valueHtml) {
     return `
-        <div class="org-detail-row${wide ? " org-detail-row--wide" : ""}">
+        <div class="org-detail-row">
             <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
             <div class="org-detail-row__content">
                 <span class="org-detail-row__label">${escapeHtml(label)}</span>
@@ -49,8 +49,38 @@ function detailRow(iconClass, label, valueHtml, wide = false) {
         </div>`;
 }
 
-function sectionLabel(title) {
-    return `<div class="org-section-label">${escapeHtml(title)}</div>`;
+function fieldsPanel(title, rowsHtml) {
+    return `
+        <div class="org-fields">
+            <h3 class="org-detail-panel__title">${escapeHtml(title)}</h3>
+            ${rowsHtml}
+        </div>`;
+}
+
+function wireDetailTabs(root, initialTab = "mission") {
+    const tabs = Array.from(root.querySelectorAll("[data-org-tab]"));
+    const panels = Array.from(root.querySelectorAll("[data-org-panel]"));
+    if (!tabs.length || !panels.length) return;
+
+    const activate = (key) => {
+        tabs.forEach((tab) => {
+            const active = tab.getAttribute("data-org-tab") === key;
+            tab.classList.toggle("active", active);
+            tab.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        panels.forEach((panel) => {
+            panel.hidden = panel.getAttribute("data-org-panel") !== key;
+        });
+    };
+
+    tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+            activate(tab.getAttribute("data-org-tab") || initialTab);
+        });
+    });
+
+    const hasInitial = tabs.some((tab) => tab.getAttribute("data-org-tab") === initialTab);
+    activate(hasInitial ? initialTab : tabs[0].getAttribute("data-org-tab") || initialTab);
 }
 
 function wireMissionDocumentsDownloads(root) {
@@ -82,11 +112,28 @@ function formatSubmittedAt(mission) {
     return "—";
 }
 
-function safeImageHtml(src, alt) {
-    const value = String(src || "");
-    const allowed = value.startsWith("data:image/") || /^https?:\/\//i.test(value);
+function missionImageDownloadHtml(src) {
+    const value = String(src || "").trim();
+    const allowed =
+        value.startsWith("data:image/") ||
+        /^https?:\/\//i.test(value) ||
+        value.startsWith("//");
     if (!allowed) return "";
-    return `<img class="mission-photo" src="${escapeHtml(value)}" alt="${escapeHtml(alt)}">`;
+    const href = value.startsWith("//") ? `https:${value}` : value;
+    const fileName = "mission-image.jpg";
+    return `
+        <span class="org-doc-meta">
+            <a class="org-doc-download" href="${escapeHtml(href)}" download="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer">${escapeHtml(fileName)}</a>
+            <span class="org-doc-meta__sub">Click to download</span>
+        </span>`;
+}
+
+function formatDocumentSize(bytes) {
+    const size = Number(bytes) || 0;
+    if (size <= 0) return "";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function setStatus(message, isError = false) {
@@ -129,100 +176,156 @@ function renderMission(mission, orgDisplayName) {
     const orgHtml = mission.orgId
         ? `<a href="/admin/organizations/${encodeURIComponent(mission.orgId)}">${escapeHtml(orgDisplayName)}</a>`
         : escapeHtml(orgDisplayName);
-    const image = safeImageHtml(mission.missionImage, "Mission image");
+    const imageHtml = missionImageDownloadHtml(mission.missionImage);
     const donation = mission.donationDetails || {};
-    const rows = [
-        sectionLabel("Mission"),
+    const hasDonations = Boolean(mission.makeDonations);
+    const hasReview = statusKey === "rejected";
+
+    const docs = normalizeMissionDocuments(mission.documents).filter((d) => {
+        const url = String(d?.url || "").trim();
+        return url && (/^https?:\/\//i.test(url) || url.startsWith("data:"));
+    });
+
+    const missionRows = [
         detailRow("fa-flag", "Mission Name:", showText(mission.missionName || mission.name)),
         detailRow("fa-building", "Organization:", orgHtml),
         detailRow("fa-tag", "Type:", showText(mission.type)),
-        detailRow("fa-info-circle", "Status:", `<span class="org-status-badge ${escapeHtml(statusKey)}">${escapeHtml(statusLabel)}</span>`),
-        detailRow("fa-align-left", "Description:", showText(mission.description), true),
-    ];
+        detailRow(
+            "fa-info-circle",
+            "Status:",
+            `<span class="org-status-badge ${escapeHtml(statusKey)}">${escapeHtml(statusLabel)}</span>`
+        ),
+        detailRow("fa-align-left", "Description:", showText(mission.description)),
+        imageHtml ? detailRow("fa-image", "Mission Image:", imageHtml) : "",
+    ]
+        .filter(Boolean)
+        .join("");
 
-    if (image) {
-        rows.push(detailRow("fa-image", "Image:", image, true));
-    }
-
-    const docs = normalizeMissionDocuments(mission.documents).filter(
-        (d) => d?.url && /^https?:\/\//i.test(String(d.url))
-    );
-    if (docs.length) {
-        const docsHtml = docs
-            .map((docItem, index) => {
-                const name = String(docItem.name || "document").trim() || "document";
-                const format = String(docItem.format || "").toUpperCase();
-                const size = Number(docItem.size) || 0;
-                let sizeLabel = "";
-                if (size > 0) {
-                    sizeLabel =
-                        size < 1024
-                            ? `${size} B`
-                            : size < 1024 * 1024
-                              ? `${(size / 1024).toFixed(1)} KB`
-                              : `${(size / (1024 * 1024)).toFixed(1)} MB`;
-                }
-                const meta = [format, sizeLabel].filter(Boolean).join(" · ");
-                const candidates = candidateCloudinaryDocumentUrls(String(docItem.url));
-                const href =
-                    candidates.find((u) => u.includes("/raw/upload/")) ||
-                    candidates[0] ||
-                    sanitizeCloudinaryDocumentUrl(String(docItem.url));
-                return `<a class="mission-doc-link" href="${escapeHtml(href)}" data-doc-index="${index}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">
-                    <i class="fas fa-file-download" aria-hidden="true"></i>
-                    <span>${escapeHtml(name)}${meta ? ` <small>(${escapeHtml(meta)})</small>` : ""}</span>
-                </a>`;
-            })
-            .join("");
-        rows.push(
-            sectionLabel("Documents"),
-            detailRow("fa-folder-open", "Files:", `<div class="mission-docs">${docsHtml}</div>`, true)
-        );
-    }
-
-    rows.push(
-        sectionLabel("Schedule"),
+    const scheduleRows = [
         detailRow("fa-calendar", "Date:", showText(mission.date)),
         detailRow("fa-calendar-check", "End date:", showText(mission.endDate)),
-        detailRow("fa-clock", "Time:", `${showText(mission.startTime)} – ${showText(mission.endTime)}`),
-        detailRow("fa-map-marker-alt", "Location:", showText(mission.location), true),
-        sectionLabel("Volunteers"),
+        detailRow(
+            "fa-clock",
+            "Time:",
+            `${showText(mission.startTime)} – ${showText(mission.endTime)}`
+        ),
+        detailRow("fa-map-marker-alt", "Location:", showText(mission.location)),
+    ].join("");
+
+    const volunteersRows = [
         detailRow("fa-users", "Volunteers needed:", showText(mission.volunteers)),
         detailRow(
             "fa-user-check",
             "Auto-accept volunteers:",
             mission.autoAcceptVolunteers ? "Yes" : "No"
         ),
-        sectionLabel("Submission"),
+    ].join("");
+
+    const documentsRows = docs.length
+        ? detailRow(
+              "fa-folder-open",
+              "Files:",
+              `<div class="mission-docs">${docs
+                  .map((docItem, index) => {
+                      const name =
+                          String(docItem.name || "document").trim() || "document";
+                      const format = String(docItem.format || "").toUpperCase();
+                      const sizeLabel = formatDocumentSize(docItem.size);
+                      const meta = [format, sizeLabel].filter(Boolean).join(" · ");
+                      const candidates = candidateCloudinaryDocumentUrls(
+                          String(docItem.url)
+                      );
+                      const href =
+                          candidates.find((u) => u.includes("/raw/upload/")) ||
+                          candidates[0] ||
+                          sanitizeCloudinaryDocumentUrl(String(docItem.url));
+                      return `
+                        <span class="org-doc-meta">
+                          <a class="mission-doc-link org-doc-download" href="${escapeHtml(href)}" data-doc-index="${index}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">${escapeHtml(name)}</a>
+                          ${meta ? `<span class="org-doc-meta__sub">${escapeHtml(meta)}</span>` : ""}
+                        </span>`;
+                  })
+                  .join("")}</div>`
+          )
+        : detailRow("fa-folder-open", "Files:", "—");
+
+    const submissionRows = [
         detailRow("fa-paper-plane", "Submitted:", formatSubmittedAt(mission)),
         detailRow("fa-user", "Submitted by:", showText(mission.submittedBy)),
-        detailRow("fa-fingerprint", "Mission ID:", showText(missionId))
-    );
+        detailRow("fa-fingerprint", "Mission ID:", showText(missionId)),
+    ].join("");
 
-    if (mission.makeDonations) {
-        rows.push(
-            sectionLabel("Donations"),
-            detailRow("fa-hand-holding-heart", "Donations:", "Enabled"),
-            detailRow("fa-wallet", "Method:", showText(donation.method)),
-            detailRow("fa-user", "Account name:", showText(donation.accountName)),
-            detailRow("fa-phone", "Account number:", showText(donation.gcashNumber))
-        );
-        if (donation.note) {
-            rows.push(detailRow("fa-comment", "Donation note:", showText(donation.note), true));
+    const donationRows = hasDonations
+        ? [
+              detailRow("fa-hand-holding-heart", "Donations:", "Enabled"),
+              detailRow("fa-wallet", "Method:", showText(donation.method)),
+              detailRow("fa-user", "Account name:", showText(donation.accountName)),
+              detailRow("fa-phone", "Account number:", showText(donation.gcashNumber)),
+              donation.note
+                  ? detailRow("fa-comment", "Donation note:", showText(donation.note))
+                  : "",
+          ]
+              .filter(Boolean)
+              .join("")
+        : "";
+
+    const reviewRows = hasReview
+        ? detailRow(
+              "fa-comment-dots",
+              "Rejection reason:",
+              showText(mission.rejectionReason || "No reason provided")
+          )
+        : "";
+
+    const tabsHtml = `
+        <div class="org-detail-tabs" role="tablist" aria-label="Mission detail sections">
+            <button type="button" class="org-detail-tab active" role="tab" aria-selected="true" data-org-tab="mission">A. Mission</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="schedule">Schedule</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="volunteers">Volunteers</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="documents">Documents</button>
+            ${
+                hasDonations
+                    ? `<button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="donations">Donations</button>`
+                    : ""
+            }
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="submission">Submission</button>
+            ${
+                hasReview
+                    ? `<button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="review">Review</button>`
+                    : ""
+            }
+        </div>`;
+
+    const panelsHtml = `
+        <section class="org-detail-panel" data-org-panel="mission" role="tabpanel">
+            ${fieldsPanel("A. Mission", missionRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="schedule" role="tabpanel" hidden>
+            ${fieldsPanel("Schedule", scheduleRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="volunteers" role="tabpanel" hidden>
+            ${fieldsPanel("Volunteers", volunteersRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="documents" role="tabpanel" hidden>
+            ${fieldsPanel("Documents", documentsRows)}
+        </section>
+        ${
+            hasDonations
+                ? `<section class="org-detail-panel" data-org-panel="donations" role="tabpanel" hidden>
+                    ${fieldsPanel("Donations", donationRows)}
+                   </section>`
+                : ""
         }
-    }
-
-    if (statusKey === "rejected") {
-        rows.push(
-            sectionLabel("Review"),
-            detailRow(
-                "fa-comment-dots",
-                "Rejection reason:",
-                showText(mission.rejectionReason || "No reason provided"),
-                true
-            )
-        );
-    }
+        <section class="org-detail-panel" data-org-panel="submission" role="tabpanel" hidden>
+            ${fieldsPanel("Submission", submissionRows)}
+        </section>
+        ${
+            hasReview
+                ? `<section class="org-detail-panel" data-org-panel="review" role="tabpanel" hidden>
+                    ${fieldsPanel("Review", reviewRows)}
+                   </section>`
+                : ""
+        }`;
 
     const body = document.getElementById("missionPageBody");
     const status = document.getElementById("missionPageStatus");
@@ -230,7 +333,8 @@ function renderMission(mission, orgDisplayName) {
     const actions = document.getElementById("missionPageActions");
     if (body) {
         body.hidden = false;
-        body.innerHTML = `<div class="org-fields">${rows.join("")}</div>`;
+        body.innerHTML = `${tabsHtml}${panelsHtml}`;
+        wireDetailTabs(body, "mission");
         wireMissionDocumentsDownloads(body);
     }
     if (status) status.hidden = true;
