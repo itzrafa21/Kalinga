@@ -326,8 +326,10 @@ function renderOrganization(data) {
         detailRow("fa-check-double", "Terms Accepted:", showText(yesNo(data.acceptedTerms))),
     ].join("");
 
+    const reviewReasonLabel =
+        statusKey === "deactivated" ? "Deactivation reason:" : "Rejection reason:";
     const reviewRows = hasReview
-        ? detailRow("fa-comment-alt", "Rejection reason:", showText(data.rejectionReason))
+        ? detailRow("fa-comment-alt", reviewReasonLabel, showText(data.rejectionReason))
         : "";
 
     const tabsHtml = `
@@ -433,17 +435,21 @@ async function setOrganizationVerification(status, rejectionReason = "") {
             verificationStatus: ORG_VERIFICATION_STATUS.APPROVED,
             verifiedAt: serverTimestamp(),
             verifiedBy: adminUid,
+            previouslyVerified: true,
             rejectedAt: deleteField(),
             rejectionReason: deleteField(),
         });
         return;
     }
 
-    if (status === ORG_VERIFICATION_STATUS.REJECTED) {
+    if (
+        status === ORG_VERIFICATION_STATUS.REJECTED ||
+        status === ORG_VERIFICATION_STATUS.DEACTIVATED
+    ) {
         const reason = String(rejectionReason || "").trim();
         await updateDoc(ref, {
             verified: false,
-            verificationStatus: ORG_VERIFICATION_STATUS.REJECTED,
+            verificationStatus: status,
             rejectedAt: serverTimestamp(),
             verifiedBy: adminUid,
             rejectionReason: reason || deleteField(),
@@ -538,7 +544,12 @@ async function confirmReject() {
     syncOrgRejectModalCopy("reject");
     orgActionMode = "reject";
     try {
-        await setOrganizationVerification(ORG_VERIFICATION_STATUS.REJECTED, reason);
+        await setOrganizationVerification(
+            mode === "deactivate"
+                ? ORG_VERIFICATION_STATUS.DEACTIVATED
+                : ORG_VERIFICATION_STATUS.REJECTED,
+            reason
+        );
         await loadOrganization();
     } catch (error) {
         console.error(error);

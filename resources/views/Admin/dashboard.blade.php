@@ -664,6 +664,7 @@
               <option value="pending">Pending approval</option>
               <option value="verified">Verified</option>
               <option value="rejected">Rejected</option>
+              <option value="deactivated">Deactivated</option>
             </select>
           </div>
         </div>

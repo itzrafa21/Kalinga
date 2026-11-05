@@ -14,17 +14,27 @@ export const ORG_VERIFICATION_STATUS = {
     PENDING: "pending",
     APPROVED: "approved",
     REJECTED: "rejected",
+    DEACTIVATED: "deactivated",
 };
 
 const ORG_LOGIN_PATH = "/organization/login";
 
+function hasVerifiedHistory(data) {
+    return Boolean(data?.verifiedAt || data?.previouslyVerified === true);
+}
+
 /** @returns {boolean} */
 export function isOrgVerified(data) {
     if (!data) return false;
-    if (data.verified === true) return true;
     const status = String(data.verificationStatus || "").toLowerCase();
+    if (
+        status === ORG_VERIFICATION_STATUS.REJECTED ||
+        status === ORG_VERIFICATION_STATUS.DEACTIVATED
+    ) {
+        return false;
+    }
+    if (data.verified === true) return true;
     if (status === ORG_VERIFICATION_STATUS.APPROVED) return true;
-    if (status === ORG_VERIFICATION_STATUS.REJECTED) return false;
     if (status === ORG_VERIFICATION_STATUS.PENDING || data.verified === false) {
         return false;
     }
@@ -36,19 +46,26 @@ export function getOrgVerificationKey(data) {
     if (!data) return "unknown";
     if (isOrgVerified(data)) return "verified";
     const status = String(data.verificationStatus || "").toLowerCase();
-    if (status === ORG_VERIFICATION_STATUS.REJECTED) return "rejected";
+    if (status === ORG_VERIFICATION_STATUS.DEACTIVATED) return "deactivated";
+    // Legacy: deactivate previously wrote "rejected" while keeping verifiedAt
+    if (status === ORG_VERIFICATION_STATUS.REJECTED) {
+        return hasVerifiedHistory(data) ? "deactivated" : "rejected";
+    }
     return "pending";
 }
 
 export function getOrgVerificationLabel(data) {
     const key = getOrgVerificationKey(data);
     if (key === "verified") return "Verified";
+    if (key === "deactivated") return "Deactivated";
     if (key === "rejected") return "Rejected";
     return "Pending approval";
 }
 
 export function getVerificationBlockMessage(reason) {
     switch (reason) {
+        case "deactivated":
+            return "Your organization account has been deactivated. Please contact the administrator for assistance.";
         case "rejected":
             return "Your organization registration was not approved. Please contact the administrator for assistance.";
         case "no_profile":
@@ -67,14 +84,20 @@ export async function fetchOrgVerification(uid) {
     if (isOrgVerified(data)) {
         return { ok: true, reason: "verified", data };
     }
-    const status = String(data.verificationStatus || "").toLowerCase();
-    if (status === ORG_VERIFICATION_STATUS.REJECTED) {
+    const key = getOrgVerificationKey(data);
+    if (key === "deactivated") {
+        return { ok: false, reason: "deactivated", data };
+    }
+    if (key === "rejected") {
         return { ok: false, reason: "rejected", data };
     }
     return { ok: false, reason: "pending", data };
 }
 
 export function getVerificationBlockMessageForData(data, reason) {
+    if (reason === "deactivated" && data?.rejectionReason) {
+        return `Your organization account has been deactivated: ${data.rejectionReason}`;
+    }
     if (reason === "rejected" && data?.rejectionReason) {
         return `Your organization registration was not approved: ${data.rejectionReason}`;
     }

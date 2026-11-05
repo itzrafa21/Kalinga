@@ -201,7 +201,8 @@
       color: #fff;
     }
     .org-status-badge.pending { background: #f59e0b; color: #111; }
-    .org-status-badge.rejected { background: #ef4444; }
+    .org-status-badge.rejected,
+    .org-status-badge.deactivated { background: #ef4444; }
     .org-status-badge.verified { background: #16a34a; }
     .org-detail-tabs {
       display: flex;

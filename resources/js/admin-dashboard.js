@@ -632,6 +632,7 @@ function orgStatusBadgeClass(key) {
         case "verified":
             return "bg-success";
         case "rejected":
+        case "deactivated":
             return "bg-danger";
         case "pending":
             return "bg-warning text-dark";
@@ -650,17 +651,21 @@ async function setOrganizationVerification(orgId, status, rejectionReason = "") 
             verificationStatus: ORG_VERIFICATION_STATUS.APPROVED,
             verifiedAt: serverTimestamp(),
             verifiedBy: adminUid,
+            previouslyVerified: true,
             rejectedAt: deleteField(),
             rejectionReason: deleteField(),
         });
         return;
     }
 
-    if (status === ORG_VERIFICATION_STATUS.REJECTED) {
+    if (
+        status === ORG_VERIFICATION_STATUS.REJECTED ||
+        status === ORG_VERIFICATION_STATUS.DEACTIVATED
+    ) {
         const reason = String(rejectionReason || "").trim();
         await updateDoc(ref, {
             verified: false,
-            verificationStatus: ORG_VERIFICATION_STATUS.REJECTED,
+            verificationStatus: status,
             rejectedAt: serverTimestamp(),
             verifiedBy: adminUid,
             rejectionReason: reason || deleteField(),
@@ -727,10 +732,12 @@ function closeOrgRejectModal() {
     syncOrgRejectModalCopy("reject");
 }
 
-async function performOrgRejection(orgId, reason) {
+async function performOrgRejection(orgId, reason, mode = "reject") {
     await setOrganizationVerification(
         orgId,
-        ORG_VERIFICATION_STATUS.REJECTED,
+        mode === "deactivate"
+            ? ORG_VERIFICATION_STATUS.DEACTIVATED
+            : ORG_VERIFICATION_STATUS.REJECTED,
         reason
     );
     await loadOrganizationsData();
@@ -1873,7 +1880,7 @@ async function performMissionRejection(missionId, reason) {
         const reason = (textarea?.value || "").trim();
         closeOrgRejectModal();
         try {
-            await performOrgRejection(orgId, reason);
+            await performOrgRejection(orgId, reason, mode);
         } catch (e) {
             console.error(e);
             alert(
@@ -1990,6 +1997,10 @@ function filterOrganizations() {
     } else if (filterType === "rejected") {
         filtered = filtered.filter(
             (org) => getOrgVerificationKey(org) === "rejected"
+        );
+    } else if (filterType === "deactivated") {
+        filtered = filtered.filter(
+            (org) => getOrgVerificationKey(org) === "deactivated"
         );
     }
 
