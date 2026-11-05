@@ -1541,9 +1541,9 @@ function renderVolunteersTable(volunteers) {
             <td><span class="badge bg-warning text-dark">${escapeHtml(volunteer.level)}</span></td>
             <td><span class="badge ${statusClass}">${escapeHtml(status)}</span></td>
             <td>
-                <button type="button" class="btn btn-sm btn-admin" onclick="viewVolunteerProfile('${escapeHtml(volunteer.id)}')" title="View volunteer">
+                <a class="btn btn-sm btn-admin" href="/admin/volunteers/${encodeURIComponent(volunteer.id)}" title="View volunteer">
                     <i class="fas fa-eye"></i>
-                </button>
+                </a>
             </td>
         </tr>`;
         })
@@ -1553,109 +1553,6 @@ function renderVolunteersTable(volunteers) {
 function statusString(status) {
     return String(status || "").toLowerCase().replace(/\s+/g, "-");
 }
-
-function adminDetailRow(iconClass, label, value, options = {}) {
-    const { isBadge = false } = options;
-    let valHtml;
-    if (isBadge) {
-        const badgeClass = getVolunteerStatusBadgeClass(value);
-        valHtml = `<span class="badge ${badgeClass}">${escapeHtml(value)}</span>`;
-    } else {
-        valHtml = `<span class="org-detail-row__value">${escapeHtml(value ?? "N/A")}</span>`;
-    }
-    return `
-        <div class="org-detail-row">
-            <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
-            <div class="org-detail-row__content">
-                <span class="org-detail-row__label">${escapeHtml(label)}</span>
-                ${valHtml}
-            </div>
-        </div>`;
-}
-
-function openVolunteerDetailsModal() {
-    const modal = document.getElementById("volunteerDetailsModal");
-    const backdrop = document.getElementById("volunteerDetailsBackdrop");
-    backdrop?.removeAttribute("hidden");
-    if (modal) {
-        modal.removeAttribute("hidden");
-        modal.style.display = "flex";
-    }
-    document.body.style.overflow = "hidden";
-}
-
-function closeVolunteerDetailsModal() {
-    const modal = document.getElementById("volunteerDetailsModal");
-    const backdrop = document.getElementById("volunteerDetailsBackdrop");
-    backdrop?.setAttribute("hidden", "");
-    if (modal) {
-        modal.setAttribute("hidden", "");
-        modal.style.display = "none";
-    }
-    document.body.style.overflow = "";
-}
-
-function initVolunteerDetailsModal() {
-    document
-        .getElementById("volunteerDetailsCloseBtn")
-        ?.addEventListener("click", closeVolunteerDetailsModal);
-    document
-        .getElementById("volunteerDetailsCloseX")
-        ?.addEventListener("click", closeVolunteerDetailsModal);
-    document
-        .getElementById("volunteerDetailsBackdrop")
-        ?.addEventListener("click", closeVolunteerDetailsModal);
-    document.addEventListener("keydown", (e) => {
-        const modal = document.getElementById("volunteerDetailsModal");
-        if (
-            e.key === "Escape" &&
-            modal &&
-            !modal.hasAttribute("hidden")
-        ) {
-            closeVolunteerDetailsModal();
-        }
-    });
-}
-
-window.viewVolunteerProfile = async function (userId) {
-    const cached = allAdminVolunteers.find((v) => v.id === userId);
-    const body = document.getElementById("volunteerDetailsBody");
-    if (!body) return;
-
-    try {
-        const snap = await getDoc(doc(db, "users", userId));
-        if (!snap.exists() && !cached) {
-            alert("Volunteer not found.");
-            return;
-        }
-
-        const data = snap.exists() ? snap.data() : {};
-        const volunteer =
-            cached || (await createVolunteerRow(userId, data));
-        const status = deriveVolunteerStatus(volunteer);
-        const hoursLabel =
-            volunteer.hoursVolunteered > 0
-                ? `${volunteer.hoursVolunteered}h`
-                : "0h";
-
-        body.innerHTML = [
-            adminDetailRow("fa-user", "Name:", volunteer.name),
-            adminDetailRow("fa-envelope", "Email:", volunteer.email),
-            adminDetailRow("fa-bullseye", "Missions joined:", String(volunteer.missionsJoined)),
-            adminDetailRow("fa-clock", "Hours volunteered:", hoursLabel),
-            adminDetailRow("fa-layer-group", "Level:", volunteer.level),
-            adminDetailRow("fa-star", "Total points:", String(volunteer.totalPoints)),
-            adminDetailRow("fa-award", "Badges:", String(volunteer.badgeCount)),
-            adminDetailRow("fa-circle-check", "Status:", status, { isBadge: true }),
-            adminDetailRow("fa-fingerprint", "User ID:", userId),
-        ].join("");
-
-        openVolunteerDetailsModal();
-    } catch (e) {
-        console.error("[ERROR] viewVolunteerProfile:", e);
-        alert("Could not load volunteer profile.");
-    }
-};
 
 async function loadVolunteersData() {
     const tbody = document.getElementById("volunteersTableBody");
@@ -1759,8 +1656,6 @@ function setupEventListeners() {
         console.log("[SUCCESS] Leaderboard form listener added");
     }
 
-    initVolunteerDetailsModal();
-    
     console.log("[SUCCESS] All event listeners set up successfully");
 }
 

@@ -60,6 +60,9 @@ Route::get('/admin/organizations/{orgId}', function (string $orgId) {
 Route::get('/admin/missions/{missionId}', function (string $missionId) {
     return view('admin.mission-details', ['missionId' => $missionId]);
 })->where('missionId', '[^/]+');
+Route::get('/admin/volunteers/{volunteerId}', function (string $volunteerId) {
+    return view('admin.volunteer-details', ['volunteerId' => $volunteerId]);
+})->where('volunteerId', '[^/]+');
 Route::get('/admin/config', function () {
     return view('admin.config');
 });

@@ -17,6 +17,7 @@ export default defineConfig({
                 'resources/js/admin-dashboard.js',
                 'resources/js/admin-organization-details.js',
                 'resources/js/admin-mission-details.js',
+                'resources/js/admin-volunteer-details.js',
                 'resources/js/admin-config.js',
                 'resources/js/admin-hotlines.js',
                 'resources/js/volunteer.js',
