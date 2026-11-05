@@ -669,13 +669,45 @@ async function setOrganizationVerification(orgId, status, rejectionReason = "") 
 }
 
 let pendingRejectOrgId = null;
+let pendingOrgActionMode = "reject";
 
-function openOrgRejectModal(orgId) {
+function syncOrgRejectModalCopy(mode = "reject") {
+    const isDeactivate = mode === "deactivate";
+    const title = document.getElementById("orgRejectModalTitle");
+    const help = document.getElementById("orgRejectModalHelp");
+    const confirm = document.getElementById("orgRejectConfirm");
+    const reasonInput = document.getElementById("orgRejectReasonInput");
+
+    if (title) {
+        title.textContent = isDeactivate
+            ? "Deactivate organization"
+            : "Reject organization";
+    }
+    if (help) {
+        help.textContent = isDeactivate
+            ? "Deactivate this verified organization? They will not be able to sign in until an administrator verifies them again."
+            : "Reject this organization registration? They will not be able to sign in until an administrator approves them again.";
+    }
+    if (confirm) {
+        confirm.textContent = isDeactivate
+            ? "Deactivate organization"
+            : "Reject organization";
+    }
+    if (reasonInput) {
+        reasonInput.placeholder = isDeactivate
+            ? "e.g. Policy violation, inactive account…"
+            : "e.g. Incomplete registration details…";
+    }
+}
+
+function openOrgRejectModal(orgId, mode = "reject") {
     pendingRejectOrgId = orgId;
+    pendingOrgActionMode = mode === "deactivate" ? "deactivate" : "reject";
     const overlay = document.getElementById("orgRejectModal");
     const textarea = document.getElementById("orgRejectReasonInput");
     const err = document.getElementById("orgRejectReasonError");
     if (!overlay) return;
+    syncOrgRejectModalCopy(pendingOrgActionMode);
     if (textarea) textarea.value = "";
     if (err) err.textContent = "";
     overlay.removeAttribute("hidden");
@@ -691,6 +723,8 @@ function closeOrgRejectModal() {
     overlay.classList.remove("is-open");
     document.body.style.overflow = "";
     pendingRejectOrgId = null;
+    pendingOrgActionMode = "reject";
+    syncOrgRejectModalCopy("reject");
 }
 
 async function performOrgRejection(orgId, reason) {
@@ -762,7 +796,12 @@ window.approveOrganization = async function (orgId) {
 
 window.rejectOrganization = function (orgId) {
     if (!orgId) return;
-    openOrgRejectModal(orgId);
+    openOrgRejectModal(orgId, "reject");
+};
+
+window.deactivateOrganization = function (orgId) {
+    if (!orgId) return;
+    openOrgRejectModal(orgId, "deactivate");
 };
 
 async function loadOrganizationsData() {
@@ -831,12 +870,16 @@ function renderOrganizationsTable(list) {
                             <i class="fas fa-check"></i> Verify
                        </button>`
                     : "";
-            const rejectBtn =
-                statusKey !== "rejected"
+            const rejectOrDeactivateBtn =
+                statusKey === "pending"
                     ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectOrganization('${org.id}')">
                             <i class="fas fa-times"></i> Reject
                        </button>`
-                    : "";
+                    : statusKey === "verified"
+                      ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="deactivateOrganization('${org.id}')">
+                            <i class="fas fa-ban"></i> Deactivate
+                       </button>`
+                      : "";
 
             return `
                 <tr data-org-status="${statusKey}">
@@ -847,7 +890,7 @@ function renderOrganizationsTable(list) {
                     <td><span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>
                     <td class="text-nowrap">
                         ${verifyBtn}
-                        ${rejectBtn}
+                        ${rejectOrDeactivateBtn}
                         <a class="btn btn-sm btn-outline-info" href="/admin/organizations/${encodeURIComponent(org.id)}">
                             <i class="fas fa-eye"></i> View
                         </a>
@@ -1825,6 +1868,7 @@ async function performMissionRejection(missionId, reason) {
         const err = document.getElementById("orgRejectReasonError");
         if (err) err.textContent = "";
         const orgId = pendingRejectOrgId;
+        const mode = pendingOrgActionMode;
         if (!orgId) return;
         const reason = (textarea?.value || "").trim();
         closeOrgRejectModal();
@@ -1832,7 +1876,11 @@ async function performMissionRejection(missionId, reason) {
             await performOrgRejection(orgId, reason);
         } catch (e) {
             console.error(e);
-            alert("Could not reject organization. Please try again.");
+            alert(
+                mode === "deactivate"
+                    ? "Could not deactivate organization. Please try again."
+                    : "Could not reject organization. Please try again."
+            );
         }
     });
 

@@ -450,7 +450,7 @@
 <div id="orgRejectModal" class="reject-modal-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="orgRejectModalTitle">
   <div class="reject-modal" role="document">
     <h2 id="orgRejectModalTitle">Reject organization</h2>
-    <p class="reject-modal-help">Reject this organization registration? They will not be able to sign in until an administrator approves them again.</p>
+    <p id="orgRejectModalHelp" class="reject-modal-help">Reject this organization registration? They will not be able to sign in until an administrator approves them again.</p>
     <label for="orgRejectReasonInput">Reason (optional)</label>
     <textarea id="orgRejectReasonInput" rows="4" placeholder="e.g. Incomplete registration details…" autocomplete="off"></textarea>
     <div class="reject-modal-actions">

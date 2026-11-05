@@ -842,7 +842,7 @@
 >
   <div class="reject-modal" role="document">
     <h2 id="orgRejectModalTitle">Reject organization</h2>
-    <p class="reject-modal-help">
+    <p id="orgRejectModalHelp" class="reject-modal-help">
       Reject this organization registration? They will not be able to sign in until an administrator approves them again.
     </p>
     <label for="orgRejectReasonInput">Reason (optional)</label>

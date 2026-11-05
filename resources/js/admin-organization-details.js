@@ -381,11 +381,13 @@ function renderOrganization(data) {
             statusKey !== "verified"
                 ? `<button type="button" class="org-action org-action--verify" id="orgVerifyBtn"><i class="fas fa-check"></i> Verify organization</button>`
                 : "";
-        const rejectBtn =
-            statusKey !== "rejected"
-                ? `<button type="button" class="org-action org-action--reject" id="orgRejectBtn"><i class="fas fa-times"></i> Reject</button>`
-                : "";
-        actions.innerHTML = `${rejectBtn}${verifyBtn}`;
+        const rejectOrDeactivateBtn =
+            statusKey === "pending"
+                ? `<button type="button" class="org-action org-action--reject" id="orgRejectBtn" data-org-action="reject"><i class="fas fa-times"></i> Reject</button>`
+                : statusKey === "verified"
+                  ? `<button type="button" class="org-action org-action--reject" id="orgRejectBtn" data-org-action="deactivate"><i class="fas fa-ban"></i> Deactivate</button>`
+                  : "";
+        actions.innerHTML = `${rejectOrDeactivateBtn}${verifyBtn}`;
         document.getElementById("orgVerifyBtn")?.addEventListener("click", () => verifyOrganization(name));
         document.getElementById("orgRejectBtn")?.addEventListener("click", openRejectModal);
     }
@@ -484,7 +486,44 @@ async function verifyOrganization(orgName) {
     }
 }
 
-function openRejectModal() {
+let orgActionMode = "reject";
+
+function syncOrgRejectModalCopy(mode = "reject") {
+    const isDeactivate = mode === "deactivate";
+    const title = document.getElementById("orgRejectModalTitle");
+    const help = document.getElementById("orgRejectModalHelp");
+    const confirm = document.getElementById("orgRejectConfirm");
+    const reasonInput = document.getElementById("orgRejectReasonInput");
+
+    if (title) {
+        title.textContent = isDeactivate
+            ? "Deactivate organization"
+            : "Reject organization";
+    }
+    if (help) {
+        help.textContent = isDeactivate
+            ? "Deactivate this verified organization? They will not be able to sign in until an administrator verifies them again."
+            : "Reject this organization registration? They will not be able to sign in until an administrator approves them again.";
+    }
+    if (confirm) {
+        confirm.textContent = isDeactivate
+            ? "Deactivate organization"
+            : "Reject organization";
+    }
+    if (reasonInput) {
+        reasonInput.placeholder = isDeactivate
+            ? "e.g. Policy violation, inactive account…"
+            : "e.g. Incomplete registration details…";
+    }
+}
+
+function openRejectModal(event) {
+    const button = event?.currentTarget;
+    orgActionMode =
+        button?.getAttribute("data-org-action") === "deactivate"
+            ? "deactivate"
+            : "reject";
+    syncOrgRejectModalCopy(orgActionMode);
     const textarea = document.getElementById("orgRejectReasonInput");
     if (textarea) textarea.value = "";
     openOverlay("orgRejectModal");
@@ -494,13 +533,20 @@ function openRejectModal() {
 async function confirmReject() {
     const textarea = document.getElementById("orgRejectReasonInput");
     const reason = textarea?.value || "";
+    const mode = orgActionMode;
     closeOverlay("orgRejectModal");
+    syncOrgRejectModalCopy("reject");
+    orgActionMode = "reject";
     try {
         await setOrganizationVerification(ORG_VERIFICATION_STATUS.REJECTED, reason);
         await loadOrganization();
     } catch (error) {
         console.error(error);
-        alert("Could not reject organization. Please try again.");
+        alert(
+            mode === "deactivate"
+                ? "Could not deactivate organization. Please try again."
+                : "Could not reject organization. Please try again."
+        );
     }
 }
 
@@ -522,14 +568,20 @@ document.getElementById("orgVerifySuccessOk")?.addEventListener("click", () => {
 document.getElementById("orgVerifySuccessModal")?.addEventListener("click", (event) => {
     if (event.target === event.currentTarget) closeOverlay("orgVerifySuccessModal");
 });
-document.getElementById("orgRejectCancel")?.addEventListener("click", () => closeOverlay("orgRejectModal"));
+function closeRejectModal() {
+    closeOverlay("orgRejectModal");
+    orgActionMode = "reject";
+    syncOrgRejectModalCopy("reject");
+}
+
+document.getElementById("orgRejectCancel")?.addEventListener("click", closeRejectModal);
 document.getElementById("orgRejectConfirm")?.addEventListener("click", confirmReject);
 document.getElementById("orgRejectModal")?.addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) closeOverlay("orgRejectModal");
+    if (event.target === event.currentTarget) closeRejectModal();
 });
 document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    closeOverlay("orgRejectModal");
+    closeRejectModal();
     closeOverlay("orgVerifySuccessModal");
 });
 
