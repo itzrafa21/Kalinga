@@ -113,3 +113,68 @@ export async function uploadImageToCloudinary(file, options = {}) {
 
     return url;
 }
+
+/**
+ * Upload any file (documents, etc.) via Cloudinary auto/raw endpoint.
+ * @param {File} file
+ * @param {{ folder?: string, publicId?: string, maxBytes?: number, tags?: string[], resourceType?: "auto"|"raw"|"image" }} [options]
+ * @returns {Promise<{ url: string, publicId?: string, bytes?: number, format?: string, resourceType?: string }>}
+ */
+export async function uploadFileToCloudinary(file, options = {}) {
+    if (!file) {
+        throw new Error("No file selected.");
+    }
+
+    const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+    if (file.size > maxBytes) {
+        const mb = Math.round(maxBytes / (1024 * 1024));
+        throw new Error(`File must be smaller than ${mb}MB.`);
+    }
+
+    if (!isCloudinaryConfigured()) {
+        throw new Error(getCloudinaryConfigHint());
+    }
+
+    const resourceType = options.resourceType || "auto";
+    const body = new FormData();
+    body.append("file", file);
+    body.append("upload_preset", UPLOAD_PRESET);
+    if (options.folder) {
+        body.append("folder", options.folder);
+    }
+    if (options.publicId) {
+        body.append("public_id", options.publicId);
+    }
+    if (options.tags?.length) {
+        body.append("tags", options.tags.join(","));
+    }
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`;
+    const response = await fetch(endpoint, {
+        method: "POST",
+        body,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const msg =
+            payload?.error?.message ||
+            payload?.message ||
+            `Cloudinary upload failed (${response.status})`;
+        throw new Error(msg);
+    }
+
+    const url = payload.secure_url || payload.url;
+    if (!url) {
+        throw new Error("Cloudinary did not return a file URL.");
+    }
+
+    return {
+        url,
+        publicId: payload.public_id || "",
+        bytes: Number(payload.bytes) || file.size,
+        format: payload.format || "",
+        resourceType: payload.resource_type || resourceType,
+    };
+}

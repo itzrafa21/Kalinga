@@ -19,10 +19,32 @@ import {
     validateUsDateInput,
 } from "./us-date-input.js";
 import { invalidateOrgCache, ORG_CACHE_KEYS } from "./org-data-cache.js";
+import {
+    ORG_CLOUDINARY,
+    uploadFileToCloudinary,
+} from "./cloudinary-upload.js";
 
 let currentUser = null;
 let selectedMissionImageFile = null;
 let restoredMissionImageDataUrl = null;
+/** @type {File[]} */
+let selectedMissionDocuments = [];
+
+const MISSION_DOC_MAX_BYTES = 50 * 1024 * 1024;
+const MISSION_DOC_ACCEPT_EXT = new Set([
+    "pdf",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+]);
+const MISSION_DOC_ACCEPT_MIME = new Set([
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
 
 const CREATE_FORM_DRAFT_KEY = "kalinga-create-mission-form";
 
@@ -71,6 +93,9 @@ function saveCreateFormDraft() {
 function clearCreateFormDraft() {
     sessionStorage.removeItem(CREATE_FORM_DRAFT_KEY);
     restoredMissionImageDataUrl = null;
+    selectedMissionDocuments = [];
+    renderMissionDocumentsList();
+    showMissionDocumentsError("");
 }
 
 function restoreCreateFormDraft() {
@@ -246,6 +271,7 @@ onAuthStateChanged(auth, async (user) => {
     initializePointsPreview();
     initializeFormSubmission();
     initializeImageUpload();
+    initializeMissionDocuments();
     initMissionSuccessModal();
     initUsDateInputs(["date", "end_date"]);
     restoreCreateFormDraft();
@@ -475,6 +501,33 @@ const pointsFields = await computeMissionPointsPayload(schedule);
                 missionData.missionImage = restoredMissionImageDataUrl;
             }
 
+            if (selectedMissionDocuments.length > 0) {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const prevSubmitHtml = submitBtn?.innerHTML;
+                try {
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML =
+                            '<i class="bi bi-hourglass-split"></i> Uploading documents…';
+                    }
+                    missionData.documents = await uploadMissionDocuments(
+                        selectedMissionDocuments,
+                        currentUser.uid
+                    );
+                } catch (docErr) {
+                    console.error("[ERROR] Mission document upload:", docErr);
+                    alert(docErr?.message || "Failed to upload documents.");
+                    return;
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        if (prevSubmitHtml != null) submitBtn.innerHTML = prevSubmitHtml;
+                    }
+                }
+            } else {
+                missionData.documents = [];
+            }
+
             console.log("[INFO] Mission data prepared:", missionData);
 
             // Save only to mission submissions (NOT to live missions yet)
@@ -512,6 +565,153 @@ const pointsFields = await computeMissionPointsPayload(schedule);
     });
     
     console.log("[SUCCESS] Form submission initialized successfully");
+}
+
+function fileExtension(name) {
+    const parts = String(name || "").toLowerCase().split(".");
+    return parts.length > 1 ? parts.pop() : "";
+}
+
+function formatFileSize(bytes) {
+    const size = Number(bytes) || 0;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isAllowedMissionDocument(file) {
+    const ext = fileExtension(file.name);
+    if (MISSION_DOC_ACCEPT_EXT.has(ext)) return true;
+    if (file.type && MISSION_DOC_ACCEPT_MIME.has(file.type)) return true;
+    return false;
+}
+
+function showMissionDocumentsError(message) {
+    const el = document.getElementById("missionDocumentsError");
+    if (!el) return;
+    if (!message) {
+        el.textContent = "";
+        el.classList.remove("is-visible");
+        return;
+    }
+    el.textContent = message;
+    el.classList.add("is-visible");
+}
+
+function renderMissionDocumentsList() {
+    const list = document.getElementById("missionDocumentsList");
+    if (!list) return;
+
+    if (!selectedMissionDocuments.length) {
+        list.innerHTML = "";
+        return;
+    }
+
+    list.innerHTML = selectedMissionDocuments
+        .map((file, index) => {
+            const ext = fileExtension(file.name).toUpperCase() || "FILE";
+            return `
+        <div class="mission-doc-row" data-doc-index="${index}">
+          <span class="mission-doc-row__icon" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
+          <span class="mission-doc-row__meta">
+            <span class="mission-doc-row__name" title="${escapeHtmlAttr(file.name)}">${escapeHtmlAttr(file.name)}</span>
+            <span class="mission-doc-row__size">${escapeHtmlAttr(formatFileSize(file.size))} · ${escapeHtmlAttr(ext)}</span>
+          </span>
+          <button type="button" class="mission-doc-row__remove" data-remove-doc="${index}" aria-label="Remove ${escapeHtmlAttr(file.name)}">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>`;
+        })
+        .join("");
+}
+
+function escapeHtmlAttr(text) {
+    return String(text ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function addMissionDocuments(fileList) {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+
+    const errors = [];
+    const next = [...selectedMissionDocuments];
+
+    incoming.forEach((file) => {
+        if (!isAllowedMissionDocument(file)) {
+            errors.push(`“${file.name}” must be PDF, DOC/DOCX, or Excel.`);
+            return;
+        }
+        if (file.size > MISSION_DOC_MAX_BYTES) {
+            errors.push(`“${file.name}” exceeds the 50MB limit.`);
+            return;
+        }
+        const duplicate = next.some(
+            (existing) =>
+                existing.name === file.name &&
+                existing.size === file.size &&
+                existing.lastModified === file.lastModified
+        );
+        if (duplicate) return;
+        next.push(file);
+    });
+
+    selectedMissionDocuments = next;
+    renderMissionDocumentsList();
+    showMissionDocumentsError(errors[0] || "");
+}
+
+async function uploadMissionDocuments(files, orgId) {
+    const uploaded = [];
+    for (let i = 0; i < files.length; i += 1) {
+        const file = files[i];
+        const safeName = String(file.name || `document-${i + 1}`)
+            .replace(/[^\w.\-]+/g, "_")
+            .slice(0, 80);
+        const result = await uploadFileToCloudinary(file, {
+            folder: `${ORG_CLOUDINARY.folder}/${orgId}/missions/documents`,
+            publicId: `${Date.now()}-${i}-${safeName.replace(/\.[^.]+$/, "")}`,
+            maxBytes: MISSION_DOC_MAX_BYTES,
+            resourceType: "auto",
+            tags: ["mission-document", orgId],
+        });
+        uploaded.push({
+            name: file.name,
+            size: file.size,
+            type: file.type || "",
+            url: result.url,
+            publicId: result.publicId || "",
+            format: result.format || fileExtension(file.name),
+            resourceType: result.resourceType || "raw",
+            uploadedAt: new Date().toISOString(),
+        });
+    }
+    return uploaded;
+}
+
+function initializeMissionDocuments() {
+    const input = document.getElementById("missionDocumentsInput");
+    const pickBtn = document.getElementById("missionDocumentsPickBtn");
+    const list = document.getElementById("missionDocumentsList");
+    if (!input || !pickBtn || !list) return;
+
+    pickBtn.addEventListener("click", () => input.click());
+    input.addEventListener("change", () => {
+        addMissionDocuments(input.files);
+        input.value = "";
+    });
+    list.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-remove-doc]");
+        if (!btn) return;
+        const index = Number(btn.getAttribute("data-remove-doc"));
+        if (!Number.isInteger(index)) return;
+        selectedMissionDocuments.splice(index, 1);
+        renderMissionDocumentsList();
+        showMissionDocumentsError("");
+    });
 }
 
 // Initialize image upload functionality
