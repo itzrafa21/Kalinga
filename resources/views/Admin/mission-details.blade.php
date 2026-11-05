@@ -57,7 +57,14 @@
       padding: 0 24px; height: 50px;
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
-    .topbar-title { font-size: 14px; font-weight: 600; color: #111; }
+    .topbar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .topbar-title:hover { color: #16a34a; text-decoration: underline; }
     .topbar-user { font-size: 12px; color: #b0b0b0; }
     .content {
       padding: 24px;
@@ -316,7 +323,7 @@
 
   <div class="main">
     <div class="topbar">
-      <span class="topbar-title">Mission Details</span>
+      <a class="topbar-title" href="/admin/dashboard#missions">Missions</a>
       <span class="topbar-user" id="adminEmail"></span>
     </div>
     <div class="content">
