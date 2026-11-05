@@ -35,12 +35,6 @@
   display: flex;
   flex-direction: column;
 }
-#missionDetailsModal {
-  z-index: 1060;
-}
-#missionDetailsBackdrop {
-  z-index: 1055;
-}
 #volunteerDetailsModal {
   z-index: 1062;
 }
@@ -750,22 +744,6 @@
     </div>
 
     </div>
-  </div>
-</div>
-
-<!-- Mission details modal -->
-<div class="org-modal-backdrop" id="missionDetailsBackdrop" hidden></div>
-<div class="org-details-modal" id="missionDetailsModal" role="dialog" aria-labelledby="missionDetailsTitle" hidden>
-  <div class="org-details-modal__header">
-    <div class="org-details-modal__title-wrap">
-      <i class="fas fa-bullseye"></i>
-      <h2 id="missionDetailsTitle">MISSION DETAILS</h2>
-    </div>
-    <button type="button" class="org-details-modal__close-x" id="missionDetailsCloseX" aria-label="Close">&times;</button>
-  </div>
-  <div class="org-details-modal__body" id="missionDetailsBody"></div>
-  <div class="org-details-modal__footer">
-    <button type="button" class="org-details-modal__close-btn" id="missionDetailsCloseBtn">Close</button>
   </div>
 </div>
 
