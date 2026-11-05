@@ -9,6 +9,7 @@ import {
   where,
   addDoc,
   updateDoc,
+  deleteField,
   serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -184,6 +185,19 @@ function formatJoinedDate(ts) {
   else d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatAttendanceClockTime(ts) {
+  if (!ts) return "";
+  let d;
+  if (ts?.toDate) d = ts.toDate();
+  else if (ts?.seconds) d = new Date(ts.seconds * 1000);
+  else d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatLastUpdated(mission) {
@@ -391,6 +405,8 @@ function mergeVolunteerEntries(existing, incoming, options = {}) {
     id: missionApp?.id || base.id || other.id,
     storage: missionApp ? STORAGE_MISSIONS_SUB : base.storage || incoming.storage,
     appliedAt: base.appliedAt || other.appliedAt || null,
+    timeInAt: base.timeInAt || other.timeInAt || null,
+    timeOutAt: base.timeOutAt || other.timeOutAt || null,
     name: base.name || other.name,
     email: base.email || other.email,
     userId: base.userId || other.userId || "",
@@ -438,6 +454,8 @@ async function pushApplicationRecord(docSnap, missionId, orgId, storage, upsert)
     email: email || "N/A",
     status: data.status || "pending",
     appliedAt: data.appliedAt || data.createdAt || data.approvedAt || null,
+    timeInAt: data.timeInAt || null,
+    timeOutAt: data.timeOutAt || null,
     orgId: data.orgId || data.organizationId || orgId || "",
     missionId,
   });
@@ -561,6 +579,8 @@ async function loadMissionVolunteers(missionId, orgId, mission = null) {
           email: email || "N/A",
           status: data.status || "approved",
           appliedAt: data.appliedAt || data.approvedAt || null,
+          timeInAt: data.timeInAt || null,
+          timeOutAt: data.timeOutAt || null,
           orgId,
           missionId,
           missionPoints: data.missionPoints,
@@ -730,6 +750,63 @@ async function updateApplicationStatus(volunteer, missionId, newStatus, options 
     currentMissionContext?.mission?.organizationId ||
     "";
   await syncApplicationStatusToCopies(volunteer, missionId, payload, orgId);
+}
+
+async function updateVolunteerAttendance(volunteer, missionId, action) {
+  if (volunteer.timeInAt || volunteer.timeOutAt) {
+    throw new Error("Attendance already recorded for this volunteer.");
+  }
+
+  const now = new Date();
+  const appPayload = {
+    updatedAt: now,
+  };
+  const rosterPayload = {
+    updatedAt: now,
+    status: volunteer.status || "approved",
+  };
+  if (action === "time-in") {
+    appPayload.timeInAt = now;
+    appPayload.timeOutAt = deleteField();
+    rosterPayload.timeInAt = now;
+    rosterPayload.timeOutAt = null;
+  } else if (action === "time-out") {
+    appPayload.timeOutAt = now;
+    appPayload.timeInAt = deleteField();
+    rosterPayload.timeOutAt = now;
+    rosterPayload.timeInAt = null;
+  } else {
+    throw new Error("Unknown attendance action");
+  }
+
+  const refs = await resolveApplicationDocRefs(volunteer, missionId);
+  let updated = false;
+  for (const ref of refs) {
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        await updateDoc(ref, appPayload);
+        updated = true;
+      }
+    } catch (err) {
+      console.warn("[WARN] update attendance ref:", ref.path, err);
+    }
+  }
+  if (!updated) {
+    throw new Error("Application record not found");
+  }
+
+  const orgId =
+    volunteer.orgId ||
+    currentMissionContext?.mission?.orgId ||
+    currentMissionContext?.mission?.organizationId ||
+    "";
+  await syncApplicationStatusToCopies(
+    volunteer,
+    missionId,
+    rosterPayload,
+    orgId
+  );
 }
 
 /** Approve pending applications when the mission has auto-accept enabled. */
@@ -925,6 +1002,10 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotIn
   const st = volunteerStatusBadge(v.status);
   const norm = (v.status || "").toLowerCase();
   const showActions = isOwner && norm === "pending";
+  const isConfirmed = norm === "approved" || norm === "accepted";
+  const showAttendance = isOwner && isConfirmed;
+  const hasTimedIn = Boolean(v.timeInAt);
+  const hasTimedOut = Boolean(v.timeOutAt);
   const missionFull = Boolean(slotInfo.isFull);
   const hoursLabel =
     norm === "rejected"
@@ -954,6 +1035,27 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotIn
       ${actionButtons}
     </div>`;
 
+  const timeInLabel = formatAttendanceClockTime(v.timeInAt);
+  const timeOutLabel = formatAttendanceClockTime(v.timeOutAt);
+  let attendanceInner = "";
+  if (hasTimedIn) {
+    attendanceInner = `<span class="md-attendance-time md-attendance-time--in" title="Time in">${escapeHtml(timeInLabel)}</span>`;
+  } else if (hasTimedOut) {
+    attendanceInner = `<span class="md-attendance-time md-attendance-time--out" title="Time out">${escapeHtml(timeOutLabel)}</span>`;
+  } else {
+    attendanceInner = `
+      <button type="button" class="md-btn md-btn-g md-btn-xs md-roster-time-in-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+        Time In
+      </button>
+      <button type="button" class="md-btn md-btn-solid-r md-btn-xs md-roster-time-out-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+        Time Out
+      </button>`;
+  }
+
+  const attendanceCell = showAttendance
+    ? `<div class="md-action-group md-attendance-group">${attendanceInner}</div>`
+    : '<span class="md-dash">—</span>';
+
   return `
     <tr data-volunteer-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
       <td>
@@ -967,6 +1069,7 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotIn
       <td class="md-muted">${hoursLabel}</td>
       <td>${pts}</td>
       <td>${statusActionsCell}</td>
+      <td>${attendanceCell}</td>
     </tr>`;
 }
 
@@ -988,7 +1091,7 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
 
   const tableBody = volunteers.length
     ? rows
-    : `<tr><td colspan="6"><div class="md-empty-roster">No volunteer applications yet.</div></td></tr>`;
+    : `<tr><td colspan="7"><div class="md-empty-roster">No volunteer applications yet.</div></td></tr>`;
 
   return `
     <section class="md-card md-card--table">
@@ -1000,12 +1103,13 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
         <table class="md-table">
           <thead>
             <tr>
-              <th style="width:20%">Name</th>
-              <th style="width:22%">Email</th>
-              <th style="width:11%">Date joined</th>
-              <th style="width:8%">Hours</th>
-              <th style="width:8%">Points</th>
-              <th style="width:24%">Status / Actions</th>
+              <th style="width:18%">Name</th>
+              <th style="width:18%">Email</th>
+              <th style="width:10%">Date joined</th>
+              <th style="width:7%">Hours</th>
+              <th style="width:7%">Points</th>
+              <th style="width:20%">Status / Actions</th>
+              <th style="width:20%">Attendance</th>
             </tr>
           </thead>
           <tbody>${tableBody}</tbody>
@@ -1152,7 +1256,9 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
   rosterTable.addEventListener("click", async (e) => {
     const acceptBtn = e.target.closest(".md-roster-accept-btn");
     const declineBtn = e.target.closest(".md-roster-decline-btn");
-    const btn = acceptBtn || declineBtn;
+    const timeInBtn = e.target.closest(".md-roster-time-in-btn");
+    const timeOutBtn = e.target.closest(".md-roster-time-out-btn");
+    const btn = acceptBtn || declineBtn || timeInBtn || timeOutBtn;
     if (!btn) return;
 
     const roster =
@@ -1165,6 +1271,30 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
         appId: btn.getAttribute("data-app-id"),
         userId: btn.getAttribute("data-user-id"),
       });
+      return;
+    }
+
+    if (timeInBtn || timeOutBtn) {
+      const action = timeInBtn ? "time-in" : "time-out";
+      btn.disabled = true;
+      try {
+        await updateVolunteerAttendance(volunteer, missionId, action);
+        invalidateOrgCache(
+          auth.currentUser?.uid,
+          missionDetailCacheKey(missionId)
+        );
+        await refreshMissionDetails({ refresh: true, background: true });
+      } catch (err) {
+        console.error(err);
+        alert(
+          err?.message === "Application record not found"
+            ? "Application record not found. Refresh the page and try again."
+            : action === "time-in"
+              ? "Could not record time in."
+              : "Could not record time out."
+        );
+        btn.disabled = false;
+      }
       return;
     }
 

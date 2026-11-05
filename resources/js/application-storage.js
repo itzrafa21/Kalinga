@@ -197,6 +197,8 @@ export function buildMissionVolunteerRecord(application, extras = {}) {
                   : null,
         appliedAt: application.appliedAt || extras.appliedAt || null,
         approvedAt: application.approvedAt || extras.approvedAt || serverTimestamp(),
+        timeInAt: application.timeInAt || extras.timeInAt || null,
+        timeOutAt: application.timeOutAt || extras.timeOutAt || null,
         updatedAt: serverTimestamp(),
     };
 }
