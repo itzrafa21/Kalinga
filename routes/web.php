@@ -54,6 +54,9 @@ Route::get('/admin/login', function () {
 Route::get('/admin/dashboard', function () {
     return view('admin.dashboard');
 });
+Route::get('/admin/organizations/{orgId}', function (string $orgId) {
+    return view('admin.organization-details', ['orgId' => $orgId]);
+})->where('orgId', '[^/]+');
 Route::get('/admin/config', function () {
     return view('admin.config');
 });

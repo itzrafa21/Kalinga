@@ -44,7 +44,6 @@ import {
 let allAdminMissions = [];
 let allAdminVolunteers = [];
 let allAdminOrganizations = [];
-let currentOrgDetailsId = null;
 const missionDurationHoursCache = new Map();
 let adminMissionsPageSize = 10;
 let adminMissionsCurrentPage = 1;
@@ -594,6 +593,11 @@ function showTab(tabName) {
         topbarTitle.textContent = pageTitles[tabName] || tabName;
     }
 
+    const nextHash = `#${tabName}`;
+    if (window.location.hash !== nextHash) {
+        history.replaceState(null, "", nextHash);
+    }
+
     loadTabData(tabName);
 }
 
@@ -691,9 +695,6 @@ async function performOrgRejection(orgId, reason) {
         reason
     );
     await loadOrganizationsData();
-    if (currentOrgDetailsId === orgId) {
-        await window.viewOrganization(orgId);
-    }
 }
 
 function openOrgVerifySuccessModal(orgName) {
@@ -747,9 +748,6 @@ window.approveOrganization = async function (orgId) {
 
         await setOrganizationVerification(orgId, ORG_VERIFICATION_STATUS.APPROVED);
         await loadOrganizationsData();
-        if (currentOrgDetailsId === orgId) {
-            await window.viewOrganization(orgId);
-        }
         openOrgVerifySuccessModal(orgName);
     } catch (err) {
         console.error(err);
@@ -845,9 +843,9 @@ function renderOrganizationsTable(list) {
                     <td class="text-nowrap">
                         ${verifyBtn}
                         ${rejectBtn}
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewOrganization('${org.id}')">
+                        <a class="btn btn-sm btn-outline-info" href="/admin/organizations/${encodeURIComponent(org.id)}">
                             <i class="fas fa-eye"></i> View
-                        </button>
+                        </a>
                     </td>
                 </tr>`;
         })
@@ -1704,6 +1702,11 @@ function setupEventListeners() {
             showTab(tabName);
         }
     });
+
+    const hashTab = window.location.hash.replace(/^#/, "");
+    if (hashTab && document.getElementById(`${hashTab}-tab`)) {
+        showTab(hashTab);
+    }
     
     // Search functionality with null checks
     const orgSearch = document.getElementById("orgSearch");
@@ -2298,24 +2301,6 @@ onAuthStateChanged(auth, async (user) => {
     await loadMissionsData();
     await loadOrganizationsData();
 
-    function openOrgDetailsModal() {
-        const modal = document.getElementById("orgDetailsModal");
-        const backdrop = document.getElementById("orgDetailsBackdrop");
-        backdrop?.removeAttribute("hidden");
-        if (modal) {
-            modal.removeAttribute("hidden");
-            modal.style.display = "flex";
-        }
-        document.body.style.overflow = "hidden";
-    }
-
-    document.getElementById("orgDetailsCloseBtn")?.addEventListener("click", closeOrgDetailsModal);
-    document.getElementById("orgDetailsCloseX")?.addEventListener("click", closeOrgDetailsModal);
-    document.getElementById("orgDetailsBackdrop")?.addEventListener("click", closeOrgDetailsModal);
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeOrgDetailsModal();
-    });
-
     document.getElementById("missionDetailsCloseBtn")?.addEventListener("click", closeMissionDetailsModal);
     document.getElementById("missionDetailsCloseX")?.addEventListener("click", closeMissionDetailsModal);
     document.getElementById("missionDetailsBackdrop")?.addEventListener("click", closeMissionDetailsModal);
@@ -2323,95 +2308,6 @@ onAuthStateChanged(auth, async (user) => {
         if (e.key === "Escape") closeMissionDetailsModal();
     });
 
-    
-    function closeOrgDetailsModal() {
-        currentOrgDetailsId = null;
-        const modal = document.getElementById("orgDetailsModal");
-        const backdrop = document.getElementById("orgDetailsBackdrop");
-        backdrop?.setAttribute("hidden", "");
-        if (modal) {
-            modal.setAttribute("hidden", "");
-            modal.style.display = "none";
-        }
-        const actions = document.getElementById("orgDetailsActions");
-        if (actions) actions.innerHTML = "";
-        document.body.style.overflow = "";
-    }
-    function orgDetailRow(iconClass, label, value, isBadge = false) {
-        const valHtml = isBadge
-            ? `<span class="org-status-badge ${String(value).toLowerCase()}">${value}</span>`
-            : `<span class="org-detail-row__value">${value || "N/A"}</span>`;
-        return `
-            <div class="org-detail-row">
-                <div class="org-detail-row__icon"><i class="fas ${iconClass}"></i></div>
-                <div class="org-detail-row__content">
-                    <span class="org-detail-row__label">${label}</span>
-                    ${valHtml}
-                </div>
-            </div>`;
-    }
-    
-    window.viewOrganization = async function (orgId) {
-        try {
-            const snap = await getDoc(doc(db, "organizations", orgId));
-            if (!snap.exists()) {
-                alert("Organization not found.");
-                return;
-            }
-            currentOrgDetailsId = orgId;
-            const o = snap.data();
-            const statusKey = getOrgVerificationKey(o);
-            const statusLabel = getOrgVerificationLabel(o).toUpperCase();
-
-            const body = document.getElementById("orgDetailsBody");
-            if (!body) return;
-
-            body.innerHTML = [
-                orgDetailRow("fa-building", "Organization Name:", o.name || o.orgName),
-                orgDetailRow("fa-envelope", "Email:", o.email),
-                orgDetailRow("fa-phone", "Phone:", o.phone || "—"),
-                orgDetailRow("fa-map-marker-alt", "Address:", o.address || "—"),
-                orgDetailRow("fa-city", "City:", o.city || "—"),
-                orgDetailRow("fa-map", "State / Province:", o.state || "—"),
-                orgDetailRow("fa-mail-bulk", "Postal Code:", o.postalCode || "—"),
-                orgDetailRow("fa-globe", "Country:", o.country || "—"),
-                orgDetailRow("fa-check-circle", "Status:", statusLabel, true),
-                o.rejectionReason
-                    ? orgDetailRow(
-                          "fa-comment-alt",
-                          "Rejection reason:",
-                          o.rejectionReason
-                      )
-                    : "",
-                orgDetailRow("fa-fingerprint", "Org ID:", orgId),
-            ]
-                .filter(Boolean)
-                .join("");
-
-            const actions = document.getElementById("orgDetailsActions");
-            if (actions) {
-                const verifyBtn =
-                    statusKey !== "verified"
-                        ? `<button type="button" class="btn btn-success btn-sm" onclick="approveOrganization('${orgId}')">
-                                <i class="fas fa-check"></i> Verify organization
-                           </button>`
-                        : "";
-                const rejectBtn =
-                    statusKey !== "rejected"
-                        ? `<button type="button" class="btn btn-outline-danger btn-sm" onclick="rejectOrganization('${orgId}')">
-                                <i class="fas fa-times"></i> Reject
-                           </button>`
-                        : "";
-                actions.innerHTML = `${verifyBtn}${rejectBtn}`;
-            }
-
-            openOrgDetailsModal();
-        } catch (e) {
-            console.error(e);
-            alert("Could not load organization.");
-        }
-    };
-    
     //  Sync mission statuses to ensure consistency
     await syncMissionStatuses();
     

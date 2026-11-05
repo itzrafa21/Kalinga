@@ -15,6 +15,7 @@ export default defineConfig({
                 'resources/js/organization-logout.js',
                 'resources/js/organization-profile.js',
                 'resources/js/admin-dashboard.js',
+                'resources/js/admin-organization-details.js',
                 'resources/js/admin-config.js',
                 'resources/js/admin-hotlines.js',
                 'resources/js/volunteer.js',

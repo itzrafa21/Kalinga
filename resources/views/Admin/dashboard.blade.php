@@ -753,23 +753,6 @@
   </div>
 </div>
 
-<!-- Organization details modal -->
-<div class="org-modal-backdrop" id="orgDetailsBackdrop" hidden></div>
-<div class="org-details-modal" id="orgDetailsModal" role="dialog" aria-labelledby="orgDetailsTitle" hidden>
-  <div class="org-details-modal__header">
-    <div class="org-details-modal__title-wrap">
-      <i class="fas fa-building"></i>
-      <h2 id="orgDetailsTitle">ORGANIZATION DETAILS</h2>
-    </div>
-    <button type="button" class="org-details-modal__close-x" id="orgDetailsCloseX" aria-label="Close">&times;</button>
-  </div>
-  <div class="org-details-modal__body" id="orgDetailsBody"></div>
-  <div class="org-details-modal__footer d-flex flex-wrap gap-2 justify-content-between align-items-center">
-    <div id="orgDetailsActions" class="d-flex flex-wrap gap-2"></div>
-    <button type="button" class="org-details-modal__close-btn" id="orgDetailsCloseBtn">Close</button>
-  </div>
-</div>
-
 <!-- Mission details modal -->
 <div class="org-modal-backdrop" id="missionDetailsBackdrop" hidden></div>
 <div class="org-details-modal" id="missionDetailsModal" role="dialog" aria-labelledby="missionDetailsTitle" hidden>
