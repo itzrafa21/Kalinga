@@ -19,7 +19,9 @@ import {
   upsertMissionVolunteer,
   syncMissionVolunteerRoster,
   getApplicationDocRef,
+  resolveMissionIdFromApplication,
   STORAGE_MISSIONS_SUB,
+  STORAGE_APPLICATIONS_ROOT,
   STORAGE_USERS_SUB,
   STORAGE_ORG_ROSTER,
 } from "./application-storage.js";
@@ -31,7 +33,6 @@ import {
 import {
   readOrgCache,
   writeOrgCache,
-  isOrgCacheStale,
   invalidateOrgCache,
   missionDetailCacheKey,
 } from "./org-data-cache.js";
@@ -419,22 +420,71 @@ function mergeVolunteerEntries(existing, incoming, options = {}) {
   };
 }
 
-function applicationBelongsToMissionOrg(data, orgId) {
-  if (!orgId) return true;
-  const appOrg = data?.orgId || data?.organizationId || "";
-  return !appOrg || appOrg === orgId;
+function missionIdFromPath(refPath = "") {
+  const parts = String(refPath).split("/");
+  if (parts[0] === "missions" && parts[2] === "applications") return parts[1];
+  return "";
 }
 
-async function pushApplicationRecord(docSnap, missionId, orgId, storage, upsert) {
-  const data = docSnap.data();
-  if (!applicationBelongsToMissionOrg(data, orgId)) return;
+function applicationBelongsToMissionOrg(data, orgId, refPath = "") {
+  if (!orgId) return true;
+  const appOrg = data?.orgId || data?.organizationId || "";
+  if (!appOrg || appOrg === orgId) return true;
+  // Trust applications stored under missions/{id}/applications even if orgId field is stale.
+  if (missionIdFromPath(refPath)) return true;
+  return false;
+}
 
-  const resolvedMissionId = String(
-    data.missionId || data.mission_id || data.missionID || missionId
+function applicationMatchesMission(
+  data,
+  missionId,
+  mission = null,
+  refPath = "",
+  orgId = null
+) {
+  const targetId = String(missionId || "");
+  if (!targetId) return false;
+
+  const fromPath = resolveMissionIdFromApplication(data, refPath);
+  if (fromPath && String(fromPath) === targetId) return true;
+
+  const fromData = String(
+    data?.missionId || data?.mission_id || data?.missionID || ""
   );
-  if (resolvedMissionId !== String(missionId)) return;
+  if (fromData && fromData === targetId) return true;
 
-  const pathParts = docSnap.ref.path.split("/");
+  // Path missions/{missionId}/applications/{doc} is authoritative.
+  if (missionIdFromPath(refPath) === targetId) return true;
+
+  const missionName = String(
+    mission?.missionName || mission?.name || mission?.title || ""
+  ).trim();
+  const appName = String(
+    data?.missionName || data?.mission_name || data?.title || ""
+  ).trim();
+  if (missionName && appName && missionName === appName) {
+    const appOrg = data?.orgId || data?.organizationId || "";
+    // Name-only matches must belong to this org (or have no org field).
+    if (!orgId || !appOrg || appOrg === orgId) return true;
+  }
+
+  return false;
+}
+
+async function pushApplicationRecord(
+  docSnap,
+  missionId,
+  orgId,
+  storage,
+  upsert,
+  mission = null
+) {
+  const data = docSnap.data();
+  const refPath = docSnap.ref?.path || "";
+  if (!applicationBelongsToMissionOrg(data, orgId, refPath)) return;
+  if (!applicationMatchesMission(data, missionId, mission, refPath, orgId)) return;
+
+  const pathParts = refPath.split("/");
   const userIdFromPath =
     storage === STORAGE_USERS_SUB && pathParts[0] === "users"
       ? pathParts[1]
@@ -467,9 +517,34 @@ async function pushApplicationRecord(docSnap, missionId, orgId, storage, upsert)
   });
 }
 
+function storageForApplicationPath(path = "") {
+  if (path.startsWith("users/")) return STORAGE_USERS_SUB;
+  if (path.startsWith("applications/")) return STORAGE_APPLICATIONS_ROOT;
+  if (path.startsWith("missions/")) return STORAGE_MISSIONS_SUB;
+  return STORAGE_MISSIONS_SUB;
+}
+
 /** Mobile apps often write only users/{uid}/applications — load those for this mission. */
-async function loadUserApplicationsForMission(missionId, orgId, upsert) {
-  let loadedFromGroup = false;
+async function loadUserApplicationsForMission(missionId, orgId, upsert, mission = null) {
+  const ingestGroupSnap = async (cgSnap) => {
+    for (const docSnap of cgSnap.docs) {
+      const path = docSnap.ref.path;
+      if (
+        path.startsWith("users/") ||
+        path.startsWith("missions/") ||
+        path.startsWith("applications/")
+      ) {
+        await pushApplicationRecord(
+          docSnap,
+          missionId,
+          orgId,
+          storageForApplicationPath(path),
+          upsert,
+          mission
+        );
+      }
+    }
+  };
 
   try {
     const cgSnap = await getDocs(
@@ -478,47 +553,55 @@ async function loadUserApplicationsForMission(missionId, orgId, upsert) {
         where("missionId", "==", missionId)
       )
     );
-    for (const docSnap of cgSnap.docs) {
-      if (docSnap.ref.path.startsWith("users/")) {
-        await pushApplicationRecord(
-          docSnap,
-          missionId,
-          orgId,
-          STORAGE_USERS_SUB,
-          upsert
-        );
-      } else if (docSnap.ref.path.startsWith("missions/")) {
-        await pushApplicationRecord(
-          docSnap,
-          missionId,
-          orgId,
-          STORAGE_MISSIONS_SUB,
-          upsert
-        );
-      }
-    }
-    loadedFromGroup = !cgSnap.empty;
-    if (loadedFromGroup) return;
+    await ingestGroupSnap(cgSnap);
   } catch (err) {
     console.warn("[WARN] collectionGroup applications for mission:", err);
+  }
+
+  // Match by mission name when docs omit/wrong missionId (common on mobile).
+  const missionName = String(
+    mission?.missionName || mission?.name || mission?.title || ""
+  ).trim();
+  if (missionName) {
+    try {
+      const nameSnap = await getDocs(
+        query(
+          collectionGroup(db, "applications"),
+          where("missionName", "==", missionName)
+        )
+      );
+      await ingestGroupSnap(nameSnap);
+    } catch (err) {
+      console.warn("[WARN] collectionGroup applications by missionName:", err);
+    }
   }
 
   try {
     const usersSnap = await getDocs(collection(db, "users"));
     for (const userDoc of usersSnap.docs) {
-      const appsSnap = await getDocs(
-        query(
-          collection(db, "users", userDoc.id, "applications"),
-          where("missionId", "==", missionId)
-        )
-      );
-      for (const appDoc of appsSnap.docs) {
-        await pushApplicationRecord(
-          appDoc,
-          missionId,
-          orgId,
-          STORAGE_USERS_SUB,
-          upsert
+      try {
+        const appsSnap = await getDocs(
+          query(
+            collection(db, "users", userDoc.id, "applications"),
+            where("missionId", "==", missionId)
+          )
+        );
+        for (const appDoc of appsSnap.docs) {
+          await pushApplicationRecord(
+            appDoc,
+            missionId,
+            orgId,
+            STORAGE_USERS_SUB,
+            upsert,
+            mission
+          );
+        }
+      } catch (userErr) {
+        console.warn(
+          "[WARN] users/",
+          userDoc.id,
+          "/applications for mission:",
+          userErr
         );
       }
     }
@@ -527,44 +610,58 @@ async function loadUserApplicationsForMission(missionId, orgId, upsert) {
   }
 }
 
-async function loadMissionVolunteers(missionId, orgId, mission = null) {
-  const byUserId = new Map();
-  const mergeOptions = { autoAccept: missionHasAutoAccept(mission) };
-
-  const upsert = (v) => {
-    const key = v.userId || v.id;
-    if (!key) return;
-    const existing = byUserId.get(key);
-    byUserId.set(
-      key,
-      existing ? mergeVolunteerEntries(existing, v, mergeOptions) : v
-    );
-  };
-
+async function loadRootApplicationsForMission(missionId, orgId, upsert, mission = null) {
   try {
-    const appSnap = await getDocs(
-      collection(db, "missions", missionId, "applications")
+    const rootSnap = await getDocs(
+      query(collection(db, "applications"), where("missionId", "==", missionId))
     );
-    for (const docSnap of appSnap.docs) {
+    for (const docSnap of rootSnap.docs) {
       await pushApplicationRecord(
         docSnap,
         missionId,
         orgId,
-        STORAGE_MISSIONS_SUB,
-        upsert
+        STORAGE_APPLICATIONS_ROOT,
+        upsert,
+        mission
       );
     }
   } catch (err) {
-    console.warn("[WARN] mission applications:", err);
+    console.warn("[WARN] root applications for mission:", err);
   }
 
-  await loadUserApplicationsForMission(missionId, orgId, upsert);
+  const missionName = String(
+    mission?.missionName || mission?.name || mission?.title || ""
+  ).trim();
+  if (!missionName) return;
 
-  if (orgId) {
-    try {
-      const rosterSnap = await getDocs(
-        collection(db, "organizations", orgId, "missions", missionId, "volunteers")
+  try {
+    const nameSnap = await getDocs(
+      query(collection(db, "applications"), where("missionName", "==", missionName))
+    );
+    for (const docSnap of nameSnap.docs) {
+      await pushApplicationRecord(
+        docSnap,
+        missionId,
+        orgId,
+        STORAGE_APPLICATIONS_ROOT,
+        upsert,
+        mission
       );
+    }
+  } catch (err) {
+    console.warn("[WARN] root applications by missionName:", err);
+  }
+}
+
+async function loadOrgRosterForMission(missionId, orgId, upsert) {
+  if (!orgId) return;
+  const paths = [
+    ["organizations", orgId, "missions", missionId, "volunteers"],
+    ["organizations", orgId, "history", missionId, "volunteers"],
+  ];
+  for (const pathParts of paths) {
+    try {
+      const rosterSnap = await getDocs(collection(db, ...pathParts));
       for (const docSnap of rosterSnap.docs) {
         const data = docSnap.data();
         const userId = data.userId || docSnap.id;
@@ -593,9 +690,46 @@ async function loadMissionVolunteers(missionId, orgId, mission = null) {
         });
       }
     } catch (err) {
-      console.warn("[WARN] mission roster:", err);
+      console.warn("[WARN] mission roster:", pathParts.join("/"), err);
     }
   }
+}
+
+async function loadMissionVolunteers(missionId, orgId, mission = null) {
+  const byUserId = new Map();
+  const mergeOptions = { autoAccept: missionHasAutoAccept(mission) };
+
+  const upsert = (v) => {
+    const key = v.userId || v.id;
+    if (!key) return;
+    const existing = byUserId.get(key);
+    byUserId.set(
+      key,
+      existing ? mergeVolunteerEntries(existing, v, mergeOptions) : v
+    );
+  };
+
+  try {
+    const appSnap = await getDocs(
+      collection(db, "missions", missionId, "applications")
+    );
+    for (const docSnap of appSnap.docs) {
+      await pushApplicationRecord(
+        docSnap,
+        missionId,
+        orgId,
+        STORAGE_MISSIONS_SUB,
+        upsert,
+        mission
+      );
+    }
+  } catch (err) {
+    console.warn("[WARN] mission applications:", err);
+  }
+
+  await loadRootApplicationsForMission(missionId, orgId, upsert, mission);
+  await loadUserApplicationsForMission(missionId, orgId, upsert, mission);
+  await loadOrgRosterForMission(missionId, orgId, upsert);
 
   return Array.from(byUserId.values());
 }
@@ -1035,9 +1169,14 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotIn
       </div>`
     : "";
 
+  const statusBadge =
+    norm === "pending"
+      ? ""
+      : `<span class="md-badge ${st.cls}">${escapeHtml(st.label)}</span>`;
+
   const statusActionsCell = `
     <div class="md-status-actions">
-      <span class="md-badge ${st.cls}">${escapeHtml(st.label)}</span>
+      ${statusBadge}
       ${actionButtons}
     </div>`;
 
@@ -1563,9 +1702,37 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
 async function loadMissionDocument(missionId, user) {
   const globalSnap = await getDoc(doc(db, "missions", missionId));
   const globalData = globalSnap.exists() ? globalSnap.data() : null;
+
+  // Prefer the signed-in organization's own copy so owner roster checks stay correct.
+  let ownOrgData = null;
+  let ownHistoryData = null;
+  if (user?.uid) {
+    const ownOrgSnap = await getDoc(
+      doc(db, "organizations", user.uid, "missions", missionId)
+    );
+    if (ownOrgSnap.exists()) ownOrgData = ownOrgSnap.data();
+
+    const ownHistorySnap = await getDoc(
+      doc(db, "organizations", user.uid, "history", missionId)
+    );
+    if (ownHistorySnap.exists()) ownHistoryData = ownHistorySnap.data();
+  }
+
+  if (ownOrgData || ownHistoryData) {
+    return {
+      mission: {
+        ...(globalData || {}),
+        ...(ownOrgData || {}),
+        ...(ownHistoryData || {}),
+        orgId: user.uid,
+        organizationId: user.uid,
+      },
+      inHistory: Boolean(ownHistoryData) && !ownOrgData,
+    };
+  }
+
   let orgData = null;
   let historyData = null;
-
   const orgId =
     globalData?.orgId ||
     globalData?.organizationId ||
@@ -1582,13 +1749,6 @@ async function loadMissionDocument(missionId, user) {
       doc(db, "organizations", orgId, "history", missionId)
     );
     if (historySnap.exists()) historyData = historySnap.data();
-  }
-
-  if (user?.uid && !historyData) {
-    const ownHistorySnap = await getDoc(
-      doc(db, "organizations", user.uid, "history", missionId)
-    );
-    if (ownHistorySnap.exists()) historyData = ownHistorySnap.data();
   }
 
   if (globalData || orgData || historyData) {
@@ -1614,18 +1774,19 @@ async function loadMissionDocument(missionId, user) {
     };
   }
 
-  if (user?.uid) {
-    const volunteerOrgSnap = await getDoc(
-      doc(db, "organizations", user.uid, "missions", missionId)
-    );
-    if (volunteerOrgSnap.exists()) {
-      return { mission: volunteerOrgSnap.data(), inHistory: false };
-    }
-  }
-
   const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
   if (subSnap.exists()) {
-    return { mission: subSnap.data(), inHistory: false };
+    const data = subSnap.data();
+    const resolvedOrgId =
+      data.orgId || data.organizationId || user?.uid || null;
+    return {
+      mission: {
+        ...data,
+        orgId: resolvedOrgId,
+        organizationId: resolvedOrgId,
+      },
+      inHistory: false,
+    };
   }
 
   return null;
@@ -1739,11 +1900,9 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
       </div>`;
   }
 
-  if (hasCache && !refresh) {
-    return;
-  }
-
-  if (hasCache && !background && !isOrgCacheStale(orgId, cacheKey)) {
+  // Cached payload can render immediately, but always continue when refresh/background
+  // so newly joined volunteers are not stuck behind a stale roster.
+  if (hasCache && !refresh && !background) {
     return;
   }
 
@@ -1853,16 +2012,14 @@ document.addEventListener("DOMContentLoaded", () => {
       wireMissionFullModal();
 
       const missionId = getMissionIdFromUrl();
-      const cached = readOrgCache(user.uid, missionDetailCacheKey(missionId));
 
       await Promise.all([
         loadPlatformConfig(),
         refreshMissionDetails({ refresh: false }),
       ]);
 
-      if (!cached || isOrgCacheStale(user.uid, missionDetailCacheKey(missionId))) {
-        void refreshMissionDetails({ refresh: true, background: true });
-      }
+      // Always refresh in background so volunteer joins appear without a hard cache wait.
+      void refreshMissionDetails({ refresh: true, background: true });
     } catch (err) {
       console.error(err);
       container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
