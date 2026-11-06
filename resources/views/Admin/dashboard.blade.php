@@ -14,7 +14,7 @@
   <script>
     (function () {
       var tab = (window.location.hash || "").replace(/^#/, "");
-      var allowed = { dashboard: 1, organizations: 1, missions: 1, volunteers: 1 };
+      var allowed = { dashboard: 1, organizations: 1, missions: 1, volunteers: 1, campaigns: 1 };
       if (!allowed[tab]) tab = "dashboard";
       document.documentElement.setAttribute("data-admin-tab", tab);
     })();
@@ -25,14 +25,16 @@
     html[data-admin-tab="dashboard"] #dashboard-tab,
     html[data-admin-tab="organizations"] #organizations-tab,
     html[data-admin-tab="missions"] #missions-tab,
-    html[data-admin-tab="volunteers"] #volunteers-tab {
+    html[data-admin-tab="volunteers"] #volunteers-tab,
+    html[data-admin-tab="campaigns"] #campaigns-tab {
       display: block !important;
     }
     html[data-admin-tab] .nav-item[data-tab].active { background: transparent; color: #666; font-weight: 400; }
     html[data-admin-tab="dashboard"] .nav-item[data-tab="dashboard"],
     html[data-admin-tab="organizations"] .nav-item[data-tab="organizations"],
     html[data-admin-tab="missions"] .nav-item[data-tab="missions"],
-    html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"] {
+    html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"],
+    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"] {
       background: #aaf0ba;
       color: #000;
       font-weight: 500;
@@ -518,6 +520,9 @@
       <a class="nav-item" href="#volunteers" data-tab="volunteers">
         <i class="ti ti-users"></i> Volunteers
       </a>
+      <a class="nav-item" href="#campaigns" data-tab="campaigns">
+        <i class="ti ti-heart-handshake"></i> Campaigns
+      </a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config">
         <i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards
@@ -775,6 +780,45 @@
                 </tr>
               </thead>
               <tbody id="volunteersTableBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Donation Campaigns Tab -->
+    <div id="campaigns-tab" class="tab-content" style="display: none;">
+      <div class="card admin-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="fas fa-hand-holding-heart"></i> Donation Campaigns</h5>
+          <div class="d-flex gap-2">
+            <input type="text" class="form-control search-box" id="campaignSearch" placeholder="Search campaigns...">
+            <select class="form-select filter-dropdown" id="campaignFilter">
+              <option value="all">All campaigns</option>
+              <option value="pending_approval">Pending approval</option>
+              <option value="published">Published</option>
+              <option value="rejected">Rejected</option>
+              <option value="draft">Draft</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Campaign</th>
+                  <th>Organization</th>
+                  <th>Target</th>
+                  <th>Raised</th>
+                  <th>Dates</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="campaignsTableBody">
               </tbody>
             </table>
           </div>

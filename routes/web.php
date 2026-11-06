@@ -42,6 +42,22 @@ Route::get('/organization/volunteers', function () {
 Route::get('/donation', function () {
     return view('organization.donation');
 });
+Route::get('/donation/campaigns/create', function () {
+    return view('organization.campaign-form');
+});
+Route::get('/donation/campaigns/{campaignId}/edit', function (string $campaignId) {
+    return view('organization.campaign-form', ['campaignId' => $campaignId]);
+})->where('campaignId', '[^/]+');
+Route::get('/donation/campaigns/{campaignId}', function (string $campaignId) {
+    return view('organization.campaign-details', ['campaignId' => $campaignId]);
+})->where('campaignId', '[^/]+');
+
+Route::get('/donations/success', function () {
+    return view('donations.success');
+});
+Route::get('/donations/cancel', function () {
+    return view('donations.cancel');
+});
 Route::get('/settings', function () {
     return view('organization.settings');
 });

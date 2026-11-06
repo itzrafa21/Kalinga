@@ -7,7 +7,7 @@
             $activeNav = 'history';
         } elseif (request()->is('organization/volunteers')) {
             $activeNav = 'volunteers';
-        } elseif (request()->is('donation')) {
+        } elseif (request()->is('donation') || request()->is('donation/*')) {
             $activeNav = 'donation';
         } elseif (request()->is('organization/profile')) {
             $activeNav = 'profile';

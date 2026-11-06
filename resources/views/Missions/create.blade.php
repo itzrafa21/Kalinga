@@ -857,6 +857,16 @@
                                     <p class="text-muted small mb-0 mt-2">When enabled, new applications are approved automatically. When off, you review each applicant on the Volunteers page.</p>
                                 </div>
                                 <div class="option-card mt-3">
+                                    <label for="linkedCampaignId" class="form-label mb-1">Link Donation Campaign</label>
+                                    <select id="linkedCampaignId" class="form-select" aria-describedby="linkedCampaignHelp">
+                                        <option value="">None (optional)</option>
+                                    </select>
+                                    <p class="text-muted small mb-0 mt-2" id="linkedCampaignHelp">
+                                        Optionally link a fundraising campaign from your Donation Center.
+                                        <a href="/donation/campaigns/create" style="color:#15803d;font-weight:600;">Create a campaign</a>
+                                    </p>
+                                </div>
+                                <div class="option-card mt-3">
   <a href="/missions/donation-details" class="donation-action-btn make" id="openMissionDonationBtn">
     <i class="bi bi-heart"></i> Make donations for this mission
   </a>
@@ -949,7 +959,7 @@
 <script>
   (function () {
     const FORM_KEY = "kalinga-create-mission-form";
-    const fields = ["name", "description", "type", "date", "end_date", "start_time", "end_time", "volunteers", "locationSearch", "location", "latitude", "longitude"];
+    const fields = ["name", "description", "type", "date", "end_date", "start_time", "end_time", "volunteers", "linkedCampaignId", "locationSearch", "location", "latitude", "longitude"];
 
     function collectForm() {
       const data = {};

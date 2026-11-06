@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    /*
+     * Merge these donation rules into your existing Firebase Console rules.
+     * Do not deploy this file as a full replacement unless you also keep your
+     * current organization / mission / user rules here.
+     */
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email.matches('.*@admin[.]kalinga[.]com') ||
+        request.auth.token.email.matches('admin@.*')
+      );
+    }
+
+    match /donation_campaigns/{campaignId} {
+      allow read: if resource.data.status == 'published' ||
+        (signedIn() && (
+          isAdmin() ||
+          resource.data.orgId == request.auth.uid
+        ));
+
+      allow create: if signedIn() &&
+        request.resource.data.orgId == request.auth.uid &&
+        request.resource.data.status in ['draft', 'pending_approval'] &&
+        request.resource.data.raisedAmountCentavos == 0 &&
+        request.resource.data.donorCount == 0;
+
+      allow update: if isAdmin() ||
+        (signedIn() &&
+          resource.data.orgId == request.auth.uid &&
+          (
+            resource.data.status in ['draft', 'rejected'] ||
+            (resource.data.status == 'published' && request.resource.data.status == 'closed') ||
+            (resource.data.status in ['draft', 'rejected'] &&
+              request.resource.data.status == 'pending_approval')
+          ) &&
+          request.resource.data.raisedAmountCentavos == resource.data.raisedAmountCentavos &&
+          request.resource.data.donorCount == resource.data.donorCount
+        );
+
+      allow delete: if isAdmin() ||
+        (signedIn() &&
+          resource.data.orgId == request.auth.uid &&
+          resource.data.status in ['draft', 'rejected']);
+    }
+
+    match /donations/{donationId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.volunteerId == request.auth.uid ||
+        resource.data.orgId == request.auth.uid
+      );
+      // Writes only via Laravel Admin SDK / service account.
+      allow create, update, delete: if false;
+    }
+
+    match /payment_events/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Also allow orgs to update their paymongo map on organizations/{orgId}
+    // (keep your existing organization rules; ensure update includes paymongo.*).
+  }
+}

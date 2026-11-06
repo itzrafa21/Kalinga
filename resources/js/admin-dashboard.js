@@ -39,10 +39,21 @@ import {
     ORG_VERIFICATION_STATUS,
     buildOrganizationNameMap,
 } from "./org-verification.js";
+import {
+    CAMPAIGN_STATUS,
+    campaignAcceptsGoods,
+    campaignAcceptsMoney,
+    campaignStatusLabel,
+    donationModeLabel,
+    formatCentavos,
+    formatInKindSummary,
+    resolveDonationMode,
+} from "./donation-shared.js";
 
 let allAdminMissions = [];
 let allAdminVolunteers = [];
 let allAdminOrganizations = [];
+let allAdminCampaigns = [];
 const missionDurationHoursCache = new Map();
 let adminMissionsPageSize = 10;
 let adminMissionsCurrentPage = 1;
@@ -592,6 +603,7 @@ function showTab(tabName) {
         organizations: 'Organizations',
         missions: 'Missions',
         volunteers: 'Volunteers',
+        campaigns: 'Campaigns',
     };
     if (topbarTitle) {
         topbarTitle.textContent = pageTitles[tabName] || tabName;
@@ -619,6 +631,9 @@ function loadTabData(tabName) {
             break;
         case 'volunteers':
             loadVolunteersData();
+            break;
+        case 'campaigns':
+            loadCampaignsData();
             break;
         case 'settings':
             loadSettingsData();
@@ -1676,6 +1691,15 @@ function setupEventListeners() {
         }
         console.log("[SUCCESS] Mission search listener added");
     }
+    const campaignSearch = document.getElementById("campaignSearch");
+    const campaignFilter = document.getElementById("campaignFilter");
+    if (campaignSearch) {
+        campaignSearch.addEventListener("input", filterCampaigns);
+    }
+    if (campaignFilter) {
+        campaignFilter.addEventListener("change", filterCampaigns);
+    }
+
     if (volunteerSearch) {
         volunteerSearch.addEventListener('input', filterVolunteers);
         console.log("[SUCCESS] Volunteer search listener added");
@@ -1978,6 +2002,129 @@ function saveLeaderboardSettings(e) {
     
     alert(`Leaderboard settings saved!\nScoring: ${scoringSystem}\nUpdate: ${updateFrequency}`);
 }
+
+async function loadCampaignsData() {
+    try {
+        const snap = await getDocs(collection(db, "donation_campaigns"));
+        allAdminCampaigns = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        allAdminCampaigns.sort((a, b) =>
+            String(b.submittedAt?.toDate?.() || b.updatedAt?.toDate?.() || b.createdAt || "").localeCompare(
+                String(a.submittedAt?.toDate?.() || a.updatedAt?.toDate?.() || a.createdAt || "")
+            )
+        );
+        renderCampaignsTable(allAdminCampaigns);
+    } catch (error) {
+        console.error("Error loading campaigns:", error);
+        const tbody = document.getElementById("campaignsTableBody");
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="7" class="text-center text-danger">Error loading campaigns</td></tr>';
+        }
+    }
+}
+
+function renderCampaignsTable(list) {
+    const tbody = document.getElementById("campaignsTableBody");
+    if (!tbody) return;
+    if (!list.length) {
+        tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">No campaigns found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list
+        .map((c) => {
+            const status = String(c.status || "draft");
+            const approveBtn =
+                status === CAMPAIGN_STATUS.PENDING
+                    ? `<button type="button" class="btn btn-sm btn-success me-1" onclick="approveCampaign('${c.id}')"><i class="fas fa-check"></i> Approve</button>`
+                    : "";
+            const rejectBtn =
+                status === CAMPAIGN_STATUS.PENDING
+                    ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectCampaign('${c.id}')"><i class="fas fa-times"></i> Reject</button>`
+                    : "";
+            return `<tr>
+        <td>
+          <strong>${escapeHtml(c.title || "Untitled")}</strong>
+          <div class="small text-muted">${escapeHtml(c.category || "")} · ${escapeHtml(donationModeLabel(resolveDonationMode(c)))}</div>
+        </td>
+        <td>${escapeHtml(c.orgName || c.orgId || "—")}</td>
+        <td>${
+            campaignAcceptsMoney(c)
+                ? escapeHtml(formatCentavos(c.targetAmountCentavos))
+                : "—"
+        }${
+            campaignAcceptsGoods(c)
+                ? `<div class="small text-muted">${escapeHtml(formatInKindSummary(c.inKindItems))}</div>`
+                : ""
+        }</td>
+        <td>${
+            campaignAcceptsMoney(c)
+                ? escapeHtml(formatCentavos(c.raisedAmountCentavos))
+                : "—"
+        }</td>
+        <td>${escapeHtml(c.startDate || "—")} → ${escapeHtml(c.endDate || "—")}</td>
+        <td><span class="badge ${status === "published" ? "bg-success" : status === "pending_approval" ? "bg-warning text-dark" : status === "rejected" ? "bg-danger" : "bg-secondary"}">${escapeHtml(campaignStatusLabel(status))}</span></td>
+        <td class="text-nowrap">${approveBtn}${rejectBtn}</td>
+      </tr>`;
+        })
+        .join("");
+}
+
+function filterCampaigns() {
+    const q = (document.getElementById("campaignSearch")?.value || "")
+        .toLowerCase()
+        .trim();
+    const filterType = document.getElementById("campaignFilter")?.value || "all";
+    let filtered = allAdminCampaigns.slice();
+    if (filterType !== "all") {
+        filtered = filtered.filter((c) => String(c.status || "") === filterType);
+    }
+    if (q) {
+        filtered = filtered.filter((c) =>
+            [c.title, c.category, c.orgName, c.orgId]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(q)
+        );
+    }
+    renderCampaignsTable(filtered);
+}
+
+window.approveCampaign = async function (campaignId) {
+    if (!campaignId) return;
+    try {
+        await updateDoc(doc(db, "donation_campaigns", campaignId), {
+            status: CAMPAIGN_STATUS.PUBLISHED,
+            publishedAt: serverTimestamp(),
+            rejectionReason: "",
+            updatedAt: serverTimestamp(),
+        });
+        await loadCampaignsData();
+        alert("Campaign approved and published.");
+    } catch (error) {
+        console.error(error);
+        alert("Could not approve campaign.");
+    }
+};
+
+window.rejectCampaign = async function (campaignId) {
+    if (!campaignId) return;
+    const reason = prompt("Rejection reason (optional):") || "";
+    try {
+        await updateDoc(doc(db, "donation_campaigns", campaignId), {
+            status: CAMPAIGN_STATUS.REJECTED,
+            rejectedAt: serverTimestamp(),
+            rejectionReason: reason.trim(),
+            updatedAt: serverTimestamp(),
+        });
+        await loadCampaignsData();
+    } catch (error) {
+        console.error(error);
+        alert("Could not reject campaign.");
+    }
+};
 
 // Filter functions
 function filterOrganizations() {

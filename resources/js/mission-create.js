@@ -1,5 +1,15 @@
 import { auth, db } from "./firebase";
-import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
+import {
+    collection,
+    addDoc,
+    serverTimestamp,
+    doc,
+    setDoc,
+    getDocs,
+    query,
+    where,
+    updateDoc,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import {
     assertOrgVerified,
@@ -71,6 +81,7 @@ function saveCreateFormDraft() {
         endTime: document.getElementById("end_time")?.value || "",
         volunteers: document.getElementById("volunteers")?.value || "",
         autoAccept: document.getElementById("autoAcceptVolunteers")?.checked === true,
+        linkedCampaignId: document.getElementById("linkedCampaignId")?.value || "",
         locationSearch: document.getElementById("locationSearch")?.value || "",
         location: document.getElementById("location")?.value || "",
         latitude: document.getElementById("latitude")?.value || "",
@@ -124,6 +135,11 @@ function restoreCreateFormDraft() {
     if (endTime) endTime.value = draft.endTime || "";
     if (volunteers) volunteers.value = draft.volunteers || "";
     if (autoAccept) autoAccept.checked = draft.autoAccept === true;
+    const linkedCampaign = document.getElementById("linkedCampaignId");
+    if (linkedCampaign && draft.linkedCampaignId) {
+        linkedCampaign.dataset.restoreValue = draft.linkedCampaignId;
+        linkedCampaign.value = draft.linkedCampaignId;
+    }
     if (locationSearch) locationSearch.value = draft.locationSearch || draft.location || "";
     if (location) location.value = draft.location || "";
     if (latitude) latitude.value = draft.latitude || "";
@@ -277,11 +293,70 @@ onAuthStateChanged(auth, async (user) => {
     initUsDateInputs(["date", "end_date"]);
     restoreCreateFormDraft();
     initMissionDonationLifecycle();
+    await loadLinkedCampaignOptions(user.uid);
 
     document.querySelector(".form-panel-actions .btn-light")?.addEventListener("click", () => {
         clearCreateFormDraft();
     });
 });
+
+async function loadLinkedCampaignOptions(orgId) {
+    const select = document.getElementById("linkedCampaignId");
+    if (!select) return;
+
+    const restoreValue = select.dataset.restoreValue || select.value || "";
+    select.innerHTML = '<option value="">None (optional)</option>';
+
+    try {
+        const snap = await getDocs(
+            query(collection(db, "donation_campaigns"), where("orgId", "==", orgId))
+        );
+        const campaigns = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((c) =>
+                ["draft", "pending_approval", "published"].includes(
+                    String(c.status || "").toLowerCase()
+                )
+            )
+            .sort((a, b) =>
+                String(a.title || "").localeCompare(String(b.title || ""), undefined, {
+                    sensitivity: "base",
+                })
+            );
+
+        for (const campaign of campaigns) {
+            const opt = document.createElement("option");
+            opt.value = campaign.id;
+            const status = String(campaign.status || "draft").replace(/_/g, " ");
+            opt.textContent = `${campaign.title || "Untitled"} (${status})`;
+            select.appendChild(opt);
+        }
+
+        if (restoreValue) {
+            select.value = restoreValue;
+        }
+    } catch (error) {
+        console.warn("[WARN] Could not load donation campaigns:", error);
+    }
+}
+
+function getLinkedCampaignFields() {
+    const select = document.getElementById("linkedCampaignId");
+    const linkedCampaignId = String(select?.value || "").trim();
+    if (!linkedCampaignId) {
+        return {
+            linkedCampaignId: "",
+            linkedCampaignName: "",
+        };
+    }
+    const label = String(select.selectedOptions?.[0]?.textContent || "")
+        .replace(/\s*\([^)]*\)\s*$/, "")
+        .trim();
+    return {
+        linkedCampaignId,
+        linkedCampaignName: label || linkedCampaignId,
+    };
+}
 
 function getCreateFormSchedule() {
     return {
@@ -464,6 +539,7 @@ const pointsFields = await computeMissionPointsPayload(schedule);
                 volunteers: document.getElementById("volunteers")?.value || "1",          
                 autoAcceptVolunteers:
                     document.getElementById("autoAcceptVolunteers")?.checked === true,
+                ...getLinkedCampaignFields(),
                     makeDonations: isMissionDonationEnabled(),
                     donationDetails: (() => {
                         if (!isMissionDonationEnabled()) return null;
@@ -550,6 +626,19 @@ const pointsFields = await computeMissionPointsPayload(schedule);
                 submissionId: submissionRef.id
             });
             console.log("[SUCCESS] Mission saved to organization dashboard as Pending");
+
+            // Mirror link onto the campaign when one was selected
+            if (missionData.linkedCampaignId) {
+                try {
+                    await updateDoc(doc(db, "donation_campaigns", missionData.linkedCampaignId), {
+                        relatedMissionId: submissionRef.id,
+                        relatedMissionName: missionData.missionName || "",
+                        updatedAt: serverTimestamp(),
+                    });
+                } catch (linkErr) {
+                    console.warn("[WARN] Could not update linked campaign:", linkErr);
+                }
+            }
 
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.DASHBOARD);
             invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.PROFILE);
