@@ -150,12 +150,15 @@ async function loadCampaign() {
     }
 
     const cover = document.getElementById("campaignCover");
+    const coverWrap = cover?.closest(".cover-wrap");
     if (cover) {
         if (c.coverImageUrl) {
             cover.hidden = false;
             cover.src = c.coverImageUrl;
+            if (coverWrap) coverWrap.hidden = false;
         } else {
             cover.hidden = true;
+            if (coverWrap) coverWrap.hidden = true;
         }
     }
 
