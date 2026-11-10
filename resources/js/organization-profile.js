@@ -227,6 +227,8 @@ function fillProfileForm(data, user) {
   setValue("repPosition", rep.position || "");
   setValue("repEmail", rep.email || "");
   setValue("repContactNumber", rep.contactNumber || "");
+  updateTypeBadge(data.orgType || "");
+  markProfileBaseline();
 }
 
 function openProfileSaveSuccessModal(message) {
@@ -584,6 +586,27 @@ function resetProfilePicture() {
   }
 }
 
+function orgTypeBadgeLabel(orgType) {
+  const raw = String(orgType || "").trim();
+  if (!raw) return "Org";
+  const map = {
+    "Non-Government Organization": "NGO",
+    Foundation: "Foundation",
+    "Government Agency / Office": "Government",
+    Barangay: "Barangay",
+    "Public / Private Hospital": "Hospital",
+    "Medical Clinic": "Clinic",
+    Cooperative: "Cooperative",
+    University: "University",
+  };
+  return map[raw] || raw.split(/\s|\//)[0] || "Org";
+}
+
+function updateTypeBadge(orgType) {
+  const badge = document.getElementById("profileTypeBadge");
+  if (badge) badge.textContent = orgTypeBadgeLabel(orgType);
+}
+
 function updateProfileHeader(data, user) {
   const profileName = document.getElementById("profileName");
   const profileEmail = document.getElementById("profileEmail");
@@ -602,17 +625,74 @@ function updateProfileHeader(data, user) {
     avatarInitial.style.display = hasPhoto ? "none" : "";
   }
   if (profileEmail) profileEmail.textContent = user.email || "No email";
+  updateTypeBadge(data.orgType || document.getElementById("orgType")?.value || "");
   updateSidebarUser(data, user);
+}
+
+function setProfileDirty(isDirty) {
+  const bar = document.getElementById("profileStickyBar");
+  if (bar) bar.classList.toggle("is-visible", Boolean(isDirty));
+}
+
+function snapshotProfileForm() {
+  const form = document.getElementById("profileForm");
+  if (!form) return "";
+  const data = new FormData(form);
+  return JSON.stringify(Array.from(data.entries()));
+}
+
+let profileFormBaseline = "";
+
+function markProfileBaseline() {
+  profileFormBaseline = snapshotProfileForm();
+  setProfileDirty(false);
+}
+
+function refreshProfileDirtyState() {
+  setProfileDirty(snapshotProfileForm() !== profileFormBaseline);
+}
+
+function initProfileSectionNav() {
+  const buttons = document.querySelectorAll("[data-profile-section]");
+  if (!buttons.length) return;
+
+  const sections = {
+    organization: document.getElementById("section-organization"),
+    representative: document.getElementById("section-representative"),
+    account: document.getElementById("section-account"),
+    password: document.getElementById("section-password"),
+  };
+
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-profile-section");
+      buttons.forEach((b) => b.classList.toggle("is-active", b === btn));
+      sections[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 }
 
 function initializeFormHandlers() {
   initProfileSaveSuccessModal();
+  initProfileSectionNav();
 
   const form = document.getElementById("profileForm");
   if (!form) {
     console.error("[ERROR] Profile form not found!");
     return;
   }
+
+  form.addEventListener("input", refreshProfileDirtyState);
+  form.addEventListener("change", () => {
+    updateTypeBadge(document.getElementById("orgType")?.value || "");
+    refreshProfileDirtyState();
+  });
+
+  document.getElementById("discardBtn")?.addEventListener("click", () => {
+    if (!profileFormBaseline) return;
+    if (!confirm("Discard unsaved changes?")) return;
+    window.location.reload();
+  });
 
   const profilePictureInput = document.getElementById("profilePictureInput");
   const removeBtn = document.getElementById("removeProfilePicture");
@@ -822,8 +902,12 @@ function initializeFormHandlers() {
       invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.SIDEBAR);
       invalidateOrgCache(currentUser.uid, ORG_CACHE_KEYS.PROFILE);
 
-      updateProfileHeader({ name: orgName, orgName }, currentUser);
+      updateProfileHeader(
+        { name: orgName, orgName, orgType: readValue("orgType") },
+        currentUser
+      );
       setLastUpdatedFooter({ updatedAt: new Date() });
+      markProfileBaseline();
       openProfileSaveSuccessModal(
         "Your organization details were saved successfully."
       );
