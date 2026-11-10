@@ -1,5 +1,12 @@
 import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import {
+    browserLocalPersistence,
+    browserSessionPersistence,
+    sendPasswordResetEmail,
+    setPersistence,
+    signInWithEmailAndPassword,
+    signOut,
+} from "firebase/auth";
 import {
     fetchOrgVerification,
     getVerificationBlockMessageForData,
@@ -86,9 +93,51 @@ function initPasswordToggle() {
     });
 }
 
+function initForgotPassword() {
+    const link = document.getElementById("forgotPasswordLink");
+    if (!link) return;
+
+    link.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("email")?.value.trim() || "";
+        if (!email) {
+            openLoginErrorModal(
+                "Enter your organization email first, then tap Forgot password again.",
+                "Reset password"
+            );
+            document.getElementById("email")?.focus();
+            return;
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, email);
+            openLoginErrorModal(
+                "If that email is registered, a password reset link is on the way. Check your inbox.",
+                "Check your email"
+            );
+        } catch (error) {
+            console.error(error);
+            if (error?.code === "auth/invalid-email") {
+                openLoginErrorModal("Please enter a valid email address.", "Reset password");
+            } else if (error?.code === "auth/user-not-found") {
+                openLoginErrorModal(
+                    "If that email is registered, a password reset link is on the way. Check your inbox.",
+                    "Check your email"
+                );
+            } else {
+                openLoginErrorModal(
+                    "Could not send a reset email right now. Please try again.",
+                    "Reset password"
+                );
+            }
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initLoginErrorModal();
     initPasswordToggle();
+    initForgotPassword();
 
     const blocked = sessionStorage.getItem("orgLoginBlockReason");
     if (blocked) {
@@ -107,6 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value;
+        const keepSignedIn = document.getElementById("keepSignedIn")?.checked ?? true;
         const submitBtn = form.querySelector('button[type="submit"]');
 
         if (submitBtn) {
@@ -115,6 +165,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
+            await setPersistence(
+                auth,
+                keepSignedIn ? browserLocalPersistence : browserSessionPersistence
+            );
+
             const userCredential = await signInWithEmailAndPassword(
                 auth,
                 email,
@@ -140,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.textContent = "Login";
+                submitBtn.textContent = "Log in";
             }
         }
     });
