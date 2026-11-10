@@ -4,99 +4,153 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Login - Kalinga</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite([
     'resources/css/app.css',
     'resources/js/admin-login.js'
   ])
   <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .admin-container {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-      padding: 40px;
-      max-width: 450px;
-      width: 100%;
-      margin: 20px;
-    }
-    
-    .admin-header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    
-    .admin-logo {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 20px;
-      font-size: 32px;
-      color: white;
-      font-weight: bold;
-    }
-    
-    .admin-title {
-      font-size: 28px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 8px;
-    }
-    
-    .admin-subtitle {
-      color: #666;
-      font-size: 14px;
-    }
-    
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
-    .form-control {
-      padding: 15px;
-      border: 2px solid #e9ecef;
-      border-radius: 10px;
-      font-size: 16px;
-      transition: all 0.3s ease;
-    }
-    
-    .form-control:focus {
-      border-color: #28a745;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    :root {
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --label: #374151;
+      --border: #e5e7eb;
+      --green: #166534;
+      --green-hover: #14532d;
+      --green-soft: #ecfdf5;
+      --green-icon: #15803d;
+      --shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+      --white: #fff;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --danger-border: #fecaca;
+      --success: #166534;
+      --success-bg: #ecfdf5;
+      --success-border: #bbf7d0;
+      --warning: #92400e;
+      --warning-bg: #fffbeb;
+      --warning-border: #fde68a;
     }
 
-    .password-field {
-      position: relative;
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
     }
-    .password-field .form-control {
-      padding-right: 48px;
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 1.15rem;
+      text-decoration: none;
+      margin-bottom: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+    .brand i {
+      color: var(--green);
+      font-size: 1.2rem;
+    }
+
+    .admin-card {
+      width: min(420px, 100%);
+      background: var(--card);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(229, 231, 235, 0.9);
+      padding: 1.75rem 1.65rem 1.45rem;
+    }
+
+    .admin-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--green-soft);
+      color: var(--green-icon);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      margin-bottom: 1rem;
+    }
+
+    .admin-card h1 {
+      margin: 0 0 0.3rem;
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      line-height: 1.15;
+    }
+
+    .admin-sub {
+      margin: 0 0 1.35rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .form-group { margin-bottom: 1rem; }
+
+    label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--label);
+      margin-bottom: 0.4rem;
+    }
+
+    .form-control {
       width: 100%;
+      height: 48px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--white);
+      padding: 0 14px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
+
+    .form-control::placeholder { color: #9ca3af; }
+
+    .form-control:focus {
+      border-color: #86efac;
+      box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.12);
+    }
+
+    .password-field { position: relative; }
+    .password-field .form-control { padding-right: 46px; }
+
     .password-toggle {
       position: absolute;
       top: 50%;
-      right: 12px;
+      right: 10px;
       transform: translateY(-50%);
       width: 34px;
       height: 34px;
       border: none;
       border-radius: 8px;
       background: transparent;
-      color: #6b7280;
+      color: var(--muted);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -105,86 +159,114 @@
     }
     .password-toggle:hover,
     .password-toggle:focus-visible {
-      color: #28a745;
+      color: var(--green);
       outline: none;
-      background: rgba(40, 167, 69, 0.1);
+      background: var(--green-soft);
     }
+    .password-toggle .icon-eye-off { display: none; }
+    .password-toggle.is-visible .icon-eye { display: none; }
+    .password-toggle.is-visible .icon-eye-off { display: block; }
     .password-toggle svg {
       width: 18px;
       height: 18px;
       display: block;
     }
-    .password-toggle .icon-eye-off { display: none; }
-    .password-toggle.is-visible .icon-eye { display: none; }
-    .password-toggle.is-visible .icon-eye-off { display: block; }
-    
+
     .btn-admin-login {
-      background: linear-gradient(135deg, #66eaacff 0%, #55a24bff 100%);
-      color: white;
-      padding: 15px;
-      border: none;
-      border-radius: 10px;
-      font-weight: bold;
-      font-size: 16px;
       width: 100%;
-      transition: all 0.3s ease;
-      margin-top: 10px;
+      height: 50px;
+      margin-top: 0.35rem;
+      border: none;
+      border-radius: 12px;
+      background: var(--green);
+      color: var(--white);
+      font-weight: 700;
+      font-size: 0.98rem;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      transition: background 0.2s ease;
     }
-    
-    .btn-admin-login:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-    }
-    
-    .admin-footer {
+    .btn-admin-login:hover:not(:disabled) { background: var(--green-hover); }
+    .btn-admin-login:disabled { opacity: 0.75; cursor: wait; }
+
+    .loading { display: none; }
+    .loading.show { display: inline-flex; align-items: center; }
+
+    .admin-note {
+      margin: 1.15rem 0 0;
+      color: #9ca3af;
+      font-size: 0.82rem;
       text-align: center;
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e9ecef;
     }
-    
-    .admin-footer a {
-      color: #28a745;
-      text-decoration: none;
-      font-size: 14px;
+
+    .login-alert {
+      border-radius: 12px;
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 1rem;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      border: 1px solid transparent;
     }
-    
-    .admin-footer a:hover {
-      text-decoration: underline;
+    .login-alert.danger {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger);
     }
-    
-    .alert {
-      border-radius: 10px;
-      margin-bottom: 20px;
+    .login-alert.success {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success);
     }
-    
-    .loading {
-      display: none;
-    }
-    
-    .loading.show {
-      display: inline-block;
+    .login-alert.warning {
+      background: var(--warning-bg);
+      border-color: var(--warning-border);
+      color: var(--warning);
     }
   </style>
 </head>
 <body>
-  <div class="admin-container">
-    <div class="admin-header">
-      <div class="admin-logo">A</div>
-      <h1 class="admin-title">Admin Portal</h1>
-      <p class="admin-subtitle">Kalinga Management System</p>
+  <a class="brand" href="/admin/login">
+    <i class="bi bi-heart-fill" aria-hidden="true"></i>
+    Kalinga
+  </a>
+
+  <div class="admin-card">
+    <div class="admin-badge" aria-hidden="true">
+      <i class="bi bi-shield-check"></i>
     </div>
+    <h1>Admin Portal</h1>
+    <p class="admin-sub">Kalinga Management System</p>
 
     <div id="alertContainer"></div>
 
     <form id="adminLoginForm">
       <div class="form-group">
-        <input type="email" id="adminEmail" class="form-control" placeholder="Admin Email" required>
+        <label for="adminEmail">Admin email</label>
+        <input
+          type="email"
+          id="adminEmail"
+          class="form-control"
+          placeholder="admin@kalinga.org"
+          autocomplete="username"
+          required
+        >
       </div>
-      
+
       <div class="form-group">
+        <label for="adminPassword">Password</label>
         <div class="password-field">
-          <input type="password" id="adminPassword" class="form-control" placeholder="Admin Password" required autocomplete="current-password">
+          <input
+            type="password"
+            id="adminPassword"
+            class="form-control"
+            placeholder="Enter your password"
+            required
+            autocomplete="current-password"
+          >
           <button
             type="button"
             class="password-toggle"
@@ -207,18 +289,14 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-admin-login">
+      <button type="submit" class="btn-admin-login">
         <span class="loading" id="loadingSpinner"><i class="bi bi-hourglass-split"></i></span>
-        <span id="loginText">Login to Admin Panel</span>
+        <span id="loginText">Log in to Admin Panel</span>
       </button>
     </form>
 
-    <div class="admin-footer">
-      <a href="/organization/login"><i class="bi bi-arrow-left"></i> Back to Organization Login</a>
-    </div>
   </div>
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <p class="admin-note">Authorized administrators only.</p>
 </body>
 </html>

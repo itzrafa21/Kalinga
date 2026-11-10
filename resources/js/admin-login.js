@@ -27,26 +27,21 @@ document.addEventListener("DOMContentLoaded", () => {
         passwordInput.focus();
     });
 
-    // Show alert function
-    function showAlert(message, type = 'danger') {
-        alertContainer.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
+    function showAlert(message, type = "danger") {
+        if (!alertContainer) return;
+        alertContainer.innerHTML = `<div class="login-alert ${type}" role="alert">${message}</div>`;
     }
 
-    // Set loading state
     function setLoading(loading) {
+        const submitBtn = form.querySelector('button[type="submit"]');
         if (loading) {
-            loadingSpinner.classList.add('show');
-            loginText.textContent = 'Logging in...';
-            form.querySelector('button[type="submit"]').disabled = true;
+            loadingSpinner?.classList.add("show");
+            if (loginText) loginText.textContent = "Logging in...";
+            if (submitBtn) submitBtn.disabled = true;
         } else {
-            loadingSpinner.classList.remove('show');
-            loginText.textContent = 'Login to Admin Panel';
-            form.querySelector('button[type="submit"]').disabled = false;
+            loadingSpinner?.classList.remove("show");
+            if (loginText) loginText.textContent = "Log in to Admin Panel";
+            if (submitBtn) submitBtn.disabled = false;
         }
     }
 
