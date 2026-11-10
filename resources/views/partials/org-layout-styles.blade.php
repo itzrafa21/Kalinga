@@ -1,3 +1,4 @@
+@include('partials.org-theme-boot')
 <style>
   * { box-sizing: border-box; }
   body.org-app {

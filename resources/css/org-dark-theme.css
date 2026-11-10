@@ -1,0 +1,390 @@
+/* Loaded via organization-sidebar.js so it wins over page <style> blocks */
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body.org-app {
+  background: #0b1220 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] .org-sidebar {
+  background: #111827 !important;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.45) !important;
+}
+html[data-theme="dark"] .org-sidebar-logo {
+  border-bottom-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] .org-sidebar-section {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] .org-sidebar a,
+html[data-theme="dark"] #logoutBtn.org-sidebar-logout-link {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] .org-sidebar a i,
+html[data-theme="dark"] #logoutBtn.org-sidebar-logout-link i {
+  color: #cbd5e1 !important;
+}
+html[data-theme="dark"] .org-sidebar a:hover,
+html[data-theme="dark"] #logoutBtn.org-sidebar-logout-link:hover {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .org-sidebar a.active {
+  background: #166534 !important;
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] .org-sidebar a.active i {
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] .sidebar-logo-title {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] .sidebar-logo-visual,
+html[data-theme="dark"] .sidebar-logo-mark,
+html[data-theme="dark"] .org-sidebar-logo,
+html[data-theme="dark"] .kalinga-logo,
+html[data-theme="dark"] .sidebar-logo-img {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .org-main-content,
+html[data-theme="dark"] .org-main-content.main-content,
+html[data-theme="dark"] .org-main-content.main-content.donation-page,
+html[data-theme="dark"] .org-main-content.main-content.campaign-form-page,
+html[data-theme="dark"] .org-main-content.main-content.campaign-details-page,
+html[data-theme="dark"] .donation-page__body,
+html[data-theme="dark"] .campaign-scroll {
+  background: #0b1220 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] body.org-app .card,
+html[data-theme="dark"] body.org-app .panel,
+html[data-theme="dark"] body.org-app .settings-card,
+html[data-theme="dark"] body.org-app .settings-nav,
+html[data-theme="dark"] body.org-app .preview-card,
+html[data-theme="dark"] body.org-app .steps-card,
+html[data-theme="dark"] body.org-app .pay-card,
+html[data-theme="dark"] body.org-app .stat-card,
+html[data-theme="dark"] body.org-app .stats-card,
+html[data-theme="dark"] body.org-app .mission-card,
+html[data-theme="dark"] body.org-app .profile-section,
+html[data-theme="dark"] body.org-app .vd-profile-card,
+html[data-theme="dark"] body.org-app .table-card,
+html[data-theme="dark"] body.org-app .content-card,
+html[data-theme="dark"] body.org-app .empty-card,
+html[data-theme="dark"] body.org-app .filter-card,
+html[data-theme="dark"] body.org-app .notif-panel,
+html[data-theme="dark"] body.org-app .notif-dropdown,
+html[data-theme="dark"] body.org-app .share-cta,
+html[data-theme="dark"] body.org-app .paymongo-card,
+html[data-theme="dark"] body.org-app .campaigns-card,
+html[data-theme="dark"] body.org-app .campaigns-panel,
+html[data-theme="dark"] body.org-app .summary-card,
+html[data-theme="dark"] body.org-app .hero-card,
+html[data-theme="dark"] body.org-app .form-card,
+html[data-theme="dark"] body.org-app .detail-card,
+html[data-theme="dark"] body.org-app .info-card,
+html[data-theme="dark"] body.org-app .list-card,
+html[data-theme="dark"] body.org-app .table-wrap,
+html[data-theme="dark"] body.org-app .toolbar,
+html[data-theme="dark"] body.org-app .missions-toolbar,
+html[data-theme="dark"] body.org-app .volunteers-toolbar,
+html[data-theme="dark"] body.org-app .volunteer-card,
+html[data-theme="dark"] body.org-app .applicant-card,
+html[data-theme="dark"] body.org-app .md-card,
+html[data-theme="dark"] body.org-app .md-panel,
+html[data-theme="dark"] body.org-app .md-section,
+html[data-theme="dark"] body.org-app .md-box,
+html[data-theme="dark"] body.org-app .md-side,
+html[data-theme="dark"] body.org-app .md-main,
+html[data-theme="dark"] body.org-app .md-header,
+html[data-theme="dark"] body.org-app .md-tabs,
+html[data-theme="dark"] body.org-app .history-card,
+html[data-theme="dark"] body.org-app .profile-form-stack .profile-section,
+html[data-theme="dark"] body.org-app .form-main .card,
+html[data-theme="dark"] body.org-app .form-side .card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+html[data-theme="dark"] body.org-app .stat,
+html[data-theme="dark"] body.org-app .upload-box,
+html[data-theme="dark"] body.org-app .amount-wrap,
+html[data-theme="dark"] body.org-app .amount-prefix,
+html[data-theme="dark"] body.org-app .need-qty-row,
+html[data-theme="dark"] body.org-app .goods-list li,
+html[data-theme="dark"] body.org-app .preview-cover,
+html[data-theme="dark"] body.org-app .cover-wrap,
+html[data-theme="dark"] body.org-app .profile-header,
+html[data-theme="dark"] body.org-app .profile-stat,
+html[data-theme="dark"] body.org-app .progress-track,
+html[data-theme="dark"] body.org-app .progress-bar,
+html[data-theme="dark"] body.org-app .progress-line .progress-bar,
+html[data-theme="dark"] body.org-app .empty-state,
+html[data-theme="dark"] body.org-app .filter-tabs,
+html[data-theme="dark"] body.org-app .filter-pills,
+html[data-theme="dark"] body.org-app .filter-pills button,
+html[data-theme="dark"] body.org-app .tab-btn,
+html[data-theme="dark"] body.org-app .chip,
+html[data-theme="dark"] body.org-app .category-chip,
+html[data-theme="dark"] body.org-app .more-menu,
+html[data-theme="dark"] body.org-app .dropdown-menu,
+html[data-theme="dark"] body.org-app .modal-content,
+html[data-theme="dark"] body.org-app .org-logout-modal,
+html[data-theme="dark"] body.org-app .login-error-modal,
+html[data-theme="dark"] body.org-app .profile-success-modal,
+html[data-theme="dark"] body.org-app .table-shell,
+html[data-theme="dark"] body.org-app .paymongo-edit,
+html[data-theme="dark"] body.org-app .paymongo-card__icon,
+html[data-theme="dark"] body.org-app .md-b-gray,
+html[data-theme="dark"] body.org-app .md-table tbody tr:hover td,
+html[data-theme="dark"] body.org-app .mission-status--default,
+html[data-theme="dark"] body.org-app .inkind-row,
+html[data-theme="dark"] body.org-app .steps-list li,
+html[data-theme="dark"] body.org-app .char-count {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] body.org-app .filter-pills button.active,
+html[data-theme="dark"] body.org-app .need-tag.is-active,
+html[data-theme="dark"] body.org-app .mode-pills button.active,
+html[data-theme="dark"] body.org-app .amount-pills button.active,
+html[data-theme="dark"] body.org-app .filter-btn.active,
+html[data-theme="dark"] body.org-app .tab-btn.active,
+html[data-theme="dark"] body.org-app .settings-nav-btn.is-active {
+  background: #166534 !important;
+  border-color: #166534 !important;
+  color: #ecfdf5 !important;
+}
+
+html[data-theme="dark"] body.org-app .toolbar-search,
+html[data-theme="dark"] body.org-app .toolbar-filter,
+html[data-theme="dark"] body.org-app .search-input {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] body.org-app h1,
+html[data-theme="dark"] body.org-app h2,
+html[data-theme="dark"] body.org-app h3,
+html[data-theme="dark"] body.org-app h4,
+html[data-theme="dark"] body.org-app .page-title,
+html[data-theme="dark"] body.org-app .page-welcome,
+html[data-theme="dark"] body.org-app .campaign-title,
+html[data-theme="dark"] body.org-app .preview-title,
+html[data-theme="dark"] body.org-app .setting-copy h3,
+html[data-theme="dark"] body.org-app .profile-info h1,
+html[data-theme="dark"] body.org-app .vd-profile-name,
+html[data-theme="dark"] body.org-app .date-main,
+html[data-theme="dark"] body.org-app .stat-card .value,
+html[data-theme="dark"] body.org-app .paymongo-card__copy strong,
+html[data-theme="dark"] body.org-app .campaigns-panel__head h2,
+html[data-theme="dark"] body.org-app strong,
+html[data-theme="dark"] body.org-app label {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] body.org-app p,
+html[data-theme="dark"] body.org-app .meta,
+html[data-theme="dark"] body.org-app .card-desc,
+html[data-theme="dark"] body.org-app .field-hint,
+html[data-theme="dark"] body.org-app .form-hint,
+html[data-theme="dark"] body.org-app .page-subtitle,
+html[data-theme="dark"] body.org-app .date-sub,
+html[data-theme="dark"] body.org-app .progress-amounts,
+html[data-theme="dark"] body.org-app .progress-pct,
+html[data-theme="dark"] body.org-app .progress-label,
+html[data-theme="dark"] body.org-app .preview-raised,
+html[data-theme="dark"] body.org-app .mission-line,
+html[data-theme="dark"] body.org-app .description,
+html[data-theme="dark"] body.org-app .text-muted,
+html[data-theme="dark"] body.org-app .small,
+html[data-theme="dark"] body.org-app .setting-copy p,
+html[data-theme="dark"] body.org-app .profile-info > p,
+html[data-theme="dark"] body.org-app .stat-card .label,
+html[data-theme="dark"] body.org-app .stat-card .hint,
+html[data-theme="dark"] body.org-app .paymongo-card__copy span,
+html[data-theme="dark"] body.org-app .campaigns-panel__head p,
+html[data-theme="dark"] body.org-app th {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] body.org-app td,
+html[data-theme="dark"] body.org-app .back-link {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] body.org-app a:not(.btn):not(.btn-primary):not(.btn-table):not(.org-sidebar a) {
+  color: #86efac;
+}
+
+html[data-theme="dark"] body.org-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-theme="dark"] body.org-app select,
+html[data-theme="dark"] body.org-app textarea,
+html[data-theme="dark"] body.org-app .form-control {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app input::placeholder,
+html[data-theme="dark"] body.org-app textarea::placeholder {
+  color: #64748b !important;
+}
+html[data-theme="dark"] body.org-app option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] body.org-app .btn-outline,
+html[data-theme="dark"] body.org-app .btn-secondary,
+html[data-theme="dark"] body.org-app .btn-table,
+html[data-theme="dark"] body.org-app .btn-icon,
+html[data-theme="dark"] body.org-app .btn-settings-secondary,
+html[data-theme="dark"] body.org-app .amount-pills button,
+html[data-theme="dark"] body.org-app .mode-pills button,
+html[data-theme="dark"] body.org-app .need-tag,
+html[data-theme="dark"] body.org-app .filter-btn,
+html[data-theme="dark"] body.org-app .notif-btn,
+html[data-theme="dark"] body.org-app .org-logout-modal-cancel,
+html[data-theme="dark"] body.org-app .md-btn-r,
+html[data-theme="dark"] body.org-app .md-btn-outline-g,
+html[data-theme="dark"] body.org-app .md-btn-outline,
+html[data-theme="dark"] body.org-app .settings-nav-btn {
+  background: #334155 !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] body.org-app .btn-outline:hover,
+html[data-theme="dark"] body.org-app .btn-secondary:hover,
+html[data-theme="dark"] body.org-app .btn-table:hover,
+html[data-theme="dark"] body.org-app .btn-icon:hover,
+html[data-theme="dark"] body.org-app .need-tag:hover,
+html[data-theme="dark"] body.org-app .notif-btn:hover,
+html[data-theme="dark"] body.org-app .org-logout-modal-cancel:hover,
+html[data-theme="dark"] body.org-app .settings-nav-btn:hover {
+  background: #475569 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] body.org-app table {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app th,
+html[data-theme="dark"] body.org-app td {
+  border-bottom-color: #334155 !important;
+}
+html[data-theme="dark"] body.org-app tbody tr:hover {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+html[data-theme="dark"] body.org-app .status-draft {
+  background: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .status-published,
+html[data-theme="dark"] body.org-app .paymongo-badge,
+html[data-theme="dark"] body.org-app .mode-chip {
+  background: #14532d !important;
+  color: #bbf7d0 !important;
+}
+html[data-theme="dark"] body.org-app .status-pending_approval,
+html[data-theme="dark"] body.org-app .mission-status--pending {
+  background: #78350f !important;
+  color: #fde68a !important;
+}
+html[data-theme="dark"] body.org-app .status-rejected,
+html[data-theme="dark"] body.org-app .status-closed,
+html[data-theme="dark"] body.org-app .paymongo-badge.is-off,
+html[data-theme="dark"] body.org-app .mission-status--rejected {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+
+html[data-theme="dark"] body.org-app .progress-track,
+html[data-theme="dark"] body.org-app .preview-progress-track,
+html[data-theme="dark"] body.org-app .progress-bar {
+  background: #334155 !important;
+}
+
+html[data-theme="dark"] body.org-app .settings-mock-banner,
+html[data-theme="dark"] body.org-app .status-msg:not(.is-error) {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #dcfce7 !important;
+}
+html[data-theme="dark"] body.org-app .status-msg.is-error {
+  background: #7f1d1d !important;
+  border-color: #991b1b !important;
+  color: #fecaca !important;
+}
+html[data-theme="dark"] body.org-app .danger-card {
+  background: #291516 !important;
+  border-color: #7f1d1d !important;
+}
+html[data-theme="dark"] body.org-app .settings-actions,
+html[data-theme="dark"] body.org-app .setting-row {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+html[data-theme="dark"] body.org-app .switch-slider {
+  background: #475569 !important;
+}
+html[data-theme="dark"] body.org-app .switch input:checked + .switch-slider {
+  background: #22c55e !important;
+}
+
+html[data-theme="dark"] body.org-app .more-menu a,
+html[data-theme="dark"] body.org-app .more-menu button {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .more-menu a:hover,
+html[data-theme="dark"] body.org-app .more-menu button:hover {
+  background: rgba(148, 163, 184, 0.12) !important;
+}
+
+html[data-theme="dark"] body.org-app .org-logout-modal h2,
+html[data-theme="dark"] body.org-app .profile-success-modal h2 {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.org-app .org-logout-modal-message,
+html[data-theme="dark"] body.org-app .profile-success-message {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] body.org-app [style*="background:#fff"],
+html[data-theme="dark"] body.org-app [style*="background: #fff"],
+html[data-theme="dark"] body.org-app [style*="background:#ffffff"],
+html[data-theme="dark"] body.org-app [style*="background: #ffffff"],
+html[data-theme="dark"] body.org-app [style*="background:white"],
+html[data-theme="dark"] body.org-app [style*="background: white"] {
+  background: #1e293b !important;
+}
+
+/* Soften remaining near-white panels that use light gray fills */
+html[data-theme="dark"] body.org-app .org-main-content section,
+html[data-theme="dark"] body.org-app .org-main-content article,
+html[data-theme="dark"] body.org-app .org-main-content .box,
+html[data-theme="dark"] body.org-app .org-main-content .block {
+  /* only override if they look like cards via border/shadow; leave transparent wrappers alone */
+}
+
+html[data-theme="dark"] body.org-app .page-top h1,
+html[data-theme="dark"] body.org-app .needs-copy h3,
+html[data-theme="dark"] body.org-app .art-title {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.org-app .page-top p,
+html[data-theme="dark"] body.org-app .needs-copy p {
+  color: #94a3b8 !important;
+}

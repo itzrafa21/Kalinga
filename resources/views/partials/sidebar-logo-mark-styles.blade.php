@@ -37,3 +37,11 @@
     line-height: 1.2;
     background: transparent;
   }
+  html[data-theme="dark"] .sidebar-logo-title {
+    color: #f8fafc;
+  }
+  html[data-theme="dark"] .sidebar-logo-visual,
+  html[data-theme="dark"] .sidebar-logo-visual .kalinga-logo,
+  html[data-theme="dark"] .sidebar-logo-visual .sidebar-logo-img {
+    background: transparent !important;
+  }

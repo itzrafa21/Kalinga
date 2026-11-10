@@ -309,6 +309,53 @@
       transform: translateY(0);
     }
 
+    html[data-theme="dark"] .settings-page-header h1 { color: #ecfdf5; }
+    html[data-theme="dark"] .settings-page-header p { color: #94a3b8; }
+    html[data-theme="dark"] .settings-mock-banner {
+      background: #14532d;
+      border-color: #166534;
+      color: #dcfce7;
+    }
+    html[data-theme="dark"] .settings-nav,
+    html[data-theme="dark"] .settings-card {
+      background: #1e293b;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    html[data-theme="dark"] .settings-nav-btn { color: #cbd5e1; }
+    html[data-theme="dark"] .settings-nav-btn i { color: #94a3b8; }
+    html[data-theme="dark"] .settings-nav-btn:hover { background: rgba(148, 163, 184, 0.12); }
+    html[data-theme="dark"] .settings-nav-btn.is-active {
+      background: #166534;
+      color: #ecfdf5;
+    }
+    html[data-theme="dark"] .settings-nav-btn.is-active i { color: #bbf7d0; }
+    html[data-theme="dark"] .settings-card h2 { color: #f8fafc; }
+    html[data-theme="dark"] .settings-card .card-desc,
+    html[data-theme="dark"] .setting-copy p { color: #94a3b8; }
+    html[data-theme="dark"] .setting-copy h3 { color: #f1f5f9; }
+    html[data-theme="dark"] .setting-row { border-top-color: rgba(148, 163, 184, 0.16); }
+    html[data-theme="dark"] .settings-actions { border-top-color: rgba(148, 163, 184, 0.16); }
+    html[data-theme="dark"] .btn-settings-secondary {
+      background: #334155;
+      color: #e2e8f0;
+    }
+    html[data-theme="dark"] .btn-settings-secondary:hover { background: #475569; }
+    html[data-theme="dark"] .form-group label { color: #cbd5e1; }
+    html[data-theme="dark"] .form-group input,
+    html[data-theme="dark"] .form-group select,
+    html[data-theme="dark"] .form-group textarea {
+      background: #0f172a;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+    html[data-theme="dark"] .form-hint { color: #64748b; }
+    html[data-theme="dark"] .danger-card {
+      background: #291516;
+      border-color: #7f1d1d;
+    }
+    html[data-theme="dark"] .danger-card h2 { color: #fca5a5; }
+    html[data-theme="dark"] .switch-slider { background: #475569; }
+
     @media (max-width: 900px) {
       .settings-layout {
         grid-template-columns: 1fr;
@@ -349,6 +396,9 @@
         </button>
         <button type="button" class="settings-nav-btn" data-panel="missions">
           <i class="bi bi-clipboard-check"></i> Missions
+        </button>
+        <button type="button" class="settings-nav-btn" data-panel="display">
+          <i class="bi bi-moon-stars"></i> Display &amp; Accessibility
         </button>
         <button type="button" class="settings-nav-btn" data-panel="privacy">
           <i class="bi bi-shield-check"></i> Privacy
@@ -471,6 +521,34 @@
             <div class="settings-actions">
               <button type="button" class="btn-settings btn-settings-secondary" data-toast="Mission defaults discarded.">Cancel</button>
               <button type="button" class="btn-settings btn-settings-primary" data-toast="Mission defaults saved (mock).">
+                <i class="bi bi-check-lg"></i> Save changes
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {{-- Display & Accessibility --}}
+        <section class="settings-panel" id="panel-display" aria-labelledby="display-title">
+          <div class="settings-card">
+            <h2 id="display-title">Display &amp; Accessibility</h2>
+            <p class="card-desc">Adjust how Kalinga looks and feels while you manage your organization.</p>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <h3>Dark mode</h3>
+                <p>Use a darker theme for the organization portal. Your choice is saved on this device.</p>
+              </div>
+              <label class="switch" aria-label="Dark mode">
+                <input type="checkbox" id="darkModeToggle">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="settings-actions">
+              <button type="button" class="btn-settings btn-settings-secondary" id="resetDisplaySettings">
+                Reset
+              </button>
+              <button type="button" class="btn-settings btn-settings-primary" id="saveDisplaySettings">
                 <i class="bi bi-check-lg"></i> Save changes
               </button>
             </div>
@@ -606,6 +684,57 @@
           e.preventDefault();
           showToast(btn.dataset.toast);
         });
+      });
+
+      const THEME_KEY = "kalinga-org-theme";
+      const darkToggle = document.getElementById("darkModeToggle");
+
+      function getSavedTheme() {
+        try {
+          return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+        } catch (e) {
+          return "light";
+        }
+      }
+
+      function applyTheme(theme) {
+        if (theme === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        } else {
+          document.documentElement.removeAttribute("data-theme");
+        }
+        if (darkToggle) darkToggle.checked = theme === "dark";
+      }
+
+      function saveTheme(theme) {
+        try {
+          if (theme === "dark") {
+            localStorage.setItem(THEME_KEY, "dark");
+          } else {
+            localStorage.removeItem(THEME_KEY);
+          }
+        } catch (e) {}
+        applyTheme(theme);
+      }
+
+      applyTheme(getSavedTheme());
+
+      darkToggle?.addEventListener("change", () => {
+        applyTheme(darkToggle.checked ? "dark" : "light");
+      });
+
+      document.getElementById("saveDisplaySettings")?.addEventListener("click", () => {
+        saveTheme(darkToggle?.checked ? "dark" : "light");
+        showToast(
+          darkToggle?.checked
+            ? "Dark mode turned on."
+            : "Dark mode turned off."
+        );
+      });
+
+      document.getElementById("resetDisplaySettings")?.addEventListener("click", () => {
+        saveTheme("light");
+        showToast("Display settings reset to light mode.");
       });
     })();
   </script>
