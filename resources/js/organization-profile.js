@@ -653,23 +653,29 @@ function refreshProfileDirtyState() {
 }
 
 function initProfileSectionNav() {
-  const buttons = document.querySelectorAll("[data-profile-section]");
-  if (!buttons.length) return;
+  const tabs = Array.from(document.querySelectorAll("[data-profile-section]"));
+  const panels = Array.from(document.querySelectorAll("[data-profile-panel]"));
+  if (!tabs.length || !panels.length) return;
 
-  const sections = {
-    organization: document.getElementById("section-organization"),
-    representative: document.getElementById("section-representative"),
-    account: document.getElementById("section-account"),
-    password: document.getElementById("section-password"),
-  };
+  function activate(key) {
+    tabs.forEach((tab) => {
+      const active = tab.getAttribute("data-profile-section") === key;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    panels.forEach((panel) => {
+      const active = panel.getAttribute("data-profile-panel") === key;
+      panel.hidden = !active;
+    });
+  }
 
-  buttons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.getAttribute("data-profile-section");
-      buttons.forEach((b) => b.classList.toggle("is-active", b === btn));
-      sections[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activate(tab.getAttribute("data-profile-section") || "organization");
     });
   });
+
+  activate("organization");
 }
 
 function initializeFormHandlers() {

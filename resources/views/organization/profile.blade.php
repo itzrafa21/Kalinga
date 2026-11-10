@@ -180,34 +180,49 @@
     }
 
     .profile-layout {
-      display: grid;
-      grid-template-columns: 180px minmax(0, 1fr);
-      gap: 1.15rem;
-      align-items: start;
+      display: block;
     }
-    .profile-nav {
-      position: sticky;
-      top: 0;
+    .profile-tabs {
       display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      padding: 0.85rem 1rem;
+      margin-bottom: 1rem;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      position: relative;
+      z-index: 1;
     }
-    .profile-nav-btn {
-      border: none;
-      background: transparent;
-      text-align: left;
-      padding: 0.65rem 0.9rem;
+    .profile-content {
+      position: relative;
+      z-index: 0;
+    }
+    .profile-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.95rem;
       border-radius: 999px;
-      font: inherit;
-      font-size: 0.92rem;
-      font-weight: 600;
-      color: #374151;
+      border: 1px solid #dbe4dc;
+      background: #fff;
+      color: #64748b;
+      font-size: 0.86rem;
+      font-weight: 650;
+      font-family: inherit;
       cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
-    .profile-nav-btn:hover { background: #eef2f0; }
-    .profile-nav-btn.is-active {
-      background: #bbf7d0;
-      color: #14532d;
+    .profile-tab:hover {
+      background: #f8faf9;
+      color: #166534;
+      border-color: #86efac;
+    }
+    .profile-tab.active {
+      background: #ecfdf3;
+      color: #166534;
+      border-color: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
     }
 
     .profile-card {
@@ -215,9 +230,9 @@
       border: 1px solid #e5e7eb;
       border-radius: 16px;
       padding: 1.25rem 1.35rem 1.35rem;
-      margin-bottom: 1rem;
-      scroll-margin-top: 1rem;
+      margin-bottom: 0;
     }
+    .profile-card[hidden] { display: none !important; }
     .profile-card h2 {
       margin: 0 0 1rem;
       font-size: 1.05rem;
@@ -520,9 +535,19 @@
     html[data-theme="dark"] .form-label {
       color: #f8fafc !important;
     }
-    html[data-theme="dark"] .profile-nav-btn { color: #cbd5e1 !important; }
-    html[data-theme="dark"] .profile-nav-btn.is-active {
+    html[data-theme="dark"] .profile-tabs {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+    }
+    html[data-theme="dark"] .profile-tab {
+      background: #0f172a !important;
+      border-color: #334155 !important;
+      color: #94a3b8 !important;
+    }
+    html[data-theme="dark"] .profile-tab:hover,
+    html[data-theme="dark"] .profile-tab.active {
       background: #14532d !important;
+      border-color: #166534 !important;
       color: #bbf7d0 !important;
     }
     html[data-theme="dark"] .profile-avatar { background: #334155 !important; color: #e2e8f0 !important; }
@@ -542,12 +567,6 @@
     }
 
     @media (max-width: 1000px) {
-      .profile-layout { grid-template-columns: 1fr; }
-      .profile-nav {
-        position: static;
-        flex-direction: row;
-        flex-wrap: wrap;
-      }
       .form-grid { grid-template-columns: 1fr; }
       .password-requirements { grid-template-columns: 1fr; }
     }
@@ -611,16 +630,16 @@
       </section>
 
       <div class="profile-layout">
-        <nav class="profile-nav" aria-label="Profile sections">
-          <button type="button" class="profile-nav-btn is-active" data-profile-section="organization">Organization</button>
-          <button type="button" class="profile-nav-btn" data-profile-section="representative">Representative</button>
-          <button type="button" class="profile-nav-btn" data-profile-section="account">Account</button>
-          <button type="button" class="profile-nav-btn" data-profile-section="password">Password</button>
-        </nav>
+        <div class="profile-tabs" role="tablist" aria-label="Profile sections">
+          <button type="button" class="profile-tab active" role="tab" aria-selected="true" data-profile-section="organization">Organization</button>
+          <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="representative">Representative</button>
+          <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="account">Account</button>
+          <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="password">Password</button>
+        </div>
 
         <div class="profile-content">
           <form id="profileForm">
-            <section class="profile-card" id="section-organization">
+            <section class="profile-card" id="section-organization" data-profile-panel="organization" role="tabpanel">
               <h2>Organization information</h2>
               <div class="form-grid">
                 <div class="form-group">
@@ -699,7 +718,7 @@
               </div>
             </section>
 
-            <section class="profile-card" id="section-representative">
+            <section class="profile-card" id="section-representative" data-profile-panel="representative" role="tabpanel" hidden>
               <h2>Authorized representative</h2>
               <div class="form-grid">
                 <div class="form-group">
@@ -721,7 +740,7 @@
               </div>
             </section>
 
-            <section class="profile-card" id="section-account">
+            <section class="profile-card" id="section-account" data-profile-panel="account" role="tabpanel" hidden>
               <h2>Account</h2>
               <div class="form-grid">
                 <div class="form-group full">
@@ -751,7 +770,7 @@
             </section>
           </form>
 
-          <section class="profile-card password-section" id="section-password">
+          <section class="profile-card password-section" id="section-password" data-profile-panel="password" role="tabpanel" hidden>
             <h2>Change password</h2>
             <form id="passwordForm">
               <div class="form-grid">
