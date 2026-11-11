@@ -125,28 +125,31 @@
     .md-btn-outline-g { background: #fff; color: #15803d; border-color: #bbf7d0; }
     .md-btn-outline-g:hover { background: #f0fdf4; }
     .md-btn-xs { padding: 4px 9px; font-size: 11px; border-radius: 6px; }
-    .md-attendance-group { flex-wrap: nowrap; align-items: center; }
+    .md-attendance-group {
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
     .md-attendance-time {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-width: 72px;
-      padding: 4px 9px;
+      padding: 5px 10px;
       border-radius: 6px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       line-height: 1.2;
       white-space: nowrap;
+      border: none;
     }
     .md-attendance-time--in {
-      background: #f0fdf4;
-      color: #15803d;
-      border: 1px solid #bbf7d0;
+      background: #16a34a;
+      color: #fff;
     }
     .md-attendance-time--out {
-      background: #fef2f2;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
+      background: #dc2626;
+      color: #fff;
     }
     .md-topbar {
       display: flex;

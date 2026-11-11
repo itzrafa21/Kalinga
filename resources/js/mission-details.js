@@ -893,8 +893,25 @@ async function updateApplicationStatus(volunteer, missionId, newStatus, options 
 }
 
 async function updateVolunteerAttendance(volunteer, missionId, action) {
-  if (volunteer.timeInAt || volunteer.timeOutAt) {
-    throw new Error("Attendance already recorded for this volunteer.");
+  const hasTimedIn = Boolean(volunteer.timeInAt);
+  const hasTimedOut = Boolean(volunteer.timeOutAt);
+
+  if (action === "time-in") {
+    if (hasTimedIn) {
+      throw new Error("Time in already recorded for this volunteer.");
+    }
+    if (hasTimedOut) {
+      throw new Error("Cannot time in after time out.");
+    }
+  } else if (action === "time-out") {
+    if (!hasTimedIn) {
+      throw new Error("Record time in before time out.");
+    }
+    if (hasTimedOut) {
+      throw new Error("Time out already recorded for this volunteer.");
+    }
+  } else {
+    throw new Error("Unknown attendance action");
   }
 
   const now = new Date();
@@ -907,16 +924,14 @@ async function updateVolunteerAttendance(volunteer, missionId, action) {
   };
   if (action === "time-in") {
     appPayload.timeInAt = now;
-    appPayload.timeOutAt = deleteField();
     rosterPayload.timeInAt = now;
-    rosterPayload.timeOutAt = null;
   } else if (action === "time-out") {
     appPayload.timeOutAt = now;
-    appPayload.timeInAt = deleteField();
     rosterPayload.timeOutAt = now;
-    rosterPayload.timeInAt = null;
-  } else {
-    throw new Error("Unknown attendance action");
+    // Keep existing timeInAt on both application + roster
+    if (volunteer.timeInAt) {
+      rosterPayload.timeInAt = volunteer.timeInAt;
+    }
   }
 
   const refs = await resolveApplicationDocRefs(volunteer, missionId);
@@ -1183,16 +1198,22 @@ function rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotIn
   const timeInLabel = formatAttendanceClockTime(v.timeInAt);
   const timeOutLabel = formatAttendanceClockTime(v.timeOutAt);
   let attendanceInner = "";
-  if (hasTimedIn) {
-    attendanceInner = `<span class="md-attendance-time md-attendance-time--in" title="Time in">${escapeHtml(timeInLabel)}</span>`;
-  } else if (hasTimedOut) {
-    attendanceInner = `<span class="md-attendance-time md-attendance-time--out" title="Time out">${escapeHtml(timeOutLabel)}</span>`;
+  if (hasTimedIn && hasTimedOut) {
+    attendanceInner = `
+      <span class="md-attendance-time md-attendance-time--in" title="Time in">In: ${escapeHtml(timeInLabel)}</span>
+      <span class="md-attendance-time md-attendance-time--out" title="Time out">Out: ${escapeHtml(timeOutLabel)}</span>`;
+  } else if (hasTimedIn) {
+    attendanceInner = `
+      <span class="md-attendance-time md-attendance-time--in" title="Time in">In: ${escapeHtml(timeInLabel)}</span>
+      <button type="button" class="md-btn md-btn-solid-r md-btn-xs md-roster-time-out-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+        Time Out
+      </button>`;
   } else {
     attendanceInner = `
       <button type="button" class="md-btn md-btn-g md-btn-xs md-roster-time-in-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
         Time In
       </button>
-      <button type="button" class="md-btn md-btn-solid-r md-btn-xs md-roster-time-out-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}">
+      <button type="button" class="md-btn md-btn-solid-r md-btn-xs md-roster-time-out-btn" data-app-id="${escapeHtml(v.id)}" data-user-id="${escapeHtml(v.userId || "")}" disabled title="Record time in first" aria-disabled="true">
         Time Out
       </button>`;
   }
@@ -1482,7 +1503,7 @@ function bindMissionInteractions(container, mission, missionId, user, volunteers
     const timeInBtn = e.target.closest(".md-roster-time-in-btn");
     const timeOutBtn = e.target.closest(".md-roster-time-out-btn");
     const btn = acceptBtn || declineBtn || timeInBtn || timeOutBtn;
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
 
     const roster =
       currentMissionContext?.volunteers?.length > 0
