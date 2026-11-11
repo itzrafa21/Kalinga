@@ -18,6 +18,7 @@ export default defineConfig({
                 'resources/js/organization-logout.js',
                 'resources/js/organization-sidebar.js',
                 'resources/js/organization-profile.js',
+                'resources/js/mission-map.js',
                 'resources/css/org-dark-theme.css',
                 'resources/js/admin-dashboard.js',
                 'resources/js/admin-login.js',

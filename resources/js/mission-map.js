@@ -187,9 +187,9 @@ async function retrieveSuggestion(mapboxId) {
     return data.features?.[0] || null;
 }
 
-function initLocationSearch(map, applyMapPoint) {
-    const input = document.getElementById("locationSearch");
-    const list = document.getElementById("locationSuggestions");
+function initLocationSearch(map, applyMapPoint, ids = {}) {
+    const input = document.getElementById(ids.search || "locationSearch");
+    const list = document.getElementById(ids.suggestions || "locationSuggestions");
     if (!input || !list) return;
 
     let debounceTimer = null;
@@ -335,21 +335,43 @@ function ensureMapWrapWithHint(mapContainer) {
     return wrap;
 }
 
-function initMissionLocationMap() {
+/**
+ * @param {{
+ *   map?: string,
+ *   search?: string,
+ *   suggestions?: string,
+ *   location?: string,
+ *   latitude?: string,
+ *   longitude?: string,
+ *   restoreGlobalName?: string,
+ *   autoInit?: boolean,
+ * }} [options]
+ * @returns {{ map: import("mapbox-gl").Map, resize: () => void, restorePin: () => Promise<void> } | null}
+ */
+export function initLocationMap(options = {}) {
     if (typeof mapboxgl === "undefined") {
         console.error("[ERROR] mapboxgl is not loaded");
-        return;
+        return null;
     }
 
-    const mapContainer = document.getElementById("map");
-    if (!mapContainer) return;
+    const ids = {
+        map: options.map || "map",
+        search: options.search || "locationSearch",
+        suggestions: options.suggestions || "locationSuggestions",
+        location: options.location || "location",
+        latitude: options.latitude || "latitude",
+        longitude: options.longitude || "longitude",
+    };
+
+    const mapContainer = document.getElementById(ids.map);
+    if (!mapContainer) return null;
 
     ensureMapWrapWithHint(mapContainer);
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
     const map = new mapboxgl.Map({
-        container: "map",
+        container: ids.map,
         style: "mapbox://styles/mapbox/streets-v11",
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
@@ -362,10 +384,10 @@ function initMissionLocationMap() {
     let marker = null;
 
     function setLocationUI(label, lat, lng) {
-        const locationEl = document.getElementById("location");
-        const latEl = document.getElementById("latitude");
-        const lngEl = document.getElementById("longitude");
-        const searchEl = document.getElementById("locationSearch");
+        const locationEl = document.getElementById(ids.location);
+        const latEl = document.getElementById(ids.latitude);
+        const lngEl = document.getElementById(ids.longitude);
+        const searchEl = document.getElementById(ids.search);
 
         if (locationEl) locationEl.value = label;
         if (latEl) latEl.value = Number(lat).toFixed(6);
@@ -373,6 +395,10 @@ function initMissionLocationMap() {
         if (searchEl && label && !label.startsWith("Pinned location")) {
             searchEl.value = label;
         }
+
+        // Notify forms (profile dirty tracking, etc.)
+        locationEl?.dispatchEvent(new Event("input", { bubbles: true }));
+        locationEl?.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     function bindMarkerDrag(m) {
@@ -407,10 +433,10 @@ function initMissionLocationMap() {
         setLocationUI(formatPinnedLabel(lat, lng, label), lat, lng);
     }
 
-    async function restoreMissionMapPin() {
-        const existingLocation = document.getElementById("location")?.value?.trim();
-        const existingLat = parseFloat(document.getElementById("latitude")?.value);
-        const existingLng = parseFloat(document.getElementById("longitude")?.value);
+    async function restorePin() {
+        const existingLocation = document.getElementById(ids.location)?.value?.trim();
+        const existingLat = parseFloat(document.getElementById(ids.latitude)?.value);
+        const existingLng = parseFloat(document.getElementById(ids.longitude)?.value);
 
         if (!Number.isFinite(existingLat) || !Number.isFinite(existingLng)) return;
 
@@ -419,10 +445,18 @@ function initMissionLocationMap() {
         map.flyTo({ center: [existingLng, existingLat], zoom: 14 });
     }
 
+    const resize = () => {
+        try {
+            map.resize();
+        } catch {
+            /* ignore */
+        }
+    };
+
     map.on("load", () => {
-        map.resize();
-        window.addEventListener("resize", () => map.resize());
-        restoreMissionMapPin();
+        resize();
+        window.addEventListener("resize", resize);
+        restorePin();
     });
 
     map.on("error", (e) => console.error("[ERROR] Map error:", e));
@@ -431,8 +465,29 @@ function initMissionLocationMap() {
         applyMapPoint(e.lngLat.lng, e.lngLat.lat, null);
     });
 
-    initLocationSearch(map, applyMapPoint);
-    window.restoreMissionMapPin = restoreMissionMapPin;
+    initLocationSearch(map, applyMapPoint, ids);
+
+    const restoreGlobalName = options.restoreGlobalName || "restoreMissionMapPin";
+    window[restoreGlobalName] = restorePin;
+
+    return { map, resize, restorePin };
 }
 
-document.addEventListener("DOMContentLoaded", initMissionLocationMap);
+export function initMissionLocationMap() {
+    return initLocationMap({
+        map: "map",
+        search: "locationSearch",
+        suggestions: "locationSuggestions",
+        location: "location",
+        latitude: "latitude",
+        longitude: "longitude",
+        restoreGlobalName: "restoreMissionMapPin",
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Mission create/edit pages use the default #map IDs.
+    if (document.getElementById("map")) {
+        initMissionLocationMap();
+    }
+});

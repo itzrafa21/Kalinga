@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   @vite([
     'resources/css/app.css',
     'resources/js/app.js',
@@ -566,6 +567,73 @@
       border-color: #166534 !important;
     }
 
+    .map-search-wrap { position: relative; margin-bottom: 0.75rem; }
+    #emergencyLocationSearch {
+      padding-left: 2.35rem;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
+    }
+    #emergencyLocationSuggestions {
+      position: absolute;
+      z-index: 40;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 10px 24px rgba(15, 36, 25, 0.12);
+      display: none;
+      margin-top: 0.35rem;
+      max-height: 240px;
+      overflow-y: auto;
+      list-style: none;
+      padding: 0.35rem 0;
+    }
+    .map-location-suggestion { padding: 0.7rem 1rem; cursor: pointer; }
+    .map-location-suggestion-title { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+    .map-location-suggestion-meta { margin-top: 0.15rem; font-size: 0.78rem; color: #64748b; }
+    .map-location-suggestion:hover { background: #f0fdf4; }
+    .map-location-suggestion--empty { cursor: default; color: #64748b; }
+    .map-location-suggestion--empty:hover { background: transparent; }
+    .map-wrap {
+      position: relative;
+      width: 100%;
+      margin-top: 0.35rem;
+    }
+    #emergencyMap {
+      height: 280px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #dde3e8;
+      overflow: hidden;
+    }
+    .map-pin-hint {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 2;
+      pointer-events: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #1e3a2f;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(30, 58, 47, 0.12);
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+    }
+    html[data-theme="dark"] #emergencyLocationSearch,
+    html[data-theme="dark"] #emergencyLocationSuggestions,
+    html[data-theme="dark"] #emergencyMap {
+      background: #0f172a !important;
+      border-color: #334155 !important;
+      color: #e2e8f0 !important;
+    }
+    html[data-theme="dark"] .map-location-suggestion-title { color: #f8fafc !important; }
+    html[data-theme="dark"] .map-location-suggestion:hover { background: #14532d !important; }
+
     @media (max-width: 1000px) {
       .form-grid { grid-template-columns: 1fr; }
       .password-requirements { grid-template-columns: 1fr; }
@@ -633,6 +701,7 @@
         <div class="profile-tabs" role="tablist" aria-label="Profile sections">
           <button type="button" class="profile-tab active" role="tab" aria-selected="true" data-profile-section="organization">Organization</button>
           <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="representative">Representative</button>
+          <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="emergency">Emergency</button>
           <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="account">Account</button>
           <button type="button" class="profile-tab" role="tab" aria-selected="false" data-profile-section="password">Password</button>
         </div>
@@ -736,6 +805,41 @@
                 <div class="form-group">
                   <label class="form-label" for="repContactNumber">Contact number</label>
                   <input type="tel" id="repContactNumber" name="repContactNumber" class="form-control" placeholder="Mobile or telephone number">
+                </div>
+              </div>
+            </section>
+
+            <section class="profile-card" id="section-emergency" data-profile-panel="emergency" role="tabpanel" hidden>
+              <h2>Emergency profiling</h2>
+              <p class="field-hint" style="margin: -0.35rem 0 1rem;">Contact details used during mission emergencies.</p>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label" for="emergencyName">Name</label>
+                  <input type="text" id="emergencyName" name="emergencyName" class="form-control" placeholder="Emergency contact full name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="emergencyNumber">Number</label>
+                  <input type="tel" id="emergencyNumber" name="emergencyNumber" class="form-control" placeholder="Mobile or telephone number">
+                </div>
+                <div class="form-group full">
+                  <label class="form-label" for="emergencyLocationSearch">Location</label>
+                  <div class="map-search-wrap">
+                    <input
+                      type="text"
+                      id="emergencyLocationSearch"
+                      class="form-control"
+                      placeholder="Search place, barangay, landmark…"
+                      autocomplete="off"
+                    >
+                    <ul id="emergencyLocationSuggestions" role="listbox" aria-label="Location suggestions"></ul>
+                  </div>
+                  <input type="hidden" id="emergencyLocation" name="emergencyLocation">
+                  <input type="hidden" id="emergencyLatitude" name="emergencyLatitude">
+                  <input type="hidden" id="emergencyLongitude" name="emergencyLongitude">
+                  <div class="map-wrap">
+                    <div id="emergencyMap" aria-label="Emergency location map"></div>
+                  </div>
+                  <span class="field-hint">Search or pin the emergency rendezvous / HQ location on the map.</span>
                 </div>
               </div>
             </section>
@@ -850,5 +954,6 @@
       <button type="button" class="profile-success-confirm" id="profileSaveSuccessOk">OK</button>
     </div>
   </div>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 </body>
 </html>

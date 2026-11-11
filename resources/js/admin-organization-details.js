@@ -364,6 +364,30 @@ function renderOrganization(data) {
         detailRow("fa-file-signature", "Proof of Authorization:", documentMetaHtml(docs.authorization)),
     ].join("");
 
+    const emergency = data.emergency || {};
+    const emergencyLat =
+        emergency.latitude != null ? Number(emergency.latitude) : null;
+    const emergencyLng =
+        emergency.longitude != null ? Number(emergency.longitude) : null;
+    const emergencyCoords =
+        Number.isFinite(emergencyLat) && Number.isFinite(emergencyLng)
+            ? `${emergencyLat.toFixed(5)}, ${emergencyLng.toFixed(5)}`
+            : "";
+    const emergencyRows = [
+        detailRow("fa-user-shield", "Name:", showText(emergency.name || data.emergencyName)),
+        detailRow("fa-phone", "Number:", showText(emergency.number || data.emergencyNumber)),
+        detailRow(
+            "fa-map-marker-alt",
+            "Location:",
+            showText(emergency.location || data.emergencyLocation)
+        ),
+        emergencyCoords
+            ? detailRow("fa-globe", "Coordinates:", showText(emergencyCoords))
+            : "",
+    ]
+        .filter(Boolean)
+        .join("");
+
     const documentsRows = [
         detailRow(
             "fa-file-contract",
@@ -398,6 +422,7 @@ function renderOrganization(data) {
         <div class="org-detail-tabs" role="tablist" aria-label="Organization registration sections">
             <button type="button" class="org-detail-tab active" role="tab" aria-selected="true" data-org-tab="organization">A. Organization</button>
             <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="representative">B. Representative</button>
+            <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="emergency">Emergency</button>
             <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="documents">Documents</button>
             <button type="button" class="org-detail-tab" role="tab" aria-selected="false" data-org-tab="account">C. Account</button>
             ${
@@ -413,6 +438,9 @@ function renderOrganization(data) {
         </section>
         <section class="org-detail-panel" data-org-panel="representative" role="tabpanel" hidden>
             ${fieldsPanel("B. Authorized Representative", representativeRows)}
+        </section>
+        <section class="org-detail-panel" data-org-panel="emergency" role="tabpanel" hidden>
+            ${fieldsPanel("Emergency Profiling", emergencyRows)}
         </section>
         <section class="org-detail-panel" data-org-panel="documents" role="tabpanel" hidden>
             ${fieldsPanel("Supporting Documents", documentsRows)}

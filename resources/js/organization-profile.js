@@ -24,8 +24,10 @@ import {
   invalidateOrgCache,
 } from "./org-data-cache.js";
 import { countOrgApprovedVolunteers } from "./application-storage.js";
+import { initLocationMap } from "./mission-map.js";
 
 const PROFILE_STATS_VERSION = 2;
+let emergencyMapApi = null;
 
 function readValue(id) {
   return document.getElementById(id)?.value?.trim() || "";
@@ -227,8 +229,42 @@ function fillProfileForm(data, user) {
   setValue("repPosition", rep.position || "");
   setValue("repEmail", rep.email || "");
   setValue("repContactNumber", rep.contactNumber || "");
+
+  const emergency = data.emergency || {};
+  setValue("emergencyName", emergency.name || data.emergencyName || "");
+  setValue("emergencyNumber", emergency.number || data.emergencyNumber || "");
+  setValue(
+    "emergencyLocation",
+    emergency.location || data.emergencyLocation || ""
+  );
+  setValue(
+    "emergencyLatitude",
+    emergency.latitude != null
+      ? String(emergency.latitude)
+      : data.emergencyLatitude != null
+        ? String(data.emergencyLatitude)
+        : ""
+  );
+  setValue(
+    "emergencyLongitude",
+    emergency.longitude != null
+      ? String(emergency.longitude)
+      : data.emergencyLongitude != null
+        ? String(data.emergencyLongitude)
+        : ""
+  );
+  const searchEl = document.getElementById("emergencyLocationSearch");
+  if (searchEl) {
+    searchEl.value =
+      emergency.location || data.emergencyLocation || searchEl.value || "";
+  }
+
   updateTypeBadge(data.orgType || "");
   markProfileBaseline();
+
+  if (typeof window.restoreEmergencyMapPin === "function") {
+    void window.restoreEmergencyMapPin();
+  }
 }
 
 function openProfileSaveSuccessModal(message) {
@@ -652,6 +688,21 @@ function refreshProfileDirtyState() {
   setProfileDirty(snapshotProfileForm() !== profileFormBaseline);
 }
 
+function initEmergencyLocationMap() {
+  if (emergencyMapApi) return emergencyMapApi;
+  if (!document.getElementById("emergencyMap")) return null;
+  emergencyMapApi = initLocationMap({
+    map: "emergencyMap",
+    search: "emergencyLocationSearch",
+    suggestions: "emergencyLocationSuggestions",
+    location: "emergencyLocation",
+    latitude: "emergencyLatitude",
+    longitude: "emergencyLongitude",
+    restoreGlobalName: "restoreEmergencyMapPin",
+  });
+  return emergencyMapApi;
+}
+
 function initProfileSectionNav() {
   const tabs = Array.from(document.querySelectorAll("[data-profile-section]"));
   const panels = Array.from(document.querySelectorAll("[data-profile-panel]"));
@@ -667,6 +718,13 @@ function initProfileSectionNav() {
       const active = panel.getAttribute("data-profile-panel") === key;
       panel.hidden = !active;
     });
+    if (key === "emergency") {
+      const api = initEmergencyLocationMap();
+      // Map was hidden; resize after the panel becomes visible.
+      requestAnimationFrame(() => {
+        setTimeout(() => api?.resize?.(), 40);
+      });
+    }
   }
 
   tabs.forEach((tab) => {
@@ -680,6 +738,7 @@ function initProfileSectionNav() {
 
 function initializeFormHandlers() {
   initProfileSaveSuccessModal();
+  initEmergencyLocationMap();
   initProfileSectionNav();
 
   const form = document.getElementById("profileForm");
@@ -893,6 +952,17 @@ function initializeFormHandlers() {
           position: readValue("repPosition"),
           email: readValue("repEmail"),
           contactNumber: readValue("repContactNumber"),
+        },
+        emergency: {
+          name: readValue("emergencyName"),
+          number: readValue("emergencyNumber"),
+          location: readValue("emergencyLocation"),
+          latitude: readValue("emergencyLatitude")
+            ? Number(readValue("emergencyLatitude"))
+            : null,
+          longitude: readValue("emergencyLongitude")
+            ? Number(readValue("emergencyLongitude"))
+            : null,
         },
         updatedAt: new Date(),
       });
