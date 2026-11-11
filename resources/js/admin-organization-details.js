@@ -15,6 +15,8 @@ import {
 import {
     ORG_CLOUDINARY,
     cloudinaryUrlWithTransform,
+    sanitizeCloudinaryDocumentUrl,
+    candidateCloudinaryDocumentUrls,
 } from "./cloudinary-upload.js";
 
 const orgId = document.body.dataset.orgId || "";
@@ -167,36 +169,74 @@ function resolveOrgLogoSrc(data, { forDownload = false } = {}) {
     return "";
 }
 
+function viewableDocUrl(rawUrl) {
+    const normalized = normalizeLogoSrc(rawUrl);
+    if (!normalized) return "";
+    if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {
+        return normalized;
+    }
+    const cleaned = sanitizeCloudinaryDocumentUrl(normalized);
+    const candidates = candidateCloudinaryDocumentUrls(cleaned);
+    return (
+        candidates.find((u) => u.includes("/raw/upload/")) ||
+        candidates.find((u) => u.includes("/image/upload/")) ||
+        candidates[0] ||
+        cleaned ||
+        normalized
+    );
+}
+
+function isImageDoc(docItem, url = "") {
+    const type = String(docItem?.type || "").toLowerCase();
+    const name = String(docItem?.name || "").toLowerCase();
+    const src = String(url || "").toLowerCase();
+    if (type.startsWith("image/")) return true;
+    if (/\.(png|jpe?g|gif|webp|bmp|svg)(?:$|\?)/i.test(name)) return true;
+    if (src.startsWith("data:image/")) return true;
+    if (/\/image\/upload\//i.test(src)) return true;
+    if (/\.(png|jpe?g|gif|webp|bmp|svg)(?:$|\?)/i.test(src)) return true;
+    return false;
+}
+
+function isOfficeDoc(nameOrUrl = "") {
+    return /\.(docx?|xlsx?|pptx?)(?:$|\?)/i.test(String(nameOrUrl || ""));
+}
+
 function logoHtml(data) {
-    const downloadSrc = resolveOrgLogoSrc(data, { forDownload: true });
+    const displaySrc = resolveOrgLogoSrc(data, { forDownload: false });
+    const viewSrc = viewableDocUrl(
+        resolveOrgLogoSrc(data, { forDownload: true }) || displaySrc
+    );
+    const previewSrc = displaySrc || viewSrc;
     const logoDoc =
         data?.documents?.logo && typeof data.documents.logo === "object"
             ? data.documents.logo
             : null;
     const fileName =
         String(logoDoc?.name || "").trim() ||
-        (downloadSrc ? "organization-logo.jpg" : "");
+        (previewSrc ? "Organization logo" : "");
     const sizeLabel = formatBytes(logoDoc?.size);
     const sub = [logoDoc?.type, sizeLabel].filter(Boolean).join(" · ");
 
-    if (!fileName && !downloadSrc) return "—";
+    if (!fileName && !previewSrc) return "—";
 
-    const title = fileName || "organization-logo.jpg";
-    const titleHtml = downloadSrc
-        ? `<a class="org-doc-download" href="${escapeHtml(downloadSrc)}" download="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
-        : `<span class="org-doc-meta__name">${escapeHtml(title)}</span>`;
-
-    return `
-        <span class="org-doc-meta">
-            ${titleHtml}
-            ${sub ? `<span class="org-doc-meta__sub">${escapeHtml(sub)}</span>` : ""}
+    if (previewSrc) {
+        return `
+        <span class="org-doc-meta org-doc-meta--logo">
+            <a class="org-doc-view org-doc-view--image" href="${escapeHtml(viewSrc || previewSrc)}" data-view-name="${escapeHtml(fileName || "Organization logo")}" target="_blank" rel="noopener noreferrer">
+              <img class="org-logo-preview" src="${escapeHtml(previewSrc)}" alt="${escapeHtml(fileName || "Organization logo")}" loading="lazy">
+            </a>
+            ${sub ? `<span class="org-doc-meta__sub">${escapeHtml(sub)}</span>` : `<span class="org-doc-meta__sub">Tap to view</span>`}
         </span>`;
+    }
+
+    return `<span class="org-doc-meta__name">${escapeHtml(fileName)}</span>`;
 }
 
 function documentMetaHtml(docItem) {
     if (!docItem || typeof docItem !== "object") return "—";
     const name = String(docItem.name || "").trim();
-    const url = normalizeLogoSrc(
+    const url = viewableDocUrl(
         docItem.url || docItem.secure_url || docItem.base64 || docItem.dataUrl || ""
     );
     const type = String(docItem.type || "").trim();
@@ -205,9 +245,31 @@ function documentMetaHtml(docItem) {
     if (!name && !url) return "—";
 
     const title = name || "Document";
-    const titleHtml = url
-        ? `<a class="org-doc-download" href="${escapeHtml(url)}" download="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+
+    if (url && isImageDoc(docItem, url)) {
+        const previewSrc =
+            /res\.cloudinary\.com/i.test(url) && !url.startsWith("data:")
+                ? cloudinaryUrlWithTransform(url, "w_320,h_320,c_limit,q_auto,f_auto")
+                : url;
+        return `
+        <span class="org-doc-meta org-doc-meta--logo">
+            <a class="org-doc-view org-doc-view--image" href="${escapeHtml(url)}" data-view-name="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">
+              <img class="org-logo-preview org-doc-image-preview" src="${escapeHtml(previewSrc)}" alt="${escapeHtml(title)}" loading="lazy">
+            </a>
+            <span class="org-doc-meta__name">${escapeHtml(title)}</span>
+            <span class="org-doc-meta__sub">${escapeHtml([...(subParts.length ? subParts : []), "Tap to view"].join(" · "))}</span>
+        </span>`;
+    }
+
+    let href = url;
+    if (url && (isOfficeDoc(title) || isOfficeDoc(url))) {
+        href = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+    }
+
+    const titleHtml = href
+        ? `<a class="org-doc-view" href="${escapeHtml(href)}" data-view-name="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
         : `<span class="org-doc-meta__name">${escapeHtml(title)}</span>`;
+    if (href) subParts.push("Tap to view");
 
     return `
         <span class="org-doc-meta">

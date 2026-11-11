@@ -249,7 +249,8 @@
       font-weight: 700;
       color: #14532d;
     }
-    .org-logo-preview {
+    .org-logo-preview,
+    .org-doc-image-preview {
       width: 96px;
       height: 96px;
       border-radius: 12px;
@@ -258,6 +259,10 @@
       background: #f8faf9;
       display: block;
       margin-left: 0;
+    }
+    .org-doc-image-preview {
+      object-fit: contain;
+      background: #fff;
     }
     .org-doc-meta {
       display: inline-flex;
@@ -276,21 +281,34 @@
       color: #64748b;
     }
     .org-doc-meta a,
-    .org-doc-download {
+    .org-doc-download,
+    .org-doc-view {
       color: #15803d;
       text-decoration: underline;
       font-weight: 600;
       word-break: break-word;
+      cursor: pointer;
     }
     .org-doc-meta a:hover,
-    .org-doc-download:hover {
+    .org-doc-download:hover,
+    .org-doc-view:hover {
       color: #166534;
     }
-    .org-doc-meta--logo {
-      gap: 0.55rem;
+    .org-doc-view--image {
+      text-decoration: none;
+      display: inline-block;
+      line-height: 0;
     }
-    .org-doc-meta--logo .org-logo-preview {
-      margin-bottom: 0.15rem;
+    .org-doc-view--image:hover .org-logo-preview,
+    .org-doc-view--image:hover .org-doc-image-preview {
+      box-shadow: 0 0 0 2px rgba(22, 101, 52, 0.25);
+    }
+    .org-doc-meta--logo {
+      gap: 0.45rem;
+    }
+    .org-doc-meta--logo .org-logo-preview,
+    .org-doc-meta--logo .org-doc-image-preview {
+      margin-bottom: 0.05rem;
     }
     .org-page__footer {
       padding: 1rem 1.5rem;
