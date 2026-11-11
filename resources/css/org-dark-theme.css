@@ -12,13 +12,14 @@ html[data-theme="dark"] body.org-app {
 
 html[data-theme="dark"] .org-sidebar {
   background: #111827 !important;
-  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.45) !important;
+  border-right-color: #1f2937 !important;
+  box-shadow: none !important;
 }
 html[data-theme="dark"] .org-sidebar-logo {
   border-bottom-color: rgba(148, 163, 184, 0.18) !important;
 }
 html[data-theme="dark"] .org-sidebar-section {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 html[data-theme="dark"] .org-sidebar a,
 html[data-theme="dark"] #logoutBtn.org-sidebar-logout-link {

@@ -22,9 +22,9 @@
     }
     body.org-app { display: flex; }
     .org-main-content.main-content.donation-page {
-      margin-left: 260px;
+      margin-left: 210px;
       max-width: none;
-      width: calc(100% - 260px);
+      width: calc(100% - 210px);
       height: 100vh;
       min-height: 100vh;
       padding: 0;

@@ -27,9 +27,9 @@
     }
     body.org-app { display: flex; }
     .org-main-content.main-content.profile-page {
-      margin-left: 260px;
+      margin-left: 210px;
       max-width: none;
-      width: calc(100% - 260px);
+      width: calc(100% - 210px);
       height: 100vh;
       min-height: 100vh;
       padding: 0;
@@ -430,7 +430,7 @@
 
     .profile-sticky-bar {
       position: fixed;
-      left: 260px;
+      left: 210px;
       right: 0;
       bottom: 0;
       z-index: 40;
