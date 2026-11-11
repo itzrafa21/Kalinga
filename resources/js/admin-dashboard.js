@@ -49,6 +49,18 @@ import {
     formatInKindSummary,
     resolveDonationMode,
 } from "./donation-shared.js";
+import {
+    ADMIN_CACHE_KEYS,
+    ADMIN_FRESH_MS,
+    adminCachedFetch,
+    readAdminCache,
+    writeAdminCache,
+    isAdminCacheFresh,
+    invalidateAdminCache,
+    markAdminTabLoaded,
+    isAdminTabLoaded,
+    clearAdminTabLoaded,
+} from "./admin-data-cache.js";
 
 let allAdminMissions = [];
 let allAdminVolunteers = [];
@@ -618,25 +630,41 @@ function showTab(tabName) {
     loadTabData(tabName);
 }
 
-function loadTabData(tabName) {
-    switch(tabName) {
-        case 'dashboard':
-            loadDashboardData();
+function loadTabData(tabName, { force = false } = {}) {
+    // Initialize each tab once per session unless forced or cache went stale.
+    if (!force && isAdminTabLoaded(tabName)) {
+        return;
+    }
+
+    switch (tabName) {
+        case "dashboard":
+            void loadDashboardData().then(() => markAdminTabLoaded("dashboard"));
             break;
-        case 'organizations':
-            loadOrganizationsData();
+        case "organizations":
+            void loadOrganizationsData({ force }).then(() =>
+                markAdminTabLoaded("organizations")
+            );
             break;
-        case 'missions':
-            loadMissionsData();
+        case "missions":
+            void loadMissionsData({ force }).then(() => markAdminTabLoaded("missions"));
             break;
-        case 'volunteers':
-            loadVolunteersData();
+        case "volunteers":
+            void loadVolunteersData({ force }).then(() =>
+                markAdminTabLoaded("volunteers")
+            );
             break;
-        case 'campaigns':
-            loadCampaignsData();
+        case "campaigns":
+            void loadCampaignsData({ force }).then(() =>
+                markAdminTabLoaded("campaigns")
+            );
             break;
-        case 'settings':
-            loadSettingsData();
+        case "settings":
+            if (typeof loadSettingsData === "function") {
+                loadSettingsData();
+            }
+            markAdminTabLoaded("settings");
+            break;
+        default:
             break;
     }
 }
@@ -755,7 +783,11 @@ async function performOrgRejection(orgId, reason, mode = "reject") {
             : ORG_VERIFICATION_STATUS.REJECTED,
         reason
     );
-    await loadOrganizationsData();
+    invalidateAdminCache(ADMIN_CACHE_KEYS.ORGANIZATIONS);
+    invalidateAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+    clearAdminTabLoaded("organizations");
+    clearAdminTabLoaded("dashboard");
+    await loadOrganizationsData({ force: true });
 }
 
 function openOrgVerifySuccessModal(orgName) {
@@ -808,7 +840,11 @@ window.approveOrganization = async function (orgId) {
             (orgSnap.data().name || orgSnap.data().orgName || "");
 
         await setOrganizationVerification(orgId, ORG_VERIFICATION_STATUS.APPROVED);
-        await loadOrganizationsData();
+        invalidateAdminCache(ADMIN_CACHE_KEYS.ORGANIZATIONS);
+        invalidateAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+        clearAdminTabLoaded("organizations");
+        clearAdminTabLoaded("dashboard");
+        await loadOrganizationsData({ force: true });
         openOrgVerifySuccessModal(orgName);
     } catch (err) {
         console.error(err);
@@ -826,33 +862,50 @@ window.deactivateOrganization = function (orgId) {
     openOrgRejectModal(orgId, "deactivate");
 };
 
-async function loadOrganizationsData() {
+async function loadOrganizationsData({ force = false } = {}) {
     try {
-        const snapshot = await getDocs(collection(db, "organizations"));
         const tbody = document.getElementById("organizationsTableBody");
         if (!tbody) return;
 
-        if (snapshot.empty) {
-            allAdminOrganizations = [];
+        if (
+            !force &&
+            isAdminCacheFresh(ADMIN_CACHE_KEYS.ORGANIZATIONS) &&
+            Array.isArray(readAdminCache(ADMIN_CACHE_KEYS.ORGANIZATIONS)?.payload)
+        ) {
+            allAdminOrganizations =
+                readAdminCache(ADMIN_CACHE_KEYS.ORGANIZATIONS).payload;
+            renderOrganizationsTable(allAdminOrganizations);
+            return;
+        }
+
+        const list = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.ORGANIZATIONS,
+            async () => {
+                const snapshot = await getDocs(collection(db, "organizations"));
+                const orgs = snapshot.docs.map((d) => ({
+                    id: d.id,
+                    ...d.data(),
+                }));
+                orgs.sort((a, b) =>
+                    String(a.name || a.orgName || "").localeCompare(
+                        String(b.name || b.orgName || ""),
+                        undefined,
+                        { sensitivity: "base" }
+                    )
+                );
+                return orgs;
+            },
+            { force, maxAgeMs: ADMIN_FRESH_MS }
+        );
+
+        allAdminOrganizations = Array.isArray(list) ? list : [];
+        if (!allAdminOrganizations.length) {
             tbody.innerHTML =
                 '<tr><td colspan="6" class="text-center">No organizations found</td></tr>';
             return;
         }
 
-        allAdminOrganizations = snapshot.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-        }));
-        allAdminOrganizations.sort((a, b) =>
-            String(a.name || a.orgName || "").localeCompare(
-                String(b.name || b.orgName || ""),
-                undefined,
-                { sensitivity: "base" }
-            )
-        );
-
         renderOrganizationsTable(allAdminOrganizations);
-
         console.log("[SUCCESS] Organizations loaded from Firebase");
     } catch (error) {
         console.error("Error loading organizations:", error);
@@ -1137,55 +1190,65 @@ function shouldShowSubmissionInAdminList(mission) {
     return true;
 }
 
-async function loadMissionsData() {
+async function loadMissionsData({ force = false } = {}) {
     try {
         console.log("[INFO] Loading missions data from Firebase...");
 
-        const missionsQuery = query(
-            collection(db, "mission_submissions"),
-            orderBy("submittedAt", "desc"),
-            limit(100)
-        );
-        const missionsSnapshot = await getDocs(missionsQuery);
-
-        if (missionsSnapshot.empty) {
-            allAdminMissions = [];
-            renderAdminMissionsTable([]);
+        if (
+            !force &&
+            isAdminCacheFresh(ADMIN_CACHE_KEYS.MISSIONS) &&
+            Array.isArray(readAdminCache(ADMIN_CACHE_KEYS.MISSIONS)?.payload)
+        ) {
+            allAdminMissions = readAdminCache(ADMIN_CACHE_KEYS.MISSIONS).payload;
+            renderAdminMissionsTable(allAdminMissions);
             return;
         }
 
-        const rawMissions = missionsSnapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-        }));
-        
-        const visibleMissions = rawMissions.filter(shouldShowSubmissionInAdminList);
-        
-        const orgNameMap = await buildOrganizationNameMap(
-            visibleMissions.map((m) => m.orgId)
+        const missions = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.MISSIONS,
+            async () => {
+                const missionsQuery = query(
+                    collection(db, "mission_submissions"),
+                    orderBy("submittedAt", "desc"),
+                    limit(100)
+                );
+                const missionsSnapshot = await getDocs(missionsQuery);
+                if (missionsSnapshot.empty) return [];
+
+                const rawMissions = missionsSnapshot.docs.map((docSnap) => ({
+                    id: docSnap.id,
+                    ...docSnap.data(),
+                }));
+                const visibleMissions = rawMissions.filter(
+                    shouldShowSubmissionInAdminList
+                );
+                const orgNameMap = await buildOrganizationNameMap(
+                    visibleMissions.map((m) => m.orgId)
+                );
+                const enriched = visibleMissions.map((mission) => {
+                    const liveName = mission.orgId
+                        ? orgNameMap.get(mission.orgId)
+                        : "";
+                    return {
+                        ...mission,
+                        displayOrgName:
+                            liveName || mission.orgName || "Unknown",
+                    };
+                });
+                enriched.sort((a, b) => {
+                    const aStatus = (a.status || "").toLowerCase();
+                    const bStatus = (b.status || "").toLowerCase();
+                    if (aStatus === "pending" && bStatus !== "pending") return -1;
+                    if (aStatus !== "pending" && bStatus === "pending") return 1;
+                    return 0;
+                });
+                return enriched;
+            },
+            { force, maxAgeMs: ADMIN_FRESH_MS }
         );
-        
-        allAdminMissions = visibleMissions.map((mission) => {
-            const liveName = mission.orgId
-                ? orgNameMap.get(mission.orgId)
-                : "";
-            return {
-                ...mission,
-                displayOrgName:
-                    liveName || mission.orgName || "Unknown",
-            };
-        });
 
-        allAdminMissions.sort((a, b) => {
-            const aStatus = (a.status || "").toLowerCase();
-            const bStatus = (b.status || "").toLowerCase();
-            if (aStatus === "pending" && bStatus !== "pending") return -1;
-            if (aStatus !== "pending" && bStatus === "pending") return 1;
-            return 0;
-        });
-
+        allAdminMissions = Array.isArray(missions) ? missions : [];
         renderAdminMissionsTable(allAdminMissions);
-
         console.log("[SUCCESS] Missions data loaded:", allAdminMissions.length);
     } catch (error) {
         console.error("Error loading missions data:", error);
@@ -1206,55 +1269,87 @@ async function loadDashboardData() {
         console.log("[SUCCESS] Dashboard data loaded from Firebase");
     } catch (error) {
         console.error("Error loading dashboard data:", error);
-        // Fallback to mock data
-        document.getElementById('totalUsers').textContent = '1,234';
-        document.getElementById('totalOrganizations').textContent = '45';
-        document.getElementById('totalMissions').textContent = '89';
-        document.getElementById('totalVolunteers').textContent = '567';
+        document.getElementById("totalUsers").textContent = "—";
+        document.getElementById("totalOrganizations").textContent = "—";
+        document.getElementById("totalMissions").textContent = "—";
+        document.getElementById("totalVolunteers").textContent = "—";
     }
+}
+
+function paintDashboardStats(stats) {
+    if (!stats) return;
+    document.getElementById("totalUsers").textContent = String(stats.users ?? "—");
+    document.getElementById("totalOrganizations").textContent = String(
+        stats.organizations ?? "—"
+    );
+    document.getElementById("totalMissions").textContent = String(
+        stats.missions ?? "—"
+    );
+    document.getElementById("totalVolunteers").textContent = String(
+        stats.volunteers ?? "—"
+    );
 }
 
 async function loadDashboardStats() {
     try {
         console.log("[INFO] Loading dashboard stats from Firebase...");
-        
-        // Show loading state
-        document.getElementById('totalUsers').textContent = '...';
-        document.getElementById('totalOrganizations').textContent = '...';
-        document.getElementById('totalMissions').textContent = '...';
-        document.getElementById('totalVolunteers').textContent = '...';
+        document.getElementById("totalUsers").textContent = "...";
+        document.getElementById("totalOrganizations").textContent = "...";
+        document.getElementById("totalMissions").textContent = "...";
+        document.getElementById("totalVolunteers").textContent = "...";
 
-        // Get total users count
-        const usersQuery = query(collection(db, "users"));
-        const usersSnapshot = await getDocs(usersQuery);
-        document.getElementById('totalUsers').textContent = usersSnapshot.size;
+        if (isAdminCacheFresh(ADMIN_CACHE_KEYS.DASHBOARD_STATS)) {
+            const cached = readAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+            if (cached?.payload) {
+                paintDashboardStats(cached.payload);
+                return;
+            }
+        }
 
-        // Get total organizations count
-        const orgsQuery = query(collection(db, "organizations"));
-        const orgsSnapshot = await getDocs(orgsQuery);
-        document.getElementById('totalOrganizations').textContent = orgsSnapshot.size;
+        const stats = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.DASHBOARD_STATS,
+            async () => {
+                const [usersSnapshot, orgsSnapshot, submissionsSnapshot] =
+                    await Promise.all([
+                        getDocs(query(collection(db, "users"), limit(500))),
+                        getDocs(
+                            query(collection(db, "organizations"), limit(500))
+                        ),
+                        getDocs(
+                            query(
+                                collection(db, "mission_submissions"),
+                                limit(500)
+                            )
+                        ),
+                    ]);
 
-         // Total missions = all submissions from all organizations
-         const submissionsSnapshot = await getDocs(collection(db, "mission_submissions"));
-        document.getElementById('totalMissions').textContent = submissionsSnapshot.size;
+                // Reuse orgs cache for other tabs when possible
+                if (!isAdminCacheFresh(ADMIN_CACHE_KEYS.ORGANIZATIONS)) {
+                    writeAdminCache(
+                        ADMIN_CACHE_KEYS.ORGANIZATIONS,
+                        orgsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+                    );
+                }
 
-        const volunteerEntries = await loadVolunteerUserEntries();
-        document.getElementById("totalVolunteers").textContent =
-            String(volunteerEntries.length);
+                const volunteerEntries = await loadVolunteerUserEntries();
+                return {
+                    users: usersSnapshot.size,
+                    organizations: orgsSnapshot.size,
+                    missions: submissionsSnapshot.size,
+                    volunteers: volunteerEntries.length,
+                };
+            },
+            { maxAgeMs: ADMIN_FRESH_MS }
+        );
 
-        console.log("[SUCCESS] Dashboard stats loaded from Firebase:", {
-            users: usersSnapshot.size,
-            organizations: orgsSnapshot.size,
-            missions: submissionsSnapshot.size,
-            volunteers: volunteerEntries.length,
-        });
+        paintDashboardStats(stats);
+        console.log("[SUCCESS] Dashboard stats loaded from Firebase:", stats);
     } catch (error) {
         console.error("[ERROR] Error loading dashboard stats:", error);
-        // Fallback to mock data
-        document.getElementById('totalUsers').textContent = '1,234';
-        document.getElementById('totalOrganizations').textContent = '45';
-        document.getElementById('totalMissions').textContent = '89';
-        document.getElementById('totalVolunteers').textContent = '567';
+        document.getElementById("totalUsers").textContent = "—";
+        document.getElementById("totalOrganizations").textContent = "—";
+        document.getElementById("totalMissions").textContent = "—";
+        document.getElementById("totalVolunteers").textContent = "—";
     }
 }
 
@@ -1619,9 +1714,19 @@ function statusString(status) {
     return String(status || "").toLowerCase().replace(/\s+/g, "-");
 }
 
-async function loadVolunteersData() {
+async function loadVolunteersData({ force = false } = {}) {
     const tbody = document.getElementById("volunteersTableBody");
     if (!tbody) return;
+
+    if (
+        !force &&
+        isAdminCacheFresh(ADMIN_CACHE_KEYS.VOLUNTEERS) &&
+        Array.isArray(readAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS)?.payload)
+    ) {
+        allAdminVolunteers = readAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS).payload;
+        filterVolunteers();
+        return;
+    }
 
     tbody.innerHTML =
         '<tr><td colspan="7" class="text-center text-muted">Loading volunteers…</td></tr>';
@@ -1629,25 +1734,32 @@ async function loadVolunteersData() {
     try {
         await loadPlatformConfig();
 
-        const userEntries = await loadVolunteerUserEntries();
-        const userIds = userEntries.map(({ id }) => id);
-        const statsIndex = await buildGlobalVolunteerStatsIndex(userIds);
+        const volunteers = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.VOLUNTEERS,
+            async () => {
+                const userEntries = await loadVolunteerUserEntries();
+                const userIds = userEntries.map(({ id }) => id);
+                const statsIndex = await buildGlobalVolunteerStatsIndex(userIds);
 
-        const volunteers = await Promise.all(
-            userEntries.map(({ id, data }) =>
-                createVolunteerRow(id, data, statsIndex.get(id))
-            )
+                const rows = await Promise.all(
+                    userEntries.map(({ id, data }) =>
+                        createVolunteerRow(id, data, statsIndex.get(id))
+                    )
+                );
+
+                rows.sort((a, b) =>
+                    String(a.name).localeCompare(String(b.name), undefined, {
+                        sensitivity: "base",
+                    })
+                );
+                return rows;
+            },
+            { force, maxAgeMs: ADMIN_FRESH_MS }
         );
 
-        volunteers.sort((a, b) =>
-            String(a.name).localeCompare(String(b.name), undefined, {
-                sensitivity: "base",
-            })
-        );
-
-        allAdminVolunteers = volunteers;
+        allAdminVolunteers = Array.isArray(volunteers) ? volunteers : [];
         filterVolunteers();
-        console.log("[SUCCESS] Volunteers loaded:", volunteers.length);
+        console.log("[SUCCESS] Volunteers loaded:", allAdminVolunteers.length);
     } catch (error) {
         console.error("[ERROR] Error loading volunteers:", error);
         tbody.innerHTML =
@@ -1754,7 +1866,11 @@ function closeMissionApproveSuccessModal() {
 
     const onClose = () => {
         closeMissionApproveSuccessModal();
-        if (typeof loadMissionsData === "function") loadMissionsData();
+        if (typeof loadMissionsData === "function") {
+            invalidateAdminCache(ADMIN_CACHE_KEYS.MISSIONS);
+            clearAdminTabLoaded("missions");
+            loadMissionsData({ force: true });
+        }
     };
 
     document.getElementById("missionApproveSuccessOk")?.addEventListener("click", onClose);
@@ -1805,7 +1921,11 @@ window.approveMission = async function(missionId) {
         });
 
         openMissionApproveSuccessModal();
-        loadMissionsData();
+        invalidateAdminCache(ADMIN_CACHE_KEYS.MISSIONS);
+        invalidateAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+        clearAdminTabLoaded("missions");
+        clearAdminTabLoaded("dashboard");
+        loadMissionsData({ force: true });
     } catch (error) {
         console.error("Error approving mission:", error);
         alert("Error approving mission. Please try again.");
@@ -1882,7 +2002,11 @@ async function performMissionRejection(missionId, reason) {
         }
 
         alert("[INFO] Mission rejected.");
-        loadMissionsData();
+        invalidateAdminCache(ADMIN_CACHE_KEYS.MISSIONS);
+        invalidateAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+        clearAdminTabLoaded("missions");
+        clearAdminTabLoaded("dashboard");
+        loadMissionsData({ force: true });
     } catch (error) {
         console.error("Error rejecting mission:", error);
         alert("Error rejecting mission. Please try again.");
@@ -2003,15 +2127,60 @@ function saveLeaderboardSettings(e) {
     alert(`Leaderboard settings saved!\nScoring: ${scoringSystem}\nUpdate: ${updateFrequency}`);
 }
 
-async function loadCampaignsData() {
+async function loadCampaignsData({ force = false } = {}) {
     try {
-        const snap = await getDocs(collection(db, "donation_campaigns"));
-        allAdminCampaigns = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        allAdminCampaigns.sort((a, b) =>
-            String(b.submittedAt?.toDate?.() || b.updatedAt?.toDate?.() || b.createdAt || "").localeCompare(
-                String(a.submittedAt?.toDate?.() || a.updatedAt?.toDate?.() || a.createdAt || "")
-            )
+        if (
+            !force &&
+            isAdminCacheFresh(ADMIN_CACHE_KEYS.CAMPAIGNS) &&
+            Array.isArray(readAdminCache(ADMIN_CACHE_KEYS.CAMPAIGNS)?.payload)
+        ) {
+            allAdminCampaigns = readAdminCache(ADMIN_CACHE_KEYS.CAMPAIGNS).payload;
+            renderCampaignsTable(allAdminCampaigns);
+            return;
+        }
+
+        const list = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.CAMPAIGNS,
+            async () => {
+                let snap;
+                try {
+                    snap = await getDocs(
+                        query(
+                            collection(db, "donation_campaigns"),
+                            orderBy("updatedAt", "desc"),
+                            limit(100)
+                        )
+                    );
+                } catch {
+                    snap = await getDocs(
+                        query(collection(db, "donation_campaigns"), limit(100))
+                    );
+                }
+                const campaigns = snap.docs.map((d) => ({
+                    id: d.id,
+                    ...d.data(),
+                }));
+                campaigns.sort((a, b) =>
+                    String(
+                        b.submittedAt?.toDate?.() ||
+                            b.updatedAt?.toDate?.() ||
+                            b.createdAt ||
+                            ""
+                    ).localeCompare(
+                        String(
+                            a.submittedAt?.toDate?.() ||
+                                a.updatedAt?.toDate?.() ||
+                                a.createdAt ||
+                                ""
+                        )
+                    )
+                );
+                return campaigns;
+            },
+            { force, maxAgeMs: ADMIN_FRESH_MS }
         );
+
+        allAdminCampaigns = Array.isArray(list) ? list : [];
         renderCampaignsTable(allAdminCampaigns);
     } catch (error) {
         console.error("Error loading campaigns:", error);
@@ -2101,7 +2270,9 @@ window.approveCampaign = async function (campaignId) {
             rejectionReason: "",
             updatedAt: serverTimestamp(),
         });
-        await loadCampaignsData();
+        invalidateAdminCache(ADMIN_CACHE_KEYS.CAMPAIGNS);
+        clearAdminTabLoaded("campaigns");
+        await loadCampaignsData({ force: true });
         alert("Campaign approved and published.");
     } catch (error) {
         console.error(error);
@@ -2119,7 +2290,9 @@ window.rejectCampaign = async function (campaignId) {
             rejectionReason: reason.trim(),
             updatedAt: serverTimestamp(),
         });
-        await loadCampaignsData();
+        invalidateAdminCache(ADMIN_CACHE_KEYS.CAMPAIGNS);
+        clearAdminTabLoaded("campaigns");
+        await loadCampaignsData({ force: true });
     } catch (error) {
         console.error(error);
         alert("Could not reject campaign.");
@@ -2287,7 +2460,9 @@ async function syncMissionStatuses() {
         
         // Reload missions data after sync
         if (updatedCount > 0) {
-            await loadMissionsData();
+            invalidateAdminCache(ADMIN_CACHE_KEYS.MISSIONS);
+            clearAdminTabLoaded("missions");
+            await loadMissionsData({ force: true });
         }
         
     } catch (error) {
@@ -2295,24 +2470,5 @@ async function syncMissionStatuses() {
     }
 }
 
-//Call sync function when admin dashboard loads
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "/admin/login";
-        return;
-    }
-    
-    console.log("[SUCCESS] Admin logged in:", user.email);
-    
-    // Load initial data
-    await loadMissionsData();
-    await loadOrganizationsData();
-
-    //  Sync mission statuses to ensure consistency
-    await syncMissionStatuses();
-    
-    // Set up periodic sync every 5 minutes
-    setInterval(async () => {
-        await syncMissionStatuses();
-    }, 5 * 60 * 1000);
-});
+// Intentionally no second auth preload — tabs initialize once via showTab/loadTabData.
+// syncMissionStatuses is expensive (orgs × history × mission docs); run only on demand.

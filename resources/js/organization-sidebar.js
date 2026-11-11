@@ -1,6 +1,10 @@
-import { auth, db } from "./firebase";
+import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { getOrgProfileOnce } from "./org-verification.js";
+import {
+    ORG_CACHE_KEYS,
+    readOrgCache,
+} from "./org-data-cache.js";
 import "../css/org-dark-theme.css";
 
 const THEME_KEY = "kalinga-org-theme";
@@ -69,11 +73,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     try {
-        const snap = await getDoc(doc(db, "organizations", user.uid));
-        let displayName;
+        const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
+        if (cached?.payload?.displayName) {
+            setOrgWelcomeName(cached.payload.displayName);
+        }
 
-        if (snap.exists()) {
-            const orgData = snap.data();
+        const orgData = await getOrgProfileOnce(user.uid);
+        let displayName;
+        if (orgData) {
             displayName =
                 (orgData.name && String(orgData.name).trim()) ||
                 (orgData.orgName && String(orgData.orgName).trim()) ||

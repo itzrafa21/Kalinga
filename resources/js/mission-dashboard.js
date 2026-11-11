@@ -17,9 +17,11 @@ import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { awardMissionPoints } from "./volunteer-recognition.js";
 import {
     ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
     readOrgCache,
     writeOrgCache,
     isOrgCacheStale,
+    isOrgCacheFresh,
     invalidateOrgCache,
     missionDetailCacheKey,
     isLoadingTableHtml,
@@ -28,6 +30,7 @@ import {
 
 let CURRENT_USER = null;
 let allDashboardMissions = [];
+let statusSyncTimer = null;
 
 function getCreatedAtMs(value) {
     if (!value) return 0;
@@ -43,10 +46,27 @@ function sortMissionsByCreatedAt(missions) {
     );
 }
 
-async function refreshMissionDashboard(user, { silent = false } = {}) {
+async function refreshMissionDashboard(
+    user,
+    { silent = false, force = false, syncStatuses = true } = {}
+) {
     if (!user) return;
-    await updateMissionStatuses(user);
-    await loadMissions(user, { refresh: true, force: true, silent });
+    const fresh = isOrgCacheFresh(user.uid, ORG_CACHE_KEYS.DASHBOARD, NAV_FRESH_MS);
+    if (!force && fresh) {
+        const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
+        if (cached?.payload) {
+            applyCachedDashboardMissions(cached.payload);
+            return;
+        }
+    }
+    if (syncStatuses) {
+        await updateMissionStatuses(user);
+    }
+    await loadMissions(user, {
+        refresh: true,
+        force,
+        silent,
+    });
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -62,19 +82,44 @@ onAuthStateChanged(auth, async (user) => {
     initMissionFilters();
 
     const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
-    await refreshMissionDashboard(user, { silent: Boolean(cached?.payload) });
+    if (cached?.payload) {
+        applyCachedDashboardMissions(cached.payload);
+    }
 
-    setInterval(async () => {
-        if (CURRENT_USER) {
-            await refreshMissionDashboard(CURRENT_USER, { silent: true });
-        }
-    }, 1 * 60 * 1000);
+    const needsNetwork = !isOrgCacheFresh(
+        user.uid,
+        ORG_CACHE_KEYS.DASHBOARD,
+        NAV_FRESH_MS
+    );
+    if (needsNetwork) {
+        await refreshMissionDashboard(user, {
+            silent: Boolean(cached?.payload),
+            force: true,
+        });
+    }
+
+    if (statusSyncTimer) clearInterval(statusSyncTimer);
+    statusSyncTimer = setInterval(async () => {
+        if (!CURRENT_USER) return;
+        await refreshMissionDashboard(CURRENT_USER, {
+            silent: true,
+            force: true,
+            syncStatuses: true,
+        });
+    }, 5 * 60 * 1000);
 });
 
 window.addEventListener("pageshow", (event) => {
     if (!CURRENT_USER) return;
     if (event.persisted) {
-        void refreshMissionDashboard(CURRENT_USER, { silent: false });
+        void refreshMissionDashboard(CURRENT_USER, {
+            silent: false,
+            force: !isOrgCacheFresh(
+                CURRENT_USER.uid,
+                ORG_CACHE_KEYS.DASHBOARD,
+                NAV_FRESH_MS
+            ),
+        });
     }
 });
 

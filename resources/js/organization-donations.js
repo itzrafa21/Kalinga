@@ -5,12 +5,17 @@ import {
     doc,
     getDoc,
     getDocs,
+    limit,
     query,
     updateDoc,
     where,
     serverTimestamp,
 } from "firebase/firestore";
-import { assertOrgVerified } from "./org-verification.js";
+import {
+    assertOrgVerified,
+    getOrgProfileOnce,
+    invalidateOrgProfileCache,
+} from "./org-verification.js";
 import {
     CAMPAIGN_STATUS,
     campaignAcceptsGoods,
@@ -24,6 +29,14 @@ import {
     inKindProgressPercent,
     resolveDonationMode,
 } from "./donation-shared.js";
+import {
+    ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheFresh,
+    invalidateOrgCache,
+} from "./org-data-cache.js";
 
 let orgId = null;
 let orgName = "";
@@ -129,9 +142,7 @@ function togglePaymongoEdit(forceOpen) {
 }
 
 async function loadOrgPaymongo() {
-    const orgSnap = await getDoc(doc(db, "organizations", orgId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() || {};
+    const data = (await getOrgProfileOnce(orgId)) || {};
     orgName = data.name || data.orgName || "";
     const linked = data.paymongo?.linkedAccountId || "";
     setPaymongoStatus(Boolean(linked), linked);
@@ -157,6 +168,7 @@ async function savePaymongoAccount(event) {
             },
             updatedAt: serverTimestamp(),
         });
+        invalidateOrgProfileCache(orgId);
         setPaymongoStatus(true, accountId);
         togglePaymongoEdit(false);
     } catch (error) {
@@ -318,8 +330,27 @@ function updateStats(campaigns, monthRaised, donors) {
     }
 }
 
-async function loadCampaigns() {
+function applyDonationsPayload(payload) {
+    allCampaigns = Array.isArray(payload?.campaigns) ? payload.campaigns : [];
+    updateStats(
+        allCampaigns,
+        Number(payload?.monthRaised) || 0,
+        Number(payload?.donors) || 0
+    );
+    renderCampaignRows();
+}
+
+async function loadCampaigns({ force = false } = {}) {
     const tbody = document.getElementById("campaignsTableBody");
+    const fresh = isOrgCacheFresh(orgId, ORG_CACHE_KEYS.DONATIONS, NAV_FRESH_MS);
+    if (!force && fresh) {
+        const cached = readOrgCache(orgId, ORG_CACHE_KEYS.DONATIONS);
+        if (cached?.payload) {
+            applyDonationsPayload(cached.payload);
+            return;
+        }
+    }
+
     if (tbody) {
         tbody.innerHTML =
             '<tr><td colspan="5" class="empty-state">Loading campaigns…</td></tr>';
@@ -339,41 +370,46 @@ async function loadCampaigns() {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
     let monthRaised = 0;
-    let donors = 0;
+    let donors = allCampaigns.reduce(
+        (sum, c) => sum + (Number(c.donorCount) || 0),
+        0
+    );
 
-    try {
-        const donationsSnap = await getDocs(
-            query(
-                collection(db, "donations"),
-                where("orgId", "==", orgId),
-                where("status", "==", "paid")
-            )
-        );
-        const donorIds = new Set();
-        donationsSnap.forEach((d) => {
-            const data = d.data() || {};
-            const paidAt =
-                data.paidAt?.toDate?.() || (data.paidAt ? new Date(data.paidAt) : null);
-            if (paidAt && paidAt >= monthStart) {
-                monthRaised += Number(data.amountCentavos) || 0;
-            }
-            if (data.volunteerId) donorIds.add(data.volunteerId);
-            else if (data.volunteerEmail) donorIds.add(data.volunteerEmail);
-        });
-        donors = donorIds.size;
-        if (!donors) {
-            donors = allCampaigns.reduce(
-                (sum, c) => sum + (Number(c.donorCount) || 0),
-                0
+    // Prefer campaign aggregates; only sample recent paid donations when needed.
+    const needsDonationScan = allCampaigns.some(
+        (c) => Number(c.raisedAmountCentavos) > 0 || Number(c.donorCount) > 0
+    );
+    if (needsDonationScan) {
+        try {
+            const donationsSnap = await getDocs(
+                query(
+                    collection(db, "donations"),
+                    where("orgId", "==", orgId),
+                    where("status", "==", "paid"),
+                    limit(200)
+                )
             );
+            const donorIds = new Set();
+            donationsSnap.forEach((d) => {
+                const data = d.data() || {};
+                const paidAt =
+                    data.paidAt?.toDate?.() ||
+                    (data.paidAt ? new Date(data.paidAt) : null);
+                if (paidAt && paidAt >= monthStart) {
+                    monthRaised += Number(data.amountCentavos) || 0;
+                }
+                if (data.volunteerId) donorIds.add(data.volunteerId);
+                else if (data.volunteerEmail) donorIds.add(data.volunteerEmail);
+            });
+            if (donorIds.size) donors = donorIds.size;
+        } catch (error) {
+            console.warn("Could not load donation totals", error);
         }
-    } catch (error) {
-        console.warn("Could not load donation totals", error);
-        donors = allCampaigns.reduce((sum, c) => sum + (Number(c.donorCount) || 0), 0);
     }
 
-    updateStats(allCampaigns, monthRaised, donors);
-    renderCampaignRows();
+    const payload = { campaigns: allCampaigns, monthRaised, donors };
+    writeOrgCache(orgId, ORG_CACHE_KEYS.DONATIONS, payload);
+    applyDonationsPayload(payload);
 }
 
 function wireUi() {

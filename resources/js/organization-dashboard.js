@@ -1,10 +1,12 @@
-import { auth, db } from "./firebase";
+import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { getOrgProfileOnce } from "./org-verification.js";
 import {
     ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
     readOrgCache,
     writeOrgCache,
+    isOrgCacheFresh,
 } from "./org-data-cache.js";
 
 function updateSidebarAvatar(data) {
@@ -38,9 +40,7 @@ onAuthStateChanged(auth, async (user) => {
     const sidebarInitialEl = document.getElementById("sidebarUserInitial");
 
     try {
-      const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
-      if (cached?.payload) {
-        const { displayName, orgData } = cached.payload;
+      const applySidebar = (displayName, orgData) => {
         updateSidebarAvatar(orgData);
         if (orgNameEl) orgNameEl.textContent = displayName;
         if (welcomeNameEl) welcomeNameEl.textContent = displayName;
@@ -49,18 +49,19 @@ onAuthStateChanged(auth, async (user) => {
           const ch = String(displayName).trim().charAt(0);
           sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
         }
+      };
+
+      const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
+      if (cached?.payload) {
+        applySidebar(cached.payload.displayName, cached.payload.orgData);
+        if (isOrgCacheFresh(user.uid, ORG_CACHE_KEYS.SIDEBAR, NAV_FRESH_MS)) {
+          return;
+        }
       }
 
-      const docRef = doc(db, "organizations", user.uid);
-      const snap = await getDoc(docRef);
-
+      const orgData = await getOrgProfileOnce(user.uid);
       let displayName;
-      let orgData = null;
-
-      if (snap.exists()) {
-        orgData = snap.data();
-        console.log("[SUCCESS] Org data:", orgData);
-
+      if (orgData) {
         displayName =
           (orgData.name && String(orgData.name).trim()) ||
           (orgData.orgName && String(orgData.orgName).trim()) ||
@@ -71,15 +72,7 @@ onAuthStateChanged(auth, async (user) => {
       }
 
       writeOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR, { displayName, orgData });
-
-      updateSidebarAvatar(orgData);
-      if (orgNameEl) orgNameEl.textContent = displayName;
-      if (welcomeNameEl) welcomeNameEl.textContent = displayName;
-      if (sidebarNameEl) sidebarNameEl.textContent = displayName;
-      if (sidebarInitialEl) {
-        const ch = String(displayName).trim().charAt(0);
-        sidebarInitialEl.textContent = ch ? ch.toUpperCase() : "?";
-      }
+      applySidebar(displayName, orgData);
     } catch (err) {
       console.error("[ERROR] Error loading org name:", err);
       const fallback = user.displayName || user.email;

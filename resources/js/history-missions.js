@@ -1,12 +1,17 @@
 import { auth, db } from "./firebase";
 import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { assertOrgVerified } from "./org-verification.js";
+import {
+    assertOrgVerified,
+    getOrgProfileOnce,
+} from "./org-verification.js";
 import {
     ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
     readOrgCache,
     writeOrgCache,
     isOrgCacheStale,
+    isOrgCacheFresh,
 } from "./org-data-cache.js";
 
 let CURRENT_USER = null;
@@ -16,10 +21,14 @@ let historyCurrentPage = 1;
 
 async function populateSidebarUser(user) {
     try {
-        const snap = await getDoc(doc(db, "organizations", user.uid));
-        const data = snap.exists() ? snap.data() : {};
+        const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
+        const data =
+            cached?.payload?.orgData ||
+            (await getOrgProfileOnce(user.uid)) ||
+            {};
 
         const displayName =
+            cached?.payload?.displayName ||
             (data?.name && String(data.name).trim()) ||
             (data?.orgName && String(data.orgName).trim()) ||
             user?.displayName ||
@@ -64,8 +73,8 @@ onAuthStateChanged(auth, async (user) => {
 
     await populateSidebarUser(user);
 
-    // Load missions for this user
-    await loadHistoryMissions(user, { refresh: true });
+    const fresh = isOrgCacheFresh(user.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
+    await loadHistoryMissions(user, { refresh: !fresh });
 });
 
 function updateHistoryMissionFooter(visibleCount) {
@@ -445,13 +454,6 @@ function renderHistoryFromPayload(payload) {
 async function loadHistoryMissions(user, { silent = false, refresh = true } = {}) {
     const historyTableBody = document.getElementById("historyMissionsBody");
     if (!historyTableBody) return;
-
-    // Temporary: force rebuild so period buckets use schedule dates
-try {
-    sessionStorage.removeItem(`kalinga-org:${user.uid}:history`);
-} catch {
-    /* ignore */
-}
 
     const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
     const hasCache = cached !== null;

@@ -1,6 +1,9 @@
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { assertOrgVerified } from "./org-verification.js";
+import {
+    assertOrgVerified,
+    getOrgProfileOnce,
+} from "./org-verification.js";
 import { collection, getDocs, query, where, doc, updateDoc, getDoc } from "firebase/firestore";
 import {
     STORAGE_MISSIONS_SUB,
@@ -14,9 +17,11 @@ import {
 } from "./application-storage.js";
 import {
     ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
     readOrgCache,
     writeOrgCache,
     isOrgCacheStale,
+    isOrgCacheFresh,
     invalidateOrgCache,
     missionDetailCacheKey,
     isLoadingTableHtml,
@@ -528,10 +533,14 @@ function confirmRejectFromModal() {
 
 async function loadSidebarUser(user) {
     try {
-        const orgSnap = await getDoc(doc(db, "organizations", user.uid));
-        const data = orgSnap.exists() ? orgSnap.data() : {};
+        const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
+        const data =
+            cached?.payload?.orgData ||
+            (await getOrgProfileOnce(user.uid)) ||
+            {};
 
         const displayName =
+            cached?.payload?.displayName ||
             (data.name && String(data.name).trim()) ||
             (data.orgName && String(data.orgName).trim()) ||
             user.displayName ||
@@ -593,9 +602,9 @@ function applyCachedVolunteersPayload(payload) {
     initVolunteerPaginationControls();
 }
 
-async function refreshVolunteersPage({ silent = false } = {}) {
+async function refreshVolunteersPage({ silent = false, force = false } = {}) {
     if (!currentUser?.uid) return;
-    await loadVolunteers({ refresh: true, force: true, silent });
+    await loadVolunteers({ refresh: true, force, silent });
 }
 
 // Wait for authentication
@@ -618,13 +627,30 @@ onAuthStateChanged(auth, async (user) => {
 
     void loadSidebarUser(user);
 
-    await refreshVolunteersPage({ silent: Boolean(cached?.payload) });
+    const fresh = isOrgCacheFresh(
+        user.uid,
+        ORG_CACHE_KEYS.VOLUNTEERS,
+        NAV_FRESH_MS
+    );
+    if (!fresh) {
+        await refreshVolunteersPage({
+            silent: Boolean(cached?.payload),
+            force: true,
+        });
+    }
 });
 
 window.addEventListener("pageshow", (event) => {
     if (!currentUser) return;
     if (event.persisted) {
-        void refreshVolunteersPage({ silent: false });
+        const fresh = isOrgCacheFresh(
+            currentUser.uid,
+            ORG_CACHE_KEYS.VOLUNTEERS,
+            NAV_FRESH_MS
+        );
+        if (!fresh) {
+            void refreshVolunteersPage({ silent: false, force: true });
+        }
     }
 });
 

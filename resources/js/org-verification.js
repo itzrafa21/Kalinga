@@ -9,6 +9,77 @@ import {
     updateDoc,
     where,
 } from "firebase/firestore";
+import {
+    ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheFresh,
+    invalidateOrgCache,
+} from "./org-data-cache.js";
+
+const orgProfileMemory = new Map();
+const orgProfileInflight = new Map();
+
+/**
+ * Load organizations/{uid} once per navigation window.
+ * Shared by verification, sidebar, and page scripts.
+ */
+export async function getOrgProfileOnce(uid, { force = false } = {}) {
+    if (!uid) return null;
+
+    if (!force) {
+        const mem = orgProfileMemory.get(uid);
+        if (mem && Date.now() - mem.at < NAV_FRESH_MS) {
+            return mem.data;
+        }
+        if (isOrgCacheFresh(uid, ORG_CACHE_KEYS.ORG_DOC)) {
+            const entry = readOrgCache(uid, ORG_CACHE_KEYS.ORG_DOC);
+            if (entry?.payload) {
+                orgProfileMemory.set(uid, {
+                    data: entry.payload,
+                    at: entry.cachedAt || Date.now(),
+                });
+                return entry.payload;
+            }
+        }
+    }
+
+    if (!force && orgProfileInflight.has(uid)) {
+        return orgProfileInflight.get(uid);
+    }
+
+    const promise = (async () => {
+        const snap = await getDoc(doc(db, "organizations", uid));
+        if (!snap.exists()) {
+            orgProfileMemory.set(uid, { data: null, at: Date.now() });
+            return null;
+        }
+        const data = snap.data();
+        writeOrgCache(uid, ORG_CACHE_KEYS.ORG_DOC, data);
+        const displayName =
+            organizationDisplayNameFromData(data) || "";
+        writeOrgCache(uid, ORG_CACHE_KEYS.SIDEBAR, {
+            displayName: displayName || "Organization",
+            orgData: data,
+        });
+        orgProfileMemory.set(uid, { data, at: Date.now() });
+        return data;
+    })().finally(() => {
+        orgProfileInflight.delete(uid);
+    });
+
+    orgProfileInflight.set(uid, promise);
+    return promise;
+}
+
+export function invalidateOrgProfileCache(uid) {
+    if (!uid) return;
+    orgProfileMemory.delete(uid);
+    orgProfileInflight.delete(uid);
+    invalidateOrgCache(uid, ORG_CACHE_KEYS.ORG_DOC);
+    invalidateOrgCache(uid, ORG_CACHE_KEYS.SIDEBAR);
+}
 
 export const ORG_VERIFICATION_STATUS = {
     PENDING: "pending",
@@ -76,11 +147,10 @@ export function getVerificationBlockMessage(reason) {
 }
 
 export async function fetchOrgVerification(uid) {
-    const snap = await getDoc(doc(db, "organizations", uid));
-    if (!snap.exists()) {
+    const data = await getOrgProfileOnce(uid);
+    if (!data) {
         return { ok: false, reason: "no_profile", data: null };
     }
-    const data = snap.data();
     if (isOrgVerified(data)) {
         return { ok: true, reason: "verified", data };
     }
@@ -160,9 +230,9 @@ export function organizationDisplayNameFromData(data) {
 export async function fetchOrganizationDisplayName(orgId, fallback = "") {
     if (!orgId) return fallback || "Unknown";
     try {
-        const snap = await getDoc(doc(db, "organizations", orgId));
-        if (snap.exists()) {
-            const name = organizationDisplayNameFromData(snap.data());
+        const data = await getOrgProfileOnce(orgId);
+        if (data) {
+            const name = organizationDisplayNameFromData(data);
             if (name) return name;
         }
     } catch (err) {

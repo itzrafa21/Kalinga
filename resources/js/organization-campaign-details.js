@@ -5,6 +5,8 @@ import {
     doc,
     getDoc,
     getDocs,
+    limit,
+    orderBy,
     query,
     serverTimestamp,
     updateDoc,
@@ -45,9 +47,25 @@ async function loadTransactions() {
     const tbody = document.getElementById("donationsTableBody");
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading…</td></tr>';
-    const snap = await getDocs(
-        query(collection(db, "donations"), where("campaignId", "==", campaignId))
-    );
+    let snap;
+    try {
+        snap = await getDocs(
+            query(
+                collection(db, "donations"),
+                where("campaignId", "==", campaignId),
+                orderBy("createdAt", "desc"),
+                limit(50)
+            )
+        );
+    } catch {
+        snap = await getDocs(
+            query(
+                collection(db, "donations"),
+                where("campaignId", "==", campaignId),
+                limit(50)
+            )
+        );
+    }
     const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     rows.sort((a, b) =>
         String(b.createdAt || "").localeCompare(String(a.createdAt || ""))

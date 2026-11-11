@@ -12,6 +12,15 @@ import {
     serverTimestamp,
 } from "firebase/firestore";
 import { resolveMissionPoints } from "./platform-config.js";
+import {
+    ORG_CACHE_KEYS,
+    NAV_FRESH_MS,
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheFresh,
+} from "./org-data-cache.js";
+
+const appsInflight = new Map();
 
 export const STORAGE_MISSIONS_SUB = "missions_sub";
 export const STORAGE_APPLICATIONS_ROOT = "applications_root";
@@ -371,37 +380,95 @@ export async function loadOrgApplications(orgMissionById, onEach, orgId = null) 
         else fromCollectionGroup++;
     };
 
-    try {
-        const cgSnap = await getDocs(collectionGroup(db, "applications"));
-        await Promise.all(cgSnap.docs.map((docSnap) => tryPush(docSnap)));
-    } catch (err) {
-        console.warn(
-            "[WARN] collectionGroup(applications) failed, scanning users/*:",
-            err
-        );
-        try {
-            const usersSnap = await getDocs(collection(db, "users"));
-            await Promise.all(
-                usersSnap.docs.map(async (userDoc) => {
+    const processDocs = async (docs) => {
+        await Promise.all(docs.map((docSnap) => tryPush(docSnap)));
+    };
+
+    // Prefer org-scoped collectionGroup when orgId is known (far fewer reads).
+    let loaded = false;
+    if (orgId) {
+        const cacheKey = `${ORG_CACHE_KEYS.APPLICATIONS}:${orgId}`;
+        if (appsInflight.has(cacheKey)) {
+            const shared = await appsInflight.get(cacheKey);
+            await processDocs(shared);
+            loaded = true;
+        } else {
+            const fetchPromise = (async () => {
+                try {
+                    const scoped = await getDocs(
+                        query(
+                            collectionGroup(db, "applications"),
+                            where("orgId", "==", orgId)
+                        )
+                    );
+                    return scoped.docs;
+                } catch (scopedErr) {
+                    console.warn(
+                        "[WARN] scoped applications query failed, falling back:",
+                        scopedErr
+                    );
                     try {
-                        const appsSnap = await getDocs(
-                            collection(db, "users", userDoc.id, "applications")
+                        const cgSnap = await getDocs(
+                            collectionGroup(db, "applications")
                         );
-                        await Promise.all(
-                            appsSnap.docs.map((appDoc) => tryPush(appDoc))
-                        );
-                    } catch (userAppsErr) {
+                        return cgSnap.docs;
+                    } catch (err) {
                         console.warn(
-                            "[WARN] users/",
-                            userDoc.id,
-                            "/applications",
-                            userAppsErr
+                            "[WARN] collectionGroup(applications) failed:",
+                            err
                         );
+                        return null;
                     }
-                })
+                }
+            })();
+            appsInflight.set(cacheKey, fetchPromise);
+            try {
+                const docs = await fetchPromise;
+                if (docs) {
+                    await processDocs(docs);
+                    loaded = true;
+                }
+            } finally {
+                // Keep resolved promise briefly so parallel callers share it
+                setTimeout(() => appsInflight.delete(cacheKey), 2000);
+            }
+        }
+    }
+
+    if (!loaded) {
+        try {
+            const cgSnap = await getDocs(collectionGroup(db, "applications"));
+            await processDocs(cgSnap.docs);
+            fromCollectionGroup = cgSnap.size;
+        } catch (err) {
+            console.warn(
+                "[WARN] collectionGroup(applications) failed, scanning users/*:",
+                err
             );
-        } catch (usersErr) {
-            console.error("[ERROR] loading users collection:", usersErr);
+            try {
+                const usersSnap = await getDocs(collection(db, "users"));
+                await Promise.all(
+                    usersSnap.docs.map(async (userDoc) => {
+                        try {
+                            const appsSnap = await getDocs(
+                                collection(db, "users", userDoc.id, "applications")
+                            );
+                            await Promise.all(
+                                appsSnap.docs.map((appDoc) => tryPush(appDoc))
+                            );
+                        } catch (userAppsErr) {
+                            console.warn(
+                                "[WARN] users/",
+                                userDoc.id,
+                                "/applications",
+                                userAppsErr
+                            );
+                        }
+                    })
+                );
+            } catch (usersErr) {
+                console.error("[ERROR] loading users collection:", usersErr);
+            }
         }
     }
 
@@ -409,7 +476,7 @@ export async function loadOrgApplications(orgMissionById, onEach, orgId = null) 
 }
 
 /** Missions + history for an organization (used for org-scoped application queries). */
-export async function buildOrgMissionMap(orgId) {
+export async function buildOrgMissionMap(orgId, { force = false } = {}) {
     const map = new Map();
     const mergeMission = (id, data) => {
         const prev = map.get(id);
@@ -426,6 +493,14 @@ export async function buildOrgMissionMap(orgId) {
         });
     };
 
+    if (!force && isOrgCacheFresh(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP, NAV_FRESH_MS)) {
+        const cached = readOrgCache(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+        if (cached?.payload?.entries?.length) {
+            cached.payload.entries.forEach(([id, data]) => mergeMission(id, data));
+            return map;
+        }
+    }
+
     const [missionsResult, historyResult] = await Promise.allSettled([
         getDocs(collection(db, "organizations", orgId, "missions")),
         getDocs(collection(db, "organizations", orgId, "history")),
@@ -437,6 +512,10 @@ export async function buildOrgMissionMap(orgId) {
     if (historyResult.status === "fulfilled") {
         historyResult.value.docs.forEach((d) => mergeMission(d.id, d.data()));
     }
+
+    writeOrgCache(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP, {
+        entries: Array.from(map.entries()),
+    });
 
     return map;
 }
