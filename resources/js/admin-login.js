@@ -94,8 +94,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 case 'auth/user-not-found':
                     errorMessage = "Admin account not found.";
                     break;
-                case 'auth/wrong-password':
-                    errorMessage = "Incorrect password.";
+                case "auth/wrong-password":
+                case "auth/invalid-credential":
+                    errorMessage = "Invalid password. Contact the administrator.";
                     break;
                 case 'auth/invalid-email':
                     errorMessage = "Invalid email format.";

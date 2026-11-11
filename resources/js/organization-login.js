@@ -18,6 +18,7 @@ function getLoginErrorMessage(error) {
     switch (code) {
         case "auth/invalid-credential":
         case "auth/wrong-password":
+            return "Invalid password. Contact the administrator.";
         case "auth/user-not-found":
         case "auth/invalid-email":
             return "The email or password you entered is incorrect. Please check your credentials and try again.";
