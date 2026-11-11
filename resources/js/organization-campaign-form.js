@@ -19,6 +19,7 @@ import {
     campaignAcceptsMoney,
     escapeHtml,
     formatCentavos,
+    formatPesoInputValue,
     normalizeInKindItems,
     parseDateInput,
     pesosToCentavos,
@@ -388,9 +389,9 @@ async function loadCampaign() {
     const mode = resolveDonationMode(data);
     setDonationMode(mode);
     if (campaignAcceptsMoney(data)) {
-        document.getElementById("targetAmount").value = (
+        document.getElementById("targetAmount").value = formatPesoInputValue(
             (Number(data.targetAmountCentavos) || 0) / 100
-        ).toFixed(2);
+        );
     }
     const items = normalizeInKindItems(data.inKindItems || []);
     existingInKindReceived = Object.fromEntries(
@@ -571,11 +572,18 @@ function wireUi() {
         document.getElementById(id)?.addEventListener("change", updateLivePreview);
     });
 
+    const targetAmountInput = document.getElementById("targetAmount");
+    targetAmountInput?.addEventListener("blur", () => {
+        if (!targetAmountInput.value.trim()) return;
+        targetAmountInput.value = formatPesoInputValue(targetAmountInput.value);
+        updateLivePreview();
+    });
+
     document.querySelectorAll("#amountPills [data-amount]").forEach((btn) => {
         btn.addEventListener("click", () => {
             const amount = btn.getAttribute("data-amount");
             const input = document.getElementById("targetAmount");
-            if (input) input.value = amount;
+            if (input) input.value = formatPesoInputValue(amount);
             updateLivePreview();
         });
     });

@@ -452,11 +452,6 @@
   @include('partials.org-sidebar', ['activeNav' => 'donation'])
 
   <main class="org-main-content main-content donation-page" id="mainContent">
-    <header class="donation-page__header">
-      <i class="bi bi-heart-fill" aria-hidden="true"></i>
-      <p class="donation-page__header-title">Kalinga <span>/ Donation Center</span></p>
-    </header>
-
     <div class="donation-page__body">
       <div class="page-top">
         <div>

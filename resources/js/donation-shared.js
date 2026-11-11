@@ -148,11 +148,21 @@ export function pesosToCentavos(pesos) {
 
 export function formatCentavos(centavos) {
     const amount = (Number(centavos) || 0) / 100;
-    return new Intl.NumberFormat("en-PH", {
-        style: "currency",
-        currency: "PHP",
+    // Always: ₱12,345.00 (comma thousands + 2 decimals)
+    return `₱${amount.toLocaleString("en-US", {
         minimumFractionDigits: 2,
-    }).format(amount);
+        maximumFractionDigits: 2,
+    })}`;
+}
+
+/** Format peso input display like 50,000.00 (no currency symbol). */
+export function formatPesoInputValue(pesos) {
+    const n = Number(String(pesos ?? "").replace(/[^\d.]/g, ""));
+    if (!Number.isFinite(n) || n < 0) return "";
+    return n.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
 }
 
 export function campaignStatusLabel(status) {

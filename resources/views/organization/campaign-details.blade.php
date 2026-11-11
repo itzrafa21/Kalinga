@@ -295,11 +295,6 @@
   @include('partials.org-sidebar', ['activeNav' => 'donation'])
 
   <main class="org-main-content main-content campaign-details-page" id="mainContent">
-    <header class="campaign-topbar">
-      <i class="bi bi-heart-fill" aria-hidden="true"></i>
-      <p>Kalinga <span>/ Campaign details</span></p>
-    </header>
-
     <div class="campaign-scroll">
       <a class="back-link" href="/donation">← Donation Center</a>
       <div id="campaignDetailsStatus" class="status-msg" hidden></div>

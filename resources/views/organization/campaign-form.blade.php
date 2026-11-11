@@ -573,11 +573,6 @@
   @include('partials.org-sidebar', ['activeNav' => 'donation'])
 
   <main class="org-main-content main-content campaign-form-page">
-    <header class="campaign-topbar">
-      <i class="bi bi-heart-fill" aria-hidden="true"></i>
-      <p>Kalinga <span>/ Donation Center</span></p>
-    </header>
-
     <div class="campaign-scroll">
       <a class="back-link" href="/donation">← Back to Donations</a>
       <h1 class="page-title">{{ !empty($campaignId) ? 'Edit campaign' : 'Create campaign' }}</h1>
@@ -638,7 +633,7 @@
                   <label for="targetAmount">Target donation amount</label>
                   <div class="amount-wrap">
                     <span class="amount-prefix">₱</span>
-                    <input id="targetAmount" name="targetAmount" type="number" min="10" step="0.01" placeholder="50000">
+                    <input id="targetAmount" name="targetAmount" type="text" inputmode="decimal" placeholder="50,000.00" autocomplete="off">
                   </div>
                   <div class="amount-pills" id="amountPills">
                     <button type="button" data-amount="10000">₱10,000</button>
