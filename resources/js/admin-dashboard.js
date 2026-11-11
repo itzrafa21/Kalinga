@@ -9,6 +9,7 @@ import {
     orderBy,
     limit,
     getDocs,
+    getCountFromServer,
     doc,
     updateDoc,
     deleteDoc,
@@ -1309,33 +1310,19 @@ async function loadDashboardStats() {
         const stats = await adminCachedFetch(
             ADMIN_CACHE_KEYS.DASHBOARD_STATS,
             async () => {
-                const [usersSnapshot, orgsSnapshot, submissionsSnapshot] =
+                // Use server aggregation counts — never .size on a limited query.
+                const [usersCountSnap, orgsCountSnap, missionsCountSnap, volunteerEntries] =
                     await Promise.all([
-                        getDocs(query(collection(db, "users"), limit(500))),
-                        getDocs(
-                            query(collection(db, "organizations"), limit(500))
-                        ),
-                        getDocs(
-                            query(
-                                collection(db, "mission_submissions"),
-                                limit(500)
-                            )
-                        ),
+                        getCountFromServer(collection(db, "users")),
+                        getCountFromServer(collection(db, "organizations")),
+                        getCountFromServer(collection(db, "mission_submissions")),
+                        loadVolunteerUserEntries(),
                     ]);
 
-                // Reuse orgs cache for other tabs when possible
-                if (!isAdminCacheFresh(ADMIN_CACHE_KEYS.ORGANIZATIONS)) {
-                    writeAdminCache(
-                        ADMIN_CACHE_KEYS.ORGANIZATIONS,
-                        orgsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-                    );
-                }
-
-                const volunteerEntries = await loadVolunteerUserEntries();
                 return {
-                    users: usersSnapshot.size,
-                    organizations: orgsSnapshot.size,
-                    missions: submissionsSnapshot.size,
+                    users: usersCountSnap.data().count || 0,
+                    organizations: orgsCountSnap.data().count || 0,
+                    missions: missionsCountSnap.data().count || 0,
                     volunteers: volunteerEntries.length,
                 };
             },

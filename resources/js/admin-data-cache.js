@@ -6,7 +6,7 @@
 const PREFIX = "kalinga-admin:";
 export const ADMIN_FRESH_MS = 5 * 60 * 1000;
 export const ADMIN_CACHE_KEYS = {
-    DASHBOARD_STATS: "dashboard-stats",
+    DASHBOARD_STATS: "dashboard-stats-v2",
     ORGANIZATIONS: "organizations",
     MISSIONS: "missions",
     VOLUNTEERS: "volunteers",
