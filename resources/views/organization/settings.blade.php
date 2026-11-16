@@ -391,144 +391,14 @@
 
     <div class="settings-layout">
       <nav class="settings-nav" aria-label="Settings sections">
-        <button type="button" class="settings-nav-btn is-active" data-panel="notifications">
-          <i class="bi bi-bell"></i> Notifications
-        </button>
-        <button type="button" class="settings-nav-btn" data-panel="missions">
-          <i class="bi bi-clipboard-check"></i> Missions
-        </button>
-        <button type="button" class="settings-nav-btn" data-panel="display">
+        <button type="button" class="settings-nav-btn is-active" data-panel="display">
           <i class="bi bi-moon-stars"></i> Display &amp; Accessibility
-        </button>
-        <button type="button" class="settings-nav-btn" data-panel="privacy">
-          <i class="bi bi-shield-check"></i> Privacy
-        </button>
-        <button type="button" class="settings-nav-btn" data-panel="danger">
-          <i class="bi bi-exclamation-triangle"></i> Danger zone
         </button>
       </nav>
 
       <div class="settings-content">
-        {{-- Notifications --}}
-        <section class="settings-panel is-active" id="panel-notifications" aria-labelledby="notifications-title">
-          <div class="settings-card">
-            <h2 id="notifications-title">Notifications</h2>
-            <p class="card-desc">Choose which email and in-app alerts you want for this organization.</p>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>New volunteer applications</h3>
-                <p>Get notified when someone applies to one of your missions.</p>
-              </div>
-              <label class="switch" aria-label="New volunteer applications">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Mission approval updates</h3>
-                <p>Alerts when an admin approves or rejects a submitted mission.</p>
-              </div>
-              <label class="switch" aria-label="Mission approval updates">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Mission ending soon</h3>
-                <p>Reminder a few hours before a mission’s end time.</p>
-              </div>
-              <label class="switch" aria-label="Mission ending soon">
-                <input type="checkbox">
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Weekly summary</h3>
-                <p>A short weekly email with applications, completed missions, and volunteer totals.</p>
-              </div>
-              <label class="switch" aria-label="Weekly summary">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-actions">
-              <button type="button" class="btn-settings btn-settings-secondary" data-toast="Notification preferences discarded.">Cancel</button>
-              <button type="button" class="btn-settings btn-settings-primary" data-toast="Notification preferences saved (mock).">
-                <i class="bi bi-check-lg"></i> Save changes
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {{-- Missions --}}
-        <section class="settings-panel" id="panel-missions" aria-labelledby="missions-title">
-          <div class="settings-card">
-            <h2 id="missions-title">Mission defaults</h2>
-            <p class="card-desc">Defaults applied when you create a new mission. You can still change these per mission.</p>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Auto-accept volunteers by default</h3>
-                <p>New missions start with auto-accept turned on. Applicants are approved without manual review.</p>
-              </div>
-              <label class="switch" aria-label="Auto-accept volunteers by default">
-                <input type="checkbox">
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Show volunteer contact after approval</h3>
-                <p>Approved volunteers can see your organization contact details on the mission page.</p>
-              </div>
-              <label class="switch" aria-label="Show volunteer contact after approval">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="form-grid" style="margin-top: 1rem;">
-              <div class="form-group">
-                <label for="defaultVolunteers">Default volunteers needed</label>
-                <input type="number" id="defaultVolunteers" min="1" value="10">
-                <span class="form-hint">Pre-fills the create-mission form.</span>
-              </div>
-              <div class="form-group">
-                <label for="defaultMissionType">Preferred mission type</label>
-                <select id="defaultMissionType">
-                  <option value="">No preference</option>
-                  <option selected>General</option>
-                  <option>Environment</option>
-                  <option>Education</option>
-                  <option>Health</option>
-                </select>
-              </div>
-              <div class="form-group full">
-                <label for="missionNotesTemplate">Default mission notes template</label>
-                <textarea id="missionNotesTemplate" rows="3" placeholder="Optional text to paste into new mission descriptions…">Bring water, wear comfortable clothes, and arrive 15 minutes early.</textarea>
-              </div>
-            </div>
-
-            <div class="settings-actions">
-              <button type="button" class="btn-settings btn-settings-secondary" data-toast="Mission defaults discarded.">Cancel</button>
-              <button type="button" class="btn-settings btn-settings-primary" data-toast="Mission defaults saved (mock).">
-                <i class="bi bi-check-lg"></i> Save changes
-              </button>
-            </div>
-          </div>
-        </section>
-
         {{-- Display & Accessibility --}}
-        <section class="settings-panel" id="panel-display" aria-labelledby="display-title">
+        <section class="settings-panel is-active" id="panel-display" aria-labelledby="display-title">
           <div class="settings-card">
             <h2 id="display-title">Display &amp; Accessibility</h2>
             <p class="card-desc">Adjust how Kalinga looks and feels while you manage your organization.</p>
@@ -554,92 +424,6 @@
             </div>
           </div>
         </section>
-
-        {{-- Privacy --}}
-        <section class="settings-panel" id="panel-privacy" aria-labelledby="privacy-title">
-          <div class="settings-card">
-            <h2 id="privacy-title">Privacy & visibility</h2>
-            <p class="card-desc">Control what volunteers and the public can see about your organization.</p>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Public organization profile</h3>
-                <p>Allow volunteers to view your profile page and past mission history summary.</p>
-              </div>
-              <label class="switch" aria-label="Public organization profile">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Show location on open missions</h3>
-                <p>Display full address and map pin on approved missions. Turn off to show city only.</p>
-              </div>
-              <label class="switch" aria-label="Show location on open missions">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Appear in volunteer discovery</h3>
-                <p>Let Kalinga suggest your open missions to nearby volunteers.</p>
-              </div>
-              <label class="switch" aria-label="Appear in volunteer discovery">
-                <input type="checkbox" checked>
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-actions">
-              <button type="button" class="btn-settings btn-settings-secondary" data-toast="Privacy settings discarded.">Cancel</button>
-              <button type="button" class="btn-settings btn-settings-primary" data-toast="Privacy settings saved (mock).">
-                <i class="bi bi-check-lg"></i> Save changes
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {{-- Danger zone --}}
-        <section class="settings-panel" id="panel-danger" aria-labelledby="danger-title">
-          <div class="settings-card danger-card">
-            <h2 id="danger-title">Danger zone</h2>
-            <p class="card-desc">Irreversible actions. These are mock buttons only — they do not delete data yet.</p>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Export organization data</h3>
-                <p>Download a copy of missions, applications, and history for your records.</p>
-              </div>
-              <button type="button" class="btn-settings btn-settings-secondary" data-toast="Export started (mock).">
-                <i class="bi bi-download"></i> Export
-              </button>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Deactivate organization</h3>
-                <p>Hide your org from volunteers and pause new applications. You can reactivate later.</p>
-              </div>
-              <button type="button" class="btn-settings btn-settings-danger" data-toast="Deactivate is mock-only.">
-                Deactivate
-              </button>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-copy">
-                <h3>Delete organization</h3>
-                <p>Permanently remove this organization and its mission history. This cannot be undone.</p>
-              </div>
-              <button type="button" class="btn-settings btn-settings-danger" data-toast="Delete is mock-only.">
-                Delete organization
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   </main>
@@ -648,22 +432,7 @@
 
   <script>
     (function () {
-      const navButtons = document.querySelectorAll(".settings-nav-btn");
-      const panels = document.querySelectorAll(".settings-panel");
       const toastStack = document.getElementById("settingsToastStack");
-
-      function showPanel(id) {
-        navButtons.forEach((btn) => {
-          btn.classList.toggle("is-active", btn.dataset.panel === id);
-        });
-        panels.forEach((panel) => {
-          panel.classList.toggle("is-active", panel.id === `panel-${id}`);
-        });
-      }
-
-      navButtons.forEach((btn) => {
-        btn.addEventListener("click", () => showPanel(btn.dataset.panel));
-      });
 
       function showToast(message) {
         if (!toastStack || !message) return;
