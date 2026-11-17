@@ -30,15 +30,15 @@
 
   <nav class="org-sidebar-nav sidebar-nav">
     <div class="org-sidebar-section sidebar-section">Main</div>
-    <a href="/organization/dashboard" class="{{ $isActive('dashboard') }}"><i class="bi bi-grid-1x2"></i> Mission Management</a>
-    <a href="/missions/history" class="{{ $isActive('history') }}"><i class="bi bi-journal-text"></i> History of Missions</a>
-    <a href="/organization/volunteers" class="{{ $isActive('volunteers') }}"><i class="bi bi-people"></i> Volunteers</a>
-    <a href="/donation" class="{{ $isActive('donation') }}"><i class="bi bi-heart"></i> Donation</a>
+    <a href="/organization/dashboard" class="{{ $isActive('dashboard') }}" data-access-module="missions"><i class="bi bi-grid-1x2"></i> Mission Management</a>
+    <a href="/missions/history" class="{{ $isActive('history') }}" data-access-module="history"><i class="bi bi-journal-text"></i> History of Missions</a>
+    <a href="/organization/volunteers" class="{{ $isActive('volunteers') }}" data-access-module="volunteers"><i class="bi bi-people"></i> Volunteers</a>
+    <a href="/donation" class="{{ $isActive('donation') }}" data-access-module="donations"><i class="bi bi-heart"></i> Donation</a>
 
     <div class="org-sidebar-section sidebar-section">Settings</div>
-    <a href="/settings" class="{{ $isActive('settings') }}"><i class="bi bi-gear"></i> Settings</a>
+    <a href="/settings" class="{{ $isActive('settings') }}" data-access-module="settings"><i class="bi bi-gear"></i> Settings</a>
 
-    <a href="/organization/profile" class="{{ $isActive('profile') }}"><i class="bi bi-person"></i> Account</a>
+    <a href="/organization/profile" class="{{ $isActive('profile') }}" data-access-module="account"><i class="bi bi-person"></i> Account</a>
     <a href="/organization/users" class="{{ $isActive('users') }}" id="orgNavUsers" data-owner-only="users"><i class="bi bi-person-gear"></i> Users</a>
 
     <button type="button" id="logoutBtn" class="org-sidebar-logout-link sidebar-logout-link">

@@ -57,9 +57,20 @@
       color: #b91c1c;
     }
     .btn-users-danger:hover { background: #fecaca; }
+    .btn-users-outline {
+      background: #fff;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .btn-users-outline:hover { background: #f0fdf4; }
     .btn-users:disabled {
       opacity: 0.65;
       cursor: not-allowed;
+    }
+    .users-card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     .users-stats {
@@ -207,6 +218,135 @@
       padding: 1.35rem 1.4rem 1.25rem;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
     }
+    .users-modal.users-modal-wide {
+      width: min(920px, 100%);
+      max-height: min(90vh, 900px);
+      overflow: auto;
+      padding: 1.35rem 1.5rem 1.35rem;
+    }
+    .access-profile-box {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      background: #f8fafc;
+      margin-bottom: 1.15rem;
+    }
+    .access-profile-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.85rem;
+    }
+    .access-profile-box label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.35rem;
+    }
+    .access-profile-box input,
+    .access-profile-box textarea {
+      width: 100%;
+      border: 1px solid #dbe3ea;
+      border-radius: 10px;
+      padding: 0.65rem 0.8rem;
+      font-family: inherit;
+      font-size: 0.92rem;
+      color: #0f172a;
+      background: #fff;
+    }
+    .access-profile-box textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+    .access-rights-head {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin: 0 0 0.95rem;
+      color: #166534;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .access-rights-head i {
+      font-size: 1.15rem;
+    }
+    .access-modules-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .access-module-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .access-module-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: #ecfdf5;
+      border-bottom: 1px solid #d1fae5;
+    }
+    .access-module-title {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+    .access-module-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: #166534;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .access-module-title strong {
+      font-size: 0.95rem;
+      color: #14532d;
+    }
+    .access-count {
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #475569;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      white-space: nowrap;
+    }
+    .access-module-body {
+      padding: 0.75rem 1rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .access-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      cursor: pointer;
+      font-size: 0.86rem;
+      color: #334155;
+      line-height: 1.35;
+    }
+    .access-check input {
+      margin-top: 0.15rem;
+      width: 16px;
+      height: 16px;
+      accent-color: #166534;
+      flex-shrink: 0;
+    }
+    .access-error {
+      margin: 0.85rem 0 0;
+      color: #b91c1c;
+      font-size: 0.85rem;
+      min-height: 1.2em;
+    }
     .users-modal h2 {
       margin: 0 0 0.35rem;
       font-size: 1.15rem;
@@ -293,9 +433,35 @@
     html[data-theme="dark"] .users-stat,
     html[data-theme="dark"] .users-card,
     html[data-theme="dark"] .users-empty,
-    html[data-theme="dark"] .users-modal {
+    html[data-theme="dark"] .users-modal,
+    html[data-theme="dark"] .access-module-card,
+    html[data-theme="dark"] .access-profile-box {
       background: #1e293b !important;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+    }
+    html[data-theme="dark"] .access-profile-box,
+    html[data-theme="dark"] .access-module-card {
+      border-color: #334155 !important;
+    }
+    html[data-theme="dark"] .access-module-head {
+      background: #14532d !important;
+      border-bottom-color: #166534 !important;
+    }
+    html[data-theme="dark"] .access-module-title strong,
+    html[data-theme="dark"] .access-rights-head {
+      color: #bbf7d0 !important;
+    }
+    html[data-theme="dark"] .access-check { color: #cbd5e1 !important; }
+    html[data-theme="dark"] .access-profile-box input,
+    html[data-theme="dark"] .access-profile-box textarea {
+      background: #0f172a !important;
+      border-color: #334155 !important;
+      color: #e2e8f0 !important;
+    }
+    html[data-theme="dark"] .btn-users-outline {
+      background: #0f172a !important;
+      border-color: #166534 !important;
+      color: #86efac !important;
     }
     html[data-theme="dark"] .users-toolbar p,
     html[data-theme="dark"] .users-stat span,
@@ -328,6 +494,7 @@
 
     @media (max-width: 720px) {
       .users-stats { grid-template-columns: 1fr; }
+      .access-modules-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -405,6 +572,39 @@
         </div>
       </form>
       <button type="button" id="closeAddUserBtn" hidden aria-hidden="true"></button>
+    </div>
+  </div>
+
+  <div class="users-modal-overlay" id="accessRightsModal" hidden>
+    <div class="users-modal users-modal-wide" role="dialog" aria-modal="true" aria-labelledby="accessRightsTitle">
+      <h2 id="accessRightsTitle">Access rights</h2>
+      <p class="users-modal-desc">Choose which pages and actions this user can use in the organization portal.</p>
+
+      <div class="access-profile-box">
+        <div class="access-profile-grid">
+          <div>
+            <label for="accessProfileName">Profile name</label>
+            <input id="accessProfileName" type="text" readonly>
+          </div>
+          <div>
+            <label for="accessProfileDesc">Description</label>
+            <textarea id="accessProfileDesc" readonly></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="access-rights-head">
+        <i class="bi bi-shield-check" aria-hidden="true"></i>
+        <span>Access Rights</span>
+      </div>
+      <div class="access-modules-grid" id="accessModulesGrid"></div>
+      <p class="access-error" id="accessRightsError" role="alert"></p>
+      <div class="users-modal-actions">
+        <button type="button" class="btn-users btn-users-secondary" id="cancelAccessRightsBtn">Cancel</button>
+        <button type="button" class="btn-users btn-users-primary" id="saveAccessRightsBtn">
+          <i class="bi bi-check-lg"></i> Save access rights
+        </button>
+      </div>
     </div>
   </div>
 

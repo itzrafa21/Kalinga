@@ -1,7 +1,13 @@
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getOrgProfileOnce } from "./org-verification.js";
-import { findTeamMembership } from "./org-team.js";
+import {
+    accessRightsForRole,
+    findTeamMembership,
+    hasModuleAccess,
+    moduleIdForPath,
+    normalizeAccessRights,
+} from "./org-team.js";
 import {
     ORG_CACHE_KEYS,
     readOrgCache,
@@ -111,6 +117,31 @@ function setUsersNavVisible(visible) {
     usersLink.style.display = visible ? "" : "none";
 }
 
+function applyModuleNavAccess(rights, isOwner) {
+    document.querySelectorAll("[data-access-module]").forEach((link) => {
+        const moduleId = link.getAttribute("data-access-module");
+        const allowed = isOwner || hasModuleAccess(rights, moduleId);
+        link.hidden = !allowed;
+        link.style.display = allowed ? "" : "none";
+    });
+}
+
+function firstAllowedPath(rights, isOwner) {
+    if (isOwner) return "/organization/dashboard";
+    const order = [
+        ["missions", "/organization/dashboard"],
+        ["history", "/missions/history"],
+        ["volunteers", "/organization/volunteers"],
+        ["donations", "/donation"],
+        ["settings", "/settings"],
+        ["account", "/organization/profile"],
+    ];
+    for (const [moduleId, path] of order) {
+        if (hasModuleAccess(rights, moduleId)) return path;
+    }
+    return "/organization/login";
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         if (!window.location.pathname.includes("/organization/login")) {
@@ -129,18 +160,16 @@ onAuthStateChanged(auth, async (user) => {
         const isOwner = Boolean(orgData);
         setUsersNavVisible(isOwner);
 
-        if (!isOwner && window.location.pathname.startsWith("/organization/users")) {
-            window.location.href = "/organization/dashboard";
-            return;
-        }
-
         let displayName;
+        let accessRights = null;
+
         if (orgData) {
             displayName =
                 (orgData.name && String(orgData.name).trim()) ||
                 (orgData.orgName && String(orgData.orgName).trim()) ||
                 user.displayName ||
                 user.email;
+            applyModuleNavAccess(null, true);
         } else {
             const membership = await findTeamMembership(user);
             if (membership?.orgId) {
@@ -151,8 +180,28 @@ onAuthStateChanged(auth, async (user) => {
                     membership.member?.name ||
                     user.displayName ||
                     user.email;
+
+                accessRights =
+                    membership.member?.accessRights &&
+                    Object.keys(membership.member.accessRights).length
+                        ? normalizeAccessRights(membership.member.accessRights)
+                        : accessRightsForRole(membership.member?.role || "staff");
+
+                applyModuleNavAccess(accessRights, false);
+
+                if (window.location.pathname.startsWith("/organization/users")) {
+                    window.location.href = firstAllowedPath(accessRights, false);
+                    return;
+                }
+
+                const moduleId = moduleIdForPath(window.location.pathname);
+                if (moduleId && moduleId !== "users" && !hasModuleAccess(accessRights, moduleId)) {
+                    window.location.href = firstAllowedPath(accessRights, false);
+                    return;
+                }
             } else {
                 displayName = user.displayName || user.email;
+                setUsersNavVisible(false);
             }
         }
 

@@ -3,16 +3,22 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { assertOrgVerified } from "./org-verification.js";
 import {
+    ACCESS_MODULES,
     TEAM_ROLES,
+    accessRightsForRole,
+    countModulePermissions,
     createOrgTeamMember,
     findTeamMembership,
     listOrgTeam,
+    normalizeAccessRights,
     roleLabel,
     setOrgTeamMemberStatus,
+    updateOrgTeamAccessRights,
 } from "./org-team.js";
 
 let orgId = null;
 let members = [];
+let accessMemberId = null;
 
 function escapeHtml(value) {
     return String(value || "")
@@ -41,6 +47,11 @@ function setFormError(message) {
     if (el) el.textContent = message || "";
 }
 
+function setAccessError(message) {
+    const el = document.getElementById("accessRightsError");
+    if (el) el.textContent = message || "";
+}
+
 function openAddModal() {
     const overlay = document.getElementById("addUserModal");
     if (!overlay) return;
@@ -58,6 +69,99 @@ function closeAddModal() {
     if (!overlay) return;
     overlay.classList.remove("is-open");
     overlay.setAttribute("hidden", "");
+}
+
+function renderAccessModules(rights) {
+    const grid = document.getElementById("accessModulesGrid");
+    if (!grid) return;
+    const normalized = normalizeAccessRights(rights);
+
+    grid.innerHTML = ACCESS_MODULES.map((mod) => {
+        const { enabled, total } = countModulePermissions(normalized, mod.id);
+        const checks = mod.permissions
+            .map(
+                (perm) => `
+                  <label class="access-check">
+                    <input
+                      type="checkbox"
+                      data-access-module="${escapeHtml(mod.id)}"
+                      data-access-perm="${escapeHtml(perm.id)}"
+                      ${normalized[mod.id][perm.id] ? "checked" : ""}
+                    >
+                    <span>${escapeHtml(perm.label)}</span>
+                  </label>
+                `
+            )
+            .join("");
+
+        return `
+          <section class="access-module-card" data-module-card="${escapeHtml(mod.id)}">
+            <div class="access-module-head">
+              <div class="access-module-title">
+                <span class="access-module-icon" aria-hidden="true"><i class="bi ${escapeHtml(mod.icon)}"></i></span>
+                <strong>${escapeHtml(mod.label)}</strong>
+              </div>
+              <span class="access-count" data-access-count="${escapeHtml(mod.id)}">${enabled} / ${total} permissions</span>
+            </div>
+            <div class="access-module-body">${checks}</div>
+          </section>
+        `;
+    }).join("");
+}
+
+function readAccessRightsFromForm() {
+    const rights = normalizeAccessRights({});
+    ACCESS_MODULES.forEach((mod) => {
+        mod.permissions.forEach((perm) => {
+            const input = document.querySelector(
+                `[data-access-module="${mod.id}"][data-access-perm="${perm.id}"]`
+            );
+            rights[mod.id][perm.id] = Boolean(input?.checked);
+        });
+    });
+    return rights;
+}
+
+function refreshAccessCounts() {
+    const rights = readAccessRightsFromForm();
+    ACCESS_MODULES.forEach((mod) => {
+        const badge = document.querySelector(`[data-access-count="${mod.id}"]`);
+        if (!badge) return;
+        const { enabled, total } = countModulePermissions(rights, mod.id);
+        badge.textContent = `${enabled} / ${total} permissions`;
+    });
+}
+
+function openAccessRightsModal(member) {
+    const overlay = document.getElementById("accessRightsModal");
+    if (!overlay || !member) return;
+
+    accessMemberId = member.id;
+    setAccessError("");
+
+    const nameEl = document.getElementById("accessProfileName");
+    const descEl = document.getElementById("accessProfileDesc");
+    if (nameEl) nameEl.value = member.name || member.username || "";
+    if (descEl) {
+        descEl.value = `${roleLabel(member.role)} access for @${member.username || "user"}. Choose which organization pages and actions this account can use.`;
+    }
+
+    const rights =
+        member.accessRights && Object.keys(member.accessRights).length
+            ? normalizeAccessRights(member.accessRights)
+            : accessRightsForRole(member.role || "staff");
+
+    renderAccessModules(rights);
+    overlay.removeAttribute("hidden");
+    overlay.classList.add("is-open");
+}
+
+function closeAccessRightsModal() {
+    const overlay = document.getElementById("accessRightsModal");
+    if (!overlay) return;
+    overlay.classList.remove("is-open");
+    overlay.setAttribute("hidden", "");
+    accessMemberId = null;
 }
 
 function updateStats() {
@@ -105,6 +209,13 @@ function renderUsers() {
                 <div class="users-card-actions">
                   <button
                     type="button"
+                    class="btn-users btn-users-outline"
+                    data-access-rights="${escapeHtml(member.id)}"
+                  >
+                    <i class="bi bi-shield-check"></i> Access rights
+                  </button>
+                  <button
+                    type="button"
                     class="btn-users ${disabled ? "btn-users-primary" : "btn-users-danger"}"
                     data-toggle-status="${escapeHtml(member.id)}"
                     data-next-status="${disabled ? "active" : "disabled"}"
@@ -142,14 +253,50 @@ function wireUi() {
     document.getElementById("emptyAddUserBtn")?.addEventListener("click", openAddModal);
     document.getElementById("closeAddUserBtn")?.addEventListener("click", closeAddModal);
     document.getElementById("cancelAddUserBtn")?.addEventListener("click", closeAddModal);
+    document.getElementById("cancelAccessRightsBtn")?.addEventListener("click", closeAccessRightsModal);
 
-    const overlay = document.getElementById("addUserModal");
-    overlay?.addEventListener("click", (event) => {
-        if (event.target === overlay) closeAddModal();
+    const addOverlay = document.getElementById("addUserModal");
+    const accessOverlay = document.getElementById("accessRightsModal");
+
+    addOverlay?.addEventListener("click", (event) => {
+        if (event.target === addOverlay) closeAddModal();
     });
+    accessOverlay?.addEventListener("click", (event) => {
+        if (event.target === accessOverlay) closeAccessRightsModal();
+    });
+
     document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && overlay?.classList.contains("is-open")) {
-            closeAddModal();
+        if (event.key !== "Escape") return;
+        if (accessOverlay?.classList.contains("is-open")) closeAccessRightsModal();
+        else if (addOverlay?.classList.contains("is-open")) closeAddModal();
+    });
+
+    document.getElementById("accessModulesGrid")?.addEventListener("change", (event) => {
+        if (event.target.matches("[data-access-module]")) {
+            refreshAccessCounts();
+        }
+    });
+
+    document.getElementById("saveAccessRightsBtn")?.addEventListener("click", async () => {
+        if (!orgId || !accessMemberId) return;
+        setAccessError("");
+        const btn = document.getElementById("saveAccessRightsBtn");
+        if (btn) btn.disabled = true;
+        try {
+            const rights = readAccessRightsFromForm();
+            await updateOrgTeamAccessRights(orgId, accessMemberId, rights);
+            closeAccessRightsModal();
+            await refreshUsers();
+            showToast("Access rights saved.");
+        } catch (error) {
+            console.error(error);
+            setAccessError(
+                error?.code === "permission-denied"
+                    ? "Firestore blocked this save. Allow updates on organizations/{orgId}/team."
+                    : error?.message || "Could not save access rights."
+            );
+        } finally {
+            if (btn) btn.disabled = false;
         }
     });
 
@@ -160,16 +307,18 @@ function wireUi() {
         const submitBtn = document.getElementById("submitAddUserBtn");
         if (submitBtn) submitBtn.disabled = true;
         try {
+            const role = document.getElementById("userRole")?.value || "staff";
             await createOrgTeamMember(orgId, {
                 name: document.getElementById("userName")?.value,
                 username: document.getElementById("userUsername")?.value,
                 password: document.getElementById("userPassword")?.value,
-                role: document.getElementById("userRole")?.value,
+                role,
                 createdBy: orgId,
+                accessRights: accessRightsForRole(role),
             });
             closeAddModal();
             await refreshUsers();
-            showToast("User added. They can sign in with their username and password.");
+            showToast("User added. Set access rights anytime from their card.");
         } catch (error) {
             console.error(error);
             setFormError(
@@ -183,6 +332,13 @@ function wireUi() {
     });
 
     document.getElementById("usersList")?.addEventListener("click", async (event) => {
+        const accessBtn = event.target.closest("[data-access-rights]");
+        if (accessBtn) {
+            const member = members.find((item) => item.id === accessBtn.dataset.accessRights);
+            if (member) openAccessRightsModal(member);
+            return;
+        }
+
         const button = event.target.closest("[data-toggle-status]");
         if (!button || !orgId) return;
         const memberId = button.dataset.toggleStatus;
