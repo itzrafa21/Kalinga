@@ -11,14 +11,26 @@ const THEME_KEY = "kalinga-org-theme";
 const LIGHT_BG_RE =
     /^(?:rgb\(255,\s*255,\s*255\)|rgba\(255,\s*255,\s*255,\s*1\)|#fff(?:fff)?|#f8fafc|#f9fafb|#f3f4f6|#f0f2f5|#effff4|#fafafa|#f8faf9|#fffafa)$/i;
 
+function syncThemeToggleIcons(theme) {
+    const btn = document.getElementById("orgThemeToggleBtn");
+    if (!btn) return;
+    const moon = btn.querySelector(".org-theme-icon-moon");
+    const sun = btn.querySelector(".org-theme-icon-sun");
+    const isDark = theme === "dark";
+    if (moon) moon.hidden = isDark;
+    if (sun) sun.hidden = !isDark;
+    const nextLabel = isDark ? "Switch to light mode" : "Switch to dark mode";
+    btn.setAttribute("aria-label", nextLabel);
+    btn.setAttribute("title", nextLabel);
+}
+
 function applyOrgTheme(theme) {
     if (theme === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     } else {
         document.documentElement.removeAttribute("data-theme");
     }
-    const toggle = document.getElementById("orgDarkModeToggle");
-    if (toggle) toggle.checked = theme === "dark";
+    syncThemeToggleIcons(theme);
 }
 
 function saveOrgTheme(theme) {
@@ -42,12 +54,14 @@ function syncOrgThemeFromStorage() {
 }
 
 function wireOrgDarkModeToggle() {
-    const toggle = document.getElementById("orgDarkModeToggle");
-    if (!toggle || toggle.dataset.ready === "1") return;
-    toggle.dataset.ready = "1";
+    const btn = document.getElementById("orgThemeToggleBtn");
+    if (!btn || btn.dataset.ready === "1") return;
+    btn.dataset.ready = "1";
     syncOrgThemeFromStorage();
-    toggle.addEventListener("change", () => {
-        saveOrgTheme(toggle.checked ? "dark" : "light");
+    btn.addEventListener("click", () => {
+        const isDark =
+            document.documentElement.getAttribute("data-theme") === "dark";
+        saveOrgTheme(isDark ? "light" : "dark");
     });
 }
 

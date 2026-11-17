@@ -406,7 +406,7 @@
             <div class="setting-row">
               <div class="setting-copy">
                 <h3>Dark mode</h3>
-                <p>Use the switch in the top header to turn dark mode on or off. Your choice is saved on this device.</p>
+                <p>Tap the moon or sun icon in the top header to switch themes. Your choice is saved on this device.</p>
               </div>
             </div>
           </div>

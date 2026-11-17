@@ -3,12 +3,14 @@
 @endphp
 <header class="org-topbar" role="banner">
   <p class="org-topbar-title">{{ $pageTitle }}</p>
-  <label class="org-topbar-theme" title="Dark mode">
-    <i class="bi bi-moon-stars" aria-hidden="true"></i>
-    <span class="org-topbar-theme-label">Dark mode</span>
-    <span class="org-theme-switch">
-      <input type="checkbox" id="orgDarkModeToggle" aria-label="Toggle dark mode">
-      <span class="org-theme-switch-slider" aria-hidden="true"></span>
-    </span>
-  </label>
+  <button
+    type="button"
+    class="org-topbar-theme-btn"
+    id="orgThemeToggleBtn"
+    aria-label="Switch to dark mode"
+    title="Switch to dark mode"
+  >
+    <i class="bi bi-moon-stars-fill org-theme-icon-moon" aria-hidden="true"></i>
+    <i class="bi bi-sun-fill org-theme-icon-sun" aria-hidden="true" hidden></i>
+  </button>
 </header>
