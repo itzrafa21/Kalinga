@@ -58,12 +58,8 @@ Route::get('/donations/success', function () {
 Route::get('/donations/cancel', function () {
     return view('donations.cancel');
 });
-Route::get('/settings', function () {
-    return view('organization.settings');
-});
-Route::get('/organization/settings', function () {
-    return view('organization.settings');
-});
+Route::redirect('/settings', '/organization/dashboard');
+Route::redirect('/organization/settings', '/organization/dashboard');
 Route::get('/admin/login', function () {
     return view('admin.login');
 });

@@ -223,7 +223,6 @@ function applyModuleNavAccess(session) {
         "history",
         "volunteers",
         "donations",
-        "settings",
         "account",
     ];
     modules.forEach((moduleId) => {

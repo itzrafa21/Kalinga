@@ -106,7 +106,7 @@ export function clearOrgSessionCache(authUid) {
 
 export function applyCachedDenyAttributes(session) {
     if (!session || session.isOwner) {
-        ["missions", "history", "volunteers", "donations", "settings", "account"].forEach(
+        ["missions", "history", "volunteers", "donations", "account"].forEach(
             (moduleId) => {
                 document.documentElement.removeAttribute(`data-deny-${moduleId}`);
             }
@@ -115,7 +115,7 @@ export function applyCachedDenyAttributes(session) {
         return;
     }
     document.documentElement.setAttribute("data-org-owner", "0");
-    ["missions", "history", "volunteers", "donations", "settings", "account"].forEach(
+    ["missions", "history", "volunteers", "donations", "account"].forEach(
         (moduleId) => {
             if (sessionCan(session, moduleId)) {
                 document.documentElement.removeAttribute(`data-deny-${moduleId}`);
@@ -216,7 +216,6 @@ export function sessionFirstAllowedPath(session) {
         ["history", "/missions/history"],
         ["volunteers", "/organization/volunteers"],
         ["donations", "/donation"],
-        ["settings", "/settings"],
         ["account", "/organization/profile"],
     ];
 

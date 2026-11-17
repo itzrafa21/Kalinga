@@ -66,12 +66,6 @@ export const ACCESS_MODULES = [
         ],
     },
     {
-        id: "settings",
-        label: "Settings",
-        icon: "bi-gear",
-        permissions: [{ id: "view", label: "Can open settings" }],
-    },
-    {
         id: "account",
         label: "Account",
         icon: "bi-person",
@@ -168,9 +162,6 @@ export function moduleIdForPath(pathname) {
     if (path.startsWith("/missions/history")) return "history";
     if (path.startsWith("/organization/volunteers")) return "volunteers";
     if (path.startsWith("/donation")) return "donations";
-    if (path === "/settings" || path.startsWith("/organization/settings")) {
-        return "settings";
-    }
     if (path.startsWith("/organization/profile")) return "account";
     if (path.startsWith("/organization/users")) return "users";
     if (path.startsWith("/missions") || path.startsWith("/organization/dashboard")) {

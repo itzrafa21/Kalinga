@@ -46,7 +46,7 @@
         return;
       }
 
-      var modules = ["missions", "history", "volunteers", "donations", "settings", "account"];
+      var modules = ["missions", "history", "volunteers", "donations", "account"];
       for (var m = 0; m < modules.length; m++) {
         if (!hasModule(session, modules[m])) {
           document.documentElement.setAttribute("data-deny-" + modules[m], "1");
@@ -90,7 +90,6 @@
   html[data-org-owner="0"][data-deny-history] .org-sidebar a[data-access-module="history"],
   html[data-org-owner="0"][data-deny-volunteers] .org-sidebar a[data-access-module="volunteers"],
   html[data-org-owner="0"][data-deny-donations] .org-sidebar a[data-access-module="donations"],
-  html[data-org-owner="0"][data-deny-settings] .org-sidebar a[data-access-module="settings"],
   html[data-org-owner="0"][data-deny-account] .org-sidebar a[data-access-module="account"] {
     display: none !important;
   }
