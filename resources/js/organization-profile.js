@@ -12,6 +12,11 @@ import {
   syncOrganizationNameToSubmissions,
 } from "./org-verification.js";
 import {
+  blockPageContent,
+  requireOrgPageAccess,
+  sessionCan,
+} from "./org-session.js";
+import {
   ORG_CLOUDINARY,
   uploadImageToCloudinary,
   cloudinaryUrlWithTransform,
@@ -470,9 +475,31 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   if (!(await assertOrgVerified(user))) return;
+  const access = await requireOrgPageAccess(user);
+  if (!access) return;
+  if (!sessionCan(access.session, "account")) {
+    blockPageContent(
+      "Your account does not include Account access. Ask the organization owner to update your rights."
+    );
+    return;
+  }
 
-  currentUser = user;
-  orgRef = doc(db, "organizations", user.uid);
+  currentUser = access.actor;
+  orgRef = doc(db, "organizations", currentUser.uid);
+  if (!sessionCan(access.session, "account", "edit")) {
+    document
+      .querySelectorAll(
+        "#saveProfileBtn, #profileStickySave, button[type='submit'], #removeProfilePicture, #profileAvatarUploadBtn"
+      )
+      .forEach((el) => {
+        if (el) el.style.display = "none";
+      });
+    document.querySelectorAll("#profileForm input, #profileForm select, #profileForm textarea").forEach((el) => {
+      el.setAttribute("readonly", "readonly");
+      el.setAttribute("disabled", "disabled");
+    });
+  }
+  user = currentUser;
 
   const orgSnap = await getDoc(orgRef);
 
@@ -492,6 +519,9 @@ onAuthStateChanged(auth, async (user) => {
     } else {
       resetProfilePicture();
     }
+  } else if (!access.session.isOwner) {
+    blockPageContent("Organization profile was not found.");
+    return;
   } else {
     await setDoc(orgRef, {
       name: user.displayName || "New Organization",

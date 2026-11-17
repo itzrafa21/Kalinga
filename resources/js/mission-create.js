@@ -15,6 +15,7 @@ import {
     assertOrgVerified,
     fetchOrganizationDisplayName,
 } from "./org-verification.js";
+import { requireOrgPageAccess } from "./org-session.js";
 import {
     loadPlatformConfig,
     populateMissionTypeSelect,
@@ -275,9 +276,11 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
 
-    currentUser = user;
-    console.log("[SUCCESS] User authenticated:", user.uid);
+    currentUser = access.actor;
+    console.log("[SUCCESS] User authenticated:", access.session.authUid, "org:", currentUser.uid);
 
     await loadPlatformConfig();
     const savedForm = readCreateFormDraft();
@@ -293,7 +296,7 @@ onAuthStateChanged(auth, async (user) => {
     initUsDateInputs(["date", "end_date"]);
     restoreCreateFormDraft();
     initMissionDonationLifecycle();
-    await loadLinkedCampaignOptions(user.uid);
+    await loadLinkedCampaignOptions(currentUser.uid);
 
     document.querySelector(".form-panel-actions .btn-light")?.addEventListener("click", () => {
         clearCreateFormDraft();

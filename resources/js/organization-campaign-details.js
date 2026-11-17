@@ -14,6 +14,11 @@ import {
 } from "firebase/firestore";
 import { assertOrgVerified } from "./org-verification.js";
 import {
+    blockPageContent,
+    requireOrgPageAccess,
+    sessionCan,
+} from "./org-session.js";
+import {
     CAMPAIGN_STATUS,
     campaignAcceptsGoods,
     campaignAcceptsMoney,
@@ -258,7 +263,15 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
-    orgId = user.uid;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    if (!sessionCan(access.session, "donations")) {
+        blockPageContent(
+            "Your account does not include Donation access. Ask the organization owner to update your rights."
+        );
+        return;
+    }
+    orgId = access.actor.uid;
     if (!campaignId) {
         setMessage("Missing campaign id.", true);
         return;

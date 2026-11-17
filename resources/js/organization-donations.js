@@ -17,6 +17,11 @@ import {
     invalidateOrgProfileCache,
 } from "./org-verification.js";
 import {
+    blockPageContent,
+    requireOrgPageAccess,
+    sessionCan,
+} from "./org-session.js";
+import {
     CAMPAIGN_STATUS,
     campaignAcceptsGoods,
     campaignAcceptsMoney,
@@ -481,8 +486,23 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
-    orgId = user.uid;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    if (!sessionCan(access.session, "donations")) {
+        blockPageContent(
+            "Your account does not include Donation access. Ask the organization owner to update your rights."
+        );
+        return;
+    }
+    orgId = access.actor.uid;
     wireUi();
+    if (!sessionCan(access.session, "donations", "create")) {
+        document
+            .querySelectorAll('a[href="/donation/campaigns/create"]')
+            .forEach((el) => {
+                el.style.display = "none";
+            });
+    }
     await loadOrgPaymongo();
     await loadCampaigns();
 });

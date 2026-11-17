@@ -11,7 +11,13 @@ import {
     fetchOrgVerification,
     getVerificationBlockMessageForData,
 } from "./org-verification.js";
-import { lookupTeamUsername } from "./org-team.js";
+import {
+    accessRightsForRole,
+    findTeamMembership,
+    lookupTeamUsername,
+    normalizeAccessRights,
+} from "./org-team.js";
+import { writeCachedOrgSession } from "./org-session.js";
 
 function getLoginErrorMessage(error) {
     const code = error?.code || "";
@@ -230,6 +236,70 @@ document.addEventListener("DOMContentLoaded", () => {
                         "Approval required"
                     );
                     return;
+                }
+            }
+
+            if (teamIndex?.orgId) {
+                const hasSavedRights =
+                    teamIndex.accessRights &&
+                    typeof teamIndex.accessRights === "object" &&
+                    Object.keys(teamIndex.accessRights).length > 0;
+                writeCachedOrgSession({
+                    authUid: user.uid,
+                    orgId: teamIndex.orgId,
+                    isOwner: false,
+                    status: teamIndex.status || "active",
+                    member: {
+                        role: teamIndex.role || "staff",
+                        name: teamIndex.name || "",
+                    },
+                    accessRights: hasSavedRights
+                        ? normalizeAccessRights(teamIndex.accessRights)
+                        : accessRightsForRole(teamIndex.role || "staff"),
+                });
+            } else {
+                // Owner login — or resolve as team if email is a team account.
+                const emailLower = String(user.email || "").toLowerCase();
+                if (emailLower.endsWith("@team.kalinga.app")) {
+                    const membership = await findTeamMembership(user);
+                    if (membership?.orgId) {
+                        const member = membership.member || {};
+                        const hasSavedRights =
+                            member.accessRights &&
+                            typeof member.accessRights === "object" &&
+                            Object.keys(member.accessRights).length > 0;
+                        writeCachedOrgSession({
+                            authUid: user.uid,
+                            orgId: membership.orgId,
+                            isOwner: false,
+                            status: member.status || "active",
+                            member: {
+                                role: member.role || "staff",
+                                name: member.name || "",
+                            },
+                            accessRights: hasSavedRights
+                                ? normalizeAccessRights(member.accessRights)
+                                : accessRightsForRole(member.role || "staff"),
+                        });
+                    } else {
+                        writeCachedOrgSession({
+                            authUid: user.uid,
+                            orgId: user.uid,
+                            isOwner: true,
+                            status: "active",
+                            member: null,
+                            accessRights: null,
+                        });
+                    }
+                } else {
+                    writeCachedOrgSession({
+                        authUid: user.uid,
+                        orgId: user.uid,
+                        isOwner: true,
+                        status: "active",
+                        member: null,
+                        accessRights: null,
+                    });
                 }
             }
 

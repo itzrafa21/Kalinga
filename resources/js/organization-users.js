@@ -15,6 +15,7 @@ import {
     setOrgTeamMemberStatus,
     updateOrgTeamAccessRights,
 } from "./org-team.js";
+import { clearOrgSessionCache } from "./org-session.js";
 
 let orgId = null;
 let members = [];
@@ -285,6 +286,8 @@ function wireUi() {
         try {
             const rights = readAccessRightsFromForm();
             await updateOrgTeamAccessRights(orgId, accessMemberId, rights);
+            // Drop any cached session for that member so their next load uses fresh rights.
+            if (accessMemberId) clearOrgSessionCache(accessMemberId);
             closeAccessRightsModal();
             await refreshUsers();
             showToast("Access rights saved.");

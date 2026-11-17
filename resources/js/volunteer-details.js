@@ -2,6 +2,11 @@ import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { assertOrgVerified } from "./org-verification.js";
 import {
+    blockPageContent,
+    requireOrgPageAccess,
+    sessionCan,
+} from "./org-session.js";
+import {
     collection,
     collectionGroup,
     doc,
@@ -1025,6 +1030,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         if (!(await assertOrgVerified(user))) return;
-        await initPage(user);
+        const access = await requireOrgPageAccess(user);
+        if (!access) return;
+        if (!sessionCan(access.session, "volunteers")) {
+            blockPageContent(
+                "Your account does not include Volunteers access. Ask the organization owner to update your rights."
+            );
+            return;
+        }
+        await initPage(access.actor);
     });
 });

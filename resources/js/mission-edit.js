@@ -2,6 +2,7 @@ import { auth, db } from "./firebase";
 import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { assertOrgVerified } from "./org-verification.js";
+import { requireOrgPageAccess } from "./org-session.js";
 import {
     loadPlatformConfig,
     populateMissionTypeSelect,
@@ -381,6 +382,9 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   if (!(await assertOrgVerified(user))) return;
+  const access = await requireOrgPageAccess(user);
+  if (!access) return;
+  user = access.actor;
 
   initMissionEditSuccessModal();
   initializeImageUpload();

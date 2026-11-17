@@ -2,12 +2,11 @@ import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getOrgProfileOnce } from "./org-verification.js";
 import {
-    accessRightsForRole,
-    findTeamMembership,
-    hasModuleAccess,
-    moduleIdForPath,
-    normalizeAccessRights,
-} from "./org-team.js";
+    readCachedOrgSession,
+    resolveOrgSession,
+    sessionCan,
+    writeCachedOrgSession,
+} from "./org-session.js";
 import {
     ORG_CACHE_KEYS,
     readOrgCache,
@@ -117,29 +116,30 @@ function setUsersNavVisible(visible) {
     usersLink.style.display = visible ? "" : "none";
 }
 
-function applyModuleNavAccess(rights, isOwner) {
+function applyModuleNavAccess(session) {
+    const isOwner = Boolean(session?.isOwner);
+    const modules = [
+        "missions",
+        "history",
+        "volunteers",
+        "donations",
+        "settings",
+        "account",
+    ];
+    modules.forEach((moduleId) => {
+        const allowed = isOwner || sessionCan(session, moduleId);
+        if (allowed) {
+            document.documentElement.removeAttribute(`data-deny-${moduleId}`);
+        } else {
+            document.documentElement.setAttribute(`data-deny-${moduleId}`, "1");
+        }
+    });
     document.querySelectorAll("[data-access-module]").forEach((link) => {
         const moduleId = link.getAttribute("data-access-module");
-        const allowed = isOwner || hasModuleAccess(rights, moduleId);
+        const allowed = isOwner || sessionCan(session, moduleId);
         link.hidden = !allowed;
         link.style.display = allowed ? "" : "none";
     });
-}
-
-function firstAllowedPath(rights, isOwner) {
-    if (isOwner) return "/organization/dashboard";
-    const order = [
-        ["missions", "/organization/dashboard"],
-        ["history", "/missions/history"],
-        ["volunteers", "/organization/volunteers"],
-        ["donations", "/donation"],
-        ["settings", "/settings"],
-        ["account", "/organization/profile"],
-    ];
-    for (const [moduleId, path] of order) {
-        if (hasModuleAccess(rights, moduleId)) return path;
-    }
-    return "/organization/login";
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -151,61 +151,53 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     try {
-        const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.SIDEBAR);
-        if (cached?.payload?.displayName) {
-            setOrgWelcomeName(cached.payload.displayName);
+        // Apply cached rights instantly, then refresh from Firestore.
+        const cached = readCachedOrgSession(user.uid);
+        if (cached) applyModuleNavAccess(cached);
+
+        const session = await resolveOrgSession(user, { force: true });
+        setUsersNavVisible(Boolean(session?.isOwner));
+        document.documentElement.setAttribute(
+            "data-org-owner",
+            session?.isOwner ? "1" : "0"
+        );
+
+        if (!session) {
+            setOrgWelcomeName(user.displayName || user.email);
+            return;
         }
 
-        const orgData = await getOrgProfileOnce(user.uid);
-        const isOwner = Boolean(orgData);
-        setUsersNavVisible(isOwner);
+        writeCachedOrgSession(session);
+        applyModuleNavAccess(session);
 
+        const profileUid = session.orgId;
+        const sidebarCache = readOrgCache(profileUid, ORG_CACHE_KEYS.SIDEBAR);
+        if (sidebarCache?.payload?.displayName) {
+            setOrgWelcomeName(sidebarCache.payload.displayName);
+        }
+
+        const orgData = await getOrgProfileOnce(profileUid);
         let displayName;
-        let accessRights = null;
-
         if (orgData) {
             displayName =
                 (orgData.name && String(orgData.name).trim()) ||
                 (orgData.orgName && String(orgData.orgName).trim()) ||
+                session.member?.name ||
                 user.displayName ||
                 user.email;
-            applyModuleNavAccess(null, true);
         } else {
-            const membership = await findTeamMembership(user);
-            if (membership?.orgId) {
-                const ownerOrg = await getOrgProfileOnce(membership.orgId);
-                displayName =
-                    (ownerOrg?.name && String(ownerOrg.name).trim()) ||
-                    (ownerOrg?.orgName && String(ownerOrg.orgName).trim()) ||
-                    membership.member?.name ||
-                    user.displayName ||
-                    user.email;
-
-                accessRights =
-                    membership.member?.accessRights &&
-                    Object.keys(membership.member.accessRights).length
-                        ? normalizeAccessRights(membership.member.accessRights)
-                        : accessRightsForRole(membership.member?.role || "staff");
-
-                applyModuleNavAccess(accessRights, false);
-
-                if (window.location.pathname.startsWith("/organization/users")) {
-                    window.location.href = firstAllowedPath(accessRights, false);
-                    return;
-                }
-
-                const moduleId = moduleIdForPath(window.location.pathname);
-                if (moduleId && moduleId !== "users" && !hasModuleAccess(accessRights, moduleId)) {
-                    window.location.href = firstAllowedPath(accessRights, false);
-                    return;
-                }
-            } else {
-                displayName = user.displayName || user.email;
-                setUsersNavVisible(false);
-            }
+            displayName =
+                session.member?.name || user.displayName || user.email;
         }
 
         setOrgWelcomeName(displayName);
+
+        if (!session.isOwner && session.status === "disabled") {
+            window.location.href = "/organization/login";
+            return;
+        }
+
+        // Denied pages are handled by requireOrgPageAccess (Access Denied UI).
     } catch (err) {
         console.warn("[WARN] sidebar user:", err);
         setUsersNavVisible(false);

@@ -16,6 +16,11 @@ import { assertOrgVerified } from "./org-verification.js";
 import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { awardMissionPoints } from "./volunteer-recognition.js";
 import {
+    blockPageContent,
+    requireOrgPageAccess,
+    sessionCan,
+} from "./org-session.js";
+import {
     ORG_CACHE_KEYS,
     NAV_FRESH_MS,
     readOrgCache,
@@ -75,24 +80,44 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    if (!sessionCan(access.session, "missions")) {
+        blockPageContent(
+            "Your account does not include Mission Management access. Ask the organization owner to update your rights."
+        );
+        return;
+    }
 
-    console.log("[SUCCESS] User logged in:", user.uid);
-    CURRENT_USER = user;
+    const actor = access.actor;
+    console.log("[SUCCESS] User logged in:", access.session.authUid, "org:", actor.uid);
+    CURRENT_USER = actor;
 
     initMissionFilters();
 
-    const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
+    // Hide create actions when the user cannot create missions.
+    if (!sessionCan(access.session, "missions", "create")) {
+        document
+            .querySelectorAll(
+                'a[href="/missions/create"], #createMissionBtn, .btn-create-mission'
+            )
+            .forEach((el) => {
+                el.style.display = "none";
+            });
+    }
+
+    const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.DASHBOARD);
     if (cached?.payload) {
         applyCachedDashboardMissions(cached.payload);
     }
 
     const needsNetwork = !isOrgCacheFresh(
-        user.uid,
+        actor.uid,
         ORG_CACHE_KEYS.DASHBOARD,
         NAV_FRESH_MS
     );
     if (needsNetwork) {
-        await refreshMissionDashboard(user, {
+        await refreshMissionDashboard(actor, {
             silent: Boolean(cached?.payload),
             force: true,
         });

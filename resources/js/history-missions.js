@@ -6,6 +6,11 @@ import {
     getOrgProfileOnce,
 } from "./org-verification.js";
 import {
+    blockPageContent,
+    requireOrgPageAccess,
+    sessionCan,
+} from "./org-session.js";
+import {
     ORG_CACHE_KEYS,
     NAV_FRESH_MS,
     readOrgCache,
@@ -67,14 +72,23 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    if (!sessionCan(access.session, "history")) {
+        blockPageContent(
+            "Your account does not include History of Missions access. Ask the organization owner to update your rights."
+        );
+        return;
+    }
 
-    console.log("[SUCCESS] User logged in:", user.uid);
-    CURRENT_USER = user;
+    const actor = access.actor;
+    console.log("[SUCCESS] User logged in:", access.session.authUid, "org:", actor.uid);
+    CURRENT_USER = actor;
 
-    await populateSidebarUser(user);
+    await populateSidebarUser(actor);
 
-    const fresh = isOrgCacheFresh(user.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
-    await loadHistoryMissions(user, { refresh: !fresh });
+    const fresh = isOrgCacheFresh(actor.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
+    await loadHistoryMissions(actor, { refresh: !fresh });
 });
 
 function updateHistoryMissionFooter(visibleCount) {

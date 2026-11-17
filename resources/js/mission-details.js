@@ -15,6 +15,11 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { assertOrgVerified } from "./org-verification.js";
 import {
+  blockPageContent,
+  requireOrgPageAccess,
+  sessionCan,
+} from "./org-session.js";
+import {
   userHasApplicationForMission,
   upsertMissionVolunteer,
   syncMissionVolunteerRoster,
@@ -45,6 +50,8 @@ import {
 
 let pendingRejectVolunteer = null;
 let currentMissionContext = null;
+let CURRENT_ACTOR = null;
+let CURRENT_SESSION = null;
 
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -1892,7 +1899,7 @@ function renderMissionDetailsFromCache(container, payload, user) {
 async function refreshMissionDetails({ refresh = true, background = false } = {}) {
   const container = document.getElementById("detailsContainer");
   const missionId = getMissionIdFromUrl();
-  const user = auth.currentUser;
+  const user = CURRENT_ACTOR || auth.currentUser;
   if (!container || !missionId) return;
 
   const orgId = user?.uid || null;
@@ -2028,6 +2035,19 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (!(await assertOrgVerified(user))) return;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    if (
+      !sessionCan(access.session, "missions") &&
+      !sessionCan(access.session, "history")
+    ) {
+      blockPageContent(
+        "Your account does not include access to mission details. Ask the organization owner to update your rights."
+      );
+      return;
+    }
+    CURRENT_ACTOR = access.actor;
+    CURRENT_SESSION = access.session;
     try {
       wireRosterStatusSuccessModal();
       wireMissionFullModal();

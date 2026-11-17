@@ -11,6 +11,7 @@ import {
     updateDoc,
 } from "firebase/firestore";
 import { assertOrgVerified } from "./org-verification.js";
+import { requireOrgPageAccess } from "./org-session.js";
 import { uploadFileToCloudinary, isCloudinaryConfigured } from "./cloudinary-upload.js";
 import {
     CAMPAIGN_STATUS,
@@ -630,7 +631,9 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
-    orgId = user.uid;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    orgId = access.actor.uid;
     const orgSnap = await getDoc(doc(db, "organizations", orgId));
     orgName = orgSnap.data()?.name || orgSnap.data()?.orgName || "";
 

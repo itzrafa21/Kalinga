@@ -63,6 +63,15 @@
     margin-bottom: 2px;
     transition: background 0.12s, color 0.12s;
   }
+  /* Instantly hide modules denied in cached access rights (set by org-theme-boot). */
+  html[data-org-owner="0"][data-deny-missions] .org-sidebar a[data-access-module="missions"],
+  html[data-org-owner="0"][data-deny-history] .org-sidebar a[data-access-module="history"],
+  html[data-org-owner="0"][data-deny-volunteers] .org-sidebar a[data-access-module="volunteers"],
+  html[data-org-owner="0"][data-deny-donations] .org-sidebar a[data-access-module="donations"],
+  html[data-org-owner="0"][data-deny-settings] .org-sidebar a[data-access-module="settings"],
+  html[data-org-owner="0"][data-deny-account] .org-sidebar a[data-access-module="account"] {
+    display: none !important;
+  }
   .org-sidebar a:hover {
     background: #f4f5f7;
     color: #222;
@@ -232,5 +241,47 @@
   .org-logout-modal-confirm:disabled {
     opacity: 0.65;
     cursor: not-allowed;
+  }
+
+  .org-access-denied {
+    min-height: calc(100vh - 65px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.25rem;
+  }
+  .org-access-denied__card {
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+  .org-access-denied__title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+  }
+  .org-access-denied__detail {
+    margin: 0.75rem 0 0;
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  html[data-theme="dark"] .org-access-denied__card {
+    background: #111827;
+    border-color: #1f2937;
+    box-shadow: none;
+  }
+  html[data-theme="dark"] .org-access-denied__title {
+    color: #f8fafc;
+  }
+  html[data-theme="dark"] .org-access-denied__detail {
+    color: #94a3b8;
   }
 </style>

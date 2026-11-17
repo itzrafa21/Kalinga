@@ -4,6 +4,11 @@ import {
     assertOrgVerified,
     getOrgProfileOnce,
 } from "./org-verification.js";
+import {
+    blockPageContent,
+    requireOrgPageAccess,
+    sessionCan,
+} from "./org-session.js";
 import { collection, getDocs, query, where, doc, updateDoc, getDoc } from "firebase/firestore";
 import {
     STORAGE_MISSIONS_SUB,
@@ -615,20 +620,29 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     if (!(await assertOrgVerified(user))) return;
+    const access = await requireOrgPageAccess(user);
+    if (!access) return;
+    if (!sessionCan(access.session, "volunteers")) {
+        blockPageContent(
+            "Your account does not include Volunteers access. Ask the organization owner to update your rights."
+        );
+        return;
+    }
 
-    currentUser = user;
+    const actor = access.actor;
+    currentUser = actor;
 
-    const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.VOLUNTEERS);
+    const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.VOLUNTEERS);
     if (cached?.payload) {
         applyCachedVolunteersPayload(cached.payload);
     } else {
         showVolunteerTableLoading();
     }
 
-    void loadSidebarUser(user);
+    void loadSidebarUser(actor);
 
     const fresh = isOrgCacheFresh(
-        user.uid,
+        actor.uid,
         ORG_CACHE_KEYS.VOLUNTEERS,
         NAV_FRESH_MS
     );
