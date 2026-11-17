@@ -27,24 +27,12 @@
       width: calc(100% - 210px);
       height: 100vh;
       min-height: 100vh;
-      padding: 0;
+      padding: 65px 0 0;
       background: #f3f4f6;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
-    .campaign-topbar {
-      background: #166534;
-      color: #fff;
-      padding: 0.85rem 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      flex-shrink: 0;
-    }
-    .campaign-topbar i { font-size: 1rem; }
-    .campaign-topbar p { margin: 0; font-size: 0.95rem; font-weight: 600; }
-    .campaign-topbar span { opacity: 0.85; font-weight: 500; }
     .campaign-scroll {
       flex: 1;
       min-height: 0;
@@ -571,11 +559,11 @@
 </head>
 <body class="org-app" @if(!empty($campaignId)) data-campaign-id="{{ $campaignId }}" @endif>
   @include('partials.org-sidebar', ['activeNav' => 'donation'])
+  @include('partials.org-topbar', ['pageTitle' => (!empty($campaignId) ? 'Edit Campaign' : 'Create Campaign')])
 
   <main class="org-main-content main-content campaign-form-page">
     <div class="campaign-scroll">
       <a class="back-link" href="/donation">← Back to Donations</a>
-      <h1 class="page-title">{{ !empty($campaignId) ? 'Edit campaign' : 'Create campaign' }}</h1>
       <p class="page-subtitle">Campaigns are reviewed by an admin before volunteers can donate.</p>
       <div id="campaignFormStatus" class="status-msg" hidden></div>
 

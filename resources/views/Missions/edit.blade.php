@@ -598,6 +598,7 @@
 </head>
 <body class="org-app">
 @include('partials.org-sidebar', ['activeNav' => 'missions'])
+@include('partials.org-topbar', ['pageTitle' => 'Edit Mission'])
 <main class="org-main-content">
   <div class="container-fluid main-container">
     <div class="mission-form-page">
@@ -606,7 +607,6 @@
           <i class="bi bi-arrow-left"></i>
         </a>
         <div class="mission-form-hero-text">
-          <h1>Edit mission</h1>
           <p>Update your mission details below. Changes are saved immediately across your organization dashboard.</p>
         </div>
       </header>

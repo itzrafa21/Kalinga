@@ -609,13 +609,13 @@
 
         @media (max-width: 992px) {
             .org-main-content:has(.create-mission-page) {
-                padding: 1.25rem 1rem 1.75rem;
+                padding: calc(65px + 1.25rem) 1rem 1.75rem;
             }
         }
 
         @media (max-width: 768px) {
             .org-main-content:has(.create-mission-page) {
-                padding: 1rem 0.75rem 1.5rem;
+                padding: calc(65px + 1rem) 0.75rem 1.5rem;
             }
 
             .create-mission-hero {
@@ -750,6 +750,7 @@
 </head>
 <body class="org-app">
 @include('partials.org-sidebar', ['activeNav' => 'missions'])
+@include('partials.org-topbar', ['pageTitle' => 'Create Mission'])
 <main class="org-main-content">
     <div class="container-fluid main-container">
         <div class="create-mission-page">
@@ -758,7 +759,6 @@
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <div class="create-mission-hero-text">
-                    <h1>Create mission</h1>
                     <p>Fill in the details below. Your mission will be submitted for admin approval before volunteers can see it.</p>
                 </div>
             </header>

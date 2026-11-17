@@ -421,10 +421,9 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'history'])
+  @include('partials.org-topbar', ['pageTitle' => 'History of Missions'])
 
   <main class="org-main-content main-content">
-    <h1 class="page-title">History of Missions</h1>
-
     <div class="stats">
       <div class="stat-card">
         <div class="stat-card-header card-purple">

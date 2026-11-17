@@ -105,9 +105,34 @@
     width: auto;
     text-align: center;
   }
+  .org-topbar {
+    position: fixed;
+    top: 0;
+    left: 210px;
+    right: 0;
+    z-index: 190;
+    height: 65px;
+    background: #ffffff;
+    color: #166534;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0 1.5rem;
+    box-sizing: border-box;
+  }
+  .org-topbar p {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #166534;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .org-main-content {
     margin-left: 210px;
-    padding: 1.5rem 2rem 2rem;
+    padding: calc(65px + 1.5rem) 2rem 2rem;
     min-height: 100vh;
     background:#effff4;
     color: #1f2937;
@@ -119,6 +144,7 @@
     }
     .org-sidebar.open { transform: translateX(0); }
     .org-main-content { margin-left: 0; }
+    .org-topbar { left: 0; }
   }
   .org-logout-modal-overlay {
     position: fixed;

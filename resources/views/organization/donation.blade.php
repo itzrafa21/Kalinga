@@ -27,28 +27,12 @@
       width: calc(100% - 210px);
       height: 100vh;
       min-height: 100vh;
-      padding: 0;
+      padding: 65px 0 0;
       background: #f3f4f6;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
-    .donation-page__header {
-      background: #166534;
-      color: #fff;
-      padding: 0.85rem 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      flex-shrink: 0;
-    }
-    .donation-page__header i { font-size: 1rem; }
-    .donation-page__header-title {
-      margin: 0;
-      font-size: 0.95rem;
-      font-weight: 600;
-    }
-    .donation-page__header-title span { opacity: 0.85; font-weight: 500; }
     .donation-page__body {
       flex: 1;
       min-height: 0;
@@ -450,12 +434,12 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'donation'])
+  @include('partials.org-topbar', ['pageTitle' => 'Donation'])
 
   <main class="org-main-content main-content donation-page" id="mainContent">
     <div class="donation-page__body">
       <div class="page-top">
         <div>
-          <h1>Donations</h1>
           <p>Run fundraising campaigns for your organization. Payments go directly to your PayMongo account.</p>
         </div>
         <a class="btn-primary" href="/donation/campaigns/create">

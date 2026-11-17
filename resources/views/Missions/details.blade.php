@@ -17,7 +17,7 @@
   @include('partials.org-layout-styles')
   <style>
     .org-main-content.main-content {
-      padding: 1.5rem 1.75rem 2.5rem;
+      padding: calc(65px + 1.5rem) 1.75rem 2.5rem;
     }
     .md-wrap {
       max-width: 1080px;
@@ -650,12 +650,12 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'missions'])
+  @include('partials.org-topbar', ['pageTitle' => 'Mission Details'])
 
   <main class="org-main-content main-content">
     <div class="md-wrap">
       <header class="md-page-head">
         <div id="mdPageBack"></div>
-        <h1 class="md-page-header">Mission Details</h1>
         <nav id="mdTopNav" class="md-topbar-actions" aria-label="Mission actions"></nav>
       </header>
       <div id="detailsContainer"></div>

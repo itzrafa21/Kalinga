@@ -15,7 +15,7 @@
   ])
   @include('partials.org-layout-styles')
   <style>
-    .org-main-content.main-content { padding: 1.25rem 1.5rem 2rem; }
+    .org-main-content.main-content { padding: calc(65px + 1.25rem) 1.5rem 2rem; }
 
     .vd-page-head {
       margin-bottom: 1.25rem;
@@ -385,13 +385,13 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'volunteers'])
+  @include('partials.org-topbar', ['pageTitle' => 'Volunteer Details'])
 
   <main class="org-main-content main-content">
     <header class="vd-page-head">
       <a href="/organization/volunteers" class="vd-back">
         <i class="bi bi-arrow-left"></i> Back to volunteers
       </a>
-      <h1 class="vd-page-title"><i class="bi bi-person-badge"></i> Volunteer details</h1>
     </header>
 
     <div id="detailLoading" aria-live="polite"></div>

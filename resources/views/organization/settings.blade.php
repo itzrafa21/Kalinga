@@ -374,10 +374,10 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'settings'])
+  @include('partials.org-topbar', ['pageTitle' => 'Settings'])
 
   <main class="org-main-content main-content">
     <header class="settings-page-header">
-      <h1><i class="bi bi-gear"></i> Settings</h1>
       <p>Manage how your organization works on Kalinga.</p>
     </header>
 

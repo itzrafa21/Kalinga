@@ -516,10 +516,9 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'volunteers'])
+  @include('partials.org-topbar', ['pageTitle' => 'Volunteers'])
 
   <main class="org-main-content main-content" id="mainContent">
-    <h1 class="page-title">Volunteers</h1>
-
     <div class="stats">
       <div class="stat-card">
         <div class="stat-card-header card-purple">

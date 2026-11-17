@@ -106,10 +106,10 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'missions'])
+  @include('partials.org-topbar', ['pageTitle' => 'Donation Details'])
 
   <main class="org-main-content main-content">
     <div class="donation-view-card">
-      <h1><i class="bi bi-heart"></i> Donation details for this mission</h1>
       <p class="desc">These are the GCash details from your Donation Center. Volunteers will use them for this mission.</p>
 
       <div id="donationLoaded" hidden>

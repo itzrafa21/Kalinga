@@ -33,24 +33,12 @@
       width: calc(100% - 210px);
       height: 100vh;
       min-height: 100vh;
-      padding: 0;
+      padding: 65px 0 0;
       background: #f3f4f6;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
-    .profile-topbar {
-      background: #166534;
-      color: #fff;
-      padding: 0.85rem 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      flex-shrink: 0;
-    }
-    .profile-topbar i { font-size: 1rem; }
-    .profile-topbar p { margin: 0; font-size: 0.95rem; font-weight: 600; }
-    .profile-topbar span { opacity: 0.85; font-weight: 500; }
     .profile-scroll {
       flex: 1;
       min-height: 0;
@@ -632,13 +620,9 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'profile'])
+  @include('partials.org-topbar', ['pageTitle' => 'Account'])
 
   <main class="org-main-content main-content profile-page" id="mainContent">
-    <header class="profile-topbar">
-      <i class="bi bi-heart-fill" aria-hidden="true"></i>
-      <p>Kalinga <span>/ Profile</span></p>
-    </header>
-
     <div class="profile-scroll">
       <section class="profile-hero">
         <div class="profile-hero-left">

@@ -480,6 +480,7 @@
 <body class="org-app">
 
 @include('partials.org-sidebar', ['activeNav' => 'dashboard'])
+@include('partials.org-topbar', ['pageTitle' => 'Mission Management'])
 
 <main class="org-main-content main-content">
 <div class="page-header">
@@ -487,7 +488,6 @@
     <p class="page-welcome">
       Welcome, <span id="orgNameWelcome">Organization</span>!
     </p>
-    <h1 class="page-title">Mission Management</h1>
   </div>
   <div class="notif-wrap">
   <button type="button" class="notif-btn" id="orgNotifBtn" aria-label="Notifications" title="Notifications" aria-expanded="false">
