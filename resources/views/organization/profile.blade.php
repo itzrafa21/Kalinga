@@ -308,22 +308,6 @@
       font-size: 0.95rem;
       pointer-events: none;
     }
-    .org-id-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: stretch;
-    }
-    .org-id-row .input-lock-wrap { flex: 1; }
-    .btn-copy-id {
-      border: 1px solid #d1d5db;
-      background: #fff;
-      color: #374151;
-      border-radius: 10px;
-      padding: 0 0.85rem;
-      cursor: pointer;
-    }
-    .btn-copy-id:hover { background: #f3f4f6; }
-
     .multi-field { display: flex; flex-direction: column; gap: 0.5rem; }
     .multi-field-list { display: flex; flex-direction: column; gap: 0.5rem; }
     .multi-field-row { position: relative; display: flex; align-items: center; }
@@ -556,7 +540,6 @@
     html[data-theme="dark"] .form-select,
     html[data-theme="dark"] .password-section .form-group input,
     html[data-theme="dark"] .btn-discard,
-    html[data-theme="dark"] .btn-copy-id,
     html[data-theme="dark"] .change-password-submit {
       background: #0f172a !important;
       border-color: #334155 !important;
@@ -847,17 +830,6 @@
             <section class="profile-card" id="section-account" data-profile-panel="account" role="tabpanel" hidden>
               <h2>Account</h2>
               <div class="form-grid">
-                <div class="form-group full">
-                  <label class="form-label" for="orgId">Organization ID</label>
-                  <div class="org-id-row">
-                    <div class="input-lock-wrap">
-                      <input type="text" id="orgId" name="orgId" class="form-control locked-input" readonly>
-                      <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                    </div>
-                    <button type="button" class="btn-copy-id" onclick="copyOrgId()" title="Copy ID"><i class="bi bi-clipboard"></i></button>
-                  </div>
-                  <span class="field-hint">Unique identifier for your organization account.</span>
-                </div>
                 <div class="form-group">
                   <label class="form-label" for="username">Username</label>
                   <input type="text" id="username" name="username" class="form-control" placeholder="Unique username">

@@ -191,7 +191,6 @@ function initMultiFields() {
 }
 
 function fillProfileForm(data, user) {
-  setValue("orgId", user.uid);
   setValue("orgName", data.name || data.orgName || "");
   setSelectValue("orgType", data.orgType || "");
   setValue("orgDescription", data.orgDescription || "");
@@ -999,13 +998,3 @@ function initializeFormHandlers() {
     }
   });
 }
-
-function copyOrgId() {
-  const el = document.getElementById("orgId");
-  if (!el) return;
-  navigator.clipboard.writeText(el.value).then(
-    () => alert("Organization ID copied."),
-    () => alert("Could not copy. Select and copy manually.")
-  );
-}
-window.copyOrgId = copyOrgId;
