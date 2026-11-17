@@ -14,8 +14,8 @@ import {
 import "../css/org-dark-theme.css";
 
 const THEME_KEY = "kalinga-org-theme";
-const LIGHT_BG_RE =
-    /^(?:rgb\(255,\s*255,\s*255\)|rgba\(255,\s*255,\s*255,\s*1\)|#fff(?:fff)?|#f8fafc|#f9fafb|#f3f4f6|#f0f2f5|#effff4|#fafafa|#f8faf9|#fffafa)$/i;
+const SKIP_SURFACE =
+    "img, svg, canvas, video, path, .mapboxgl-canvas, .mapboxgl-marker";
 
 function syncThemeToggleIcons(theme) {
     const btn = document.getElementById("orgThemeToggleBtn");
@@ -71,38 +71,138 @@ function wireOrgDarkModeToggle() {
     });
 }
 
-/** Darken leftover white/near-white surfaces page CSS still paints. */
-function hardenDarkSurfaces() {
-    if (document.documentElement.getAttribute("data-theme") !== "dark") return;
-    const root = document.querySelector("body.org-app .org-main-content");
-    if (!root) return;
+function parseCssColor(value) {
+    if (!value || value === "transparent") return null;
+    const match = value.match(
+        /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/
+    );
+    if (!match) return null;
+    return {
+        r: Number(match[1]),
+        g: Number(match[2]),
+        b: Number(match[3]),
+        a: match[4] === undefined ? 1 : Number(match[4]),
+    };
+}
 
-    root.querySelectorAll("*").forEach((el) => {
-        if (el.closest(".org-sidebar")) return;
-        const style = window.getComputedStyle(el);
-        const bg = style.backgroundColor;
-        if (!LIGHT_BG_RE.test(bg)) return;
-        // Skip fully transparent wrappers and media
-        if (el.matches("img, svg, canvas, video, path, i")) return;
-        el.style.setProperty("background-color", "#1e293b", "important");
-        if (style.borderColor && /rgb\(229|rgb\(226|rgb\(241|rgb\(226/.test(style.borderColor)) {
-            el.style.setProperty("border-color", "#334155", "important");
-        }
+function luminance(color) {
+    return 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+}
+
+function darkFillFor(color) {
+    const { r, g, b } = color;
+    if (g > r + 10 && g >= b - 10 && g > 150) return "#14532d";
+    if (b > r + 12 && b > g - 10 && b > 160 && g > 140) return "#164e63";
+    if (r > g + 16 && r >= b && r > 165) return "#7f1d1d";
+    if (r > 175 && g > 145 && b < 170) return "#78350f";
+    if (b > r + 12 && b > g && b > 165) return "#4c1d95";
+    return luminance(color) > 225 ? "#0f172a" : "#1e293b";
+}
+
+function lightTextFor(color) {
+    const { r, g, b } = color;
+    if (g > r + 10 && g >= b - 8) return "#86efac";
+    if (b > r + 8 && b >= g - 8 && g > 80) return "#a5f3fc";
+    if (r > g + 14 && r >= b) return "#fecaca";
+    if (r > 140 && g > 90 && b < 80) return "#fde68a";
+    return "#e2e8f0";
+}
+
+function shouldSkipSurface(el) {
+    return (
+        el.matches(SKIP_SURFACE) ||
+        Boolean(el.closest(".mapboxgl-canvas, .mapboxgl-marker"))
+    );
+}
+
+function clearDarkPatches() {
+    document.querySelectorAll("[data-dark-patched]").forEach((el) => {
+        el.style.removeProperty("background-color");
+        el.style.removeProperty("color");
+        el.style.removeProperty("border-color");
+        delete el.dataset.darkPatched;
     });
+}
+
+/** Darken leftover white and light-gray surfaces page CSS still paints. */
+function patchDarkElement(el) {
+    if (!(el instanceof Element) || shouldSkipSurface(el)) return;
+    const style = window.getComputedStyle(el);
+    let patched = false;
+    const bg = parseCssColor(style.backgroundColor);
+    if (bg && bg.a > 0.35 && luminance(bg) > 168) {
+        const fill = el.matches("input, select, textarea") ? "#0f172a" : darkFillFor(bg);
+        el.style.setProperty("background-color", fill, "important");
+        patched = true;
+    }
+    const fg = parseCssColor(style.color);
+    if (fg && fg.a > 0.35 && luminance(fg) < 110) {
+        el.style.setProperty("color", lightTextFor(fg), "important");
+        patched = true;
+    }
+    const border = parseCssColor(style.borderTopColor);
+    if (border && border.a > 0.35 && luminance(border) > 185 && style.borderTopWidth !== "0px") {
+        el.style.setProperty("border-color", "#334155", "important");
+        patched = true;
+    }
+    if (patched) el.dataset.darkPatched = "1";
+}
+
+function hardenDarkSurfaces() {
+    if (document.documentElement.getAttribute("data-theme") !== "dark") {
+        clearDarkPatches();
+        return;
+    }
+    const root = document.querySelector("body.org-app");
+    if (!root) return;
+    patchDarkElement(root);
+    root.querySelectorAll("*").forEach(patchDarkElement);
+}
+
+let hardenTimer = 0;
+function scheduleHarden() {
+    window.clearTimeout(hardenTimer);
+    hardenTimer = window.setTimeout(hardenDarkSurfaces, 40);
 }
 
 syncOrgThemeFromStorage();
 window.addEventListener("storage", (event) => {
-    if (event.key === THEME_KEY) syncOrgThemeFromStorage();
+    if (event.key === THEME_KEY) {
+        syncOrgThemeFromStorage();
+        scheduleHarden();
+    }
 });
+
+new MutationObserver(() => scheduleHarden()).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     wireOrgDarkModeToggle();
     syncOrgThemeFromStorage();
     hardenDarkSurfaces();
-    // Re-run after async UI paints tables/cards
     setTimeout(hardenDarkSurfaces, 400);
     setTimeout(hardenDarkSurfaces, 1200);
+
+    const app = document.querySelector("body.org-app");
+    if (app) {
+        new MutationObserver(() => {
+            if (document.documentElement.getAttribute("data-theme") === "dark") {
+                scheduleHarden();
+            }
+        }).observe(app, { childList: true, subtree: true });
+    }
 });
+
+document.addEventListener(
+    "mouseover",
+    (event) => {
+        if (document.documentElement.getAttribute("data-theme") !== "dark") return;
+        patchDarkElement(event.target);
+    },
+    true
+);
 
 function setOrgWelcomeName(displayName) {
     const welcomeNameEl = document.getElementById("orgNameWelcome");

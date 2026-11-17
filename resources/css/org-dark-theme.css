@@ -301,7 +301,13 @@ html[data-theme="dark"] body.org-app th,
 html[data-theme="dark"] body.org-app td {
   border-bottom-color: #334155 !important;
 }
-html[data-theme="dark"] body.org-app tbody tr:hover {
+html[data-theme="dark"] body.org-app tbody tr:hover,
+html[data-theme="dark"] body.org-app tbody tr:nth-child(even),
+html[data-theme="dark"] body.org-app tbody tr:nth-child(even) td,
+html[data-theme="dark"] body.org-app tbody tr:hover td,
+html[data-theme="dark"] body.org-app #missionsTable tbody tr:nth-child(even) td,
+html[data-theme="dark"] body.org-app #missionsTable tbody tr:hover td,
+html[data-theme="dark"] body.org-app #missionsTable tbody tr:nth-child(even):hover td {
   background: rgba(148, 163, 184, 0.08) !important;
 }
 
@@ -403,4 +409,20 @@ html[data-theme="dark"] body.org-app .art-title {
 html[data-theme="dark"] body.org-app .page-top p,
 html[data-theme="dark"] body.org-app .needs-copy p {
   color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group,
+html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group button {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group button + button {
+  border-top-color: #334155 !important;
+}
+html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group button span {
+  filter: invert(1);
+}
+html[data-theme="dark"] {
+  scrollbar-color: #334155 #0b1220;
 }
