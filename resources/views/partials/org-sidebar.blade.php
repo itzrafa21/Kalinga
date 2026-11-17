@@ -36,8 +36,7 @@
     <div class="org-sidebar-section sidebar-section">Settings</div>
     <a href="/settings" class="{{ $isActive('settings') }}"><i class="bi bi-gear"></i> Settings</a>
 
-    <div class="org-sidebar-section sidebar-section">Account</div>
-    <a href="/organization/profile" class="{{ $isActive('profile') }}"><i class="bi bi-person"></i> Profile</a>
+    <a href="/organization/profile" class="{{ $isActive('profile') }}"><i class="bi bi-person"></i> Account</a>
 
     <button type="button" id="logoutBtn" class="org-sidebar-logout-link sidebar-logout-link">
       <i class="bi bi-box-arrow-right"></i> Logout
