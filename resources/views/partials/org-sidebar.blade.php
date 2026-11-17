@@ -38,6 +38,7 @@
 
     <div class="org-sidebar-section sidebar-section">Account</div>
     <a href="/organization/profile" class="{{ $isActive('profile') }}"><i class="bi bi-person"></i> Profile</a>
+
     <button type="button" id="logoutBtn" class="org-sidebar-logout-link sidebar-logout-link">
       <i class="bi bi-box-arrow-right"></i> Logout
     </button>
