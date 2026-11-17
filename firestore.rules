@@ -67,5 +67,14 @@ service cloud.firestore {
 
     // Also allow orgs to update their paymongo map on organizations/{orgId}
     // (keep your existing organization rules; ensure update includes paymongo.*).
+
+    // Team users for organization accounts:
+    // match /organizations/{orgId}/team/{memberId} {
+    //   allow read, write: if signedIn() && request.auth.uid == orgId;
+    // }
+    // match /org_team_usernames/{username} {
+    //   allow read: if true;
+    //   allow create, update: if signedIn();
+    // }
   }
 }

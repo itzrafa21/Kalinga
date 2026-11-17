@@ -365,12 +365,12 @@
 
         <form id="orgLoginForm">
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="email">Email or username</label>
             <input
-              type="email"
+              type="text"
               id="email"
               class="form-control"
-              placeholder="you@organization.org"
+              placeholder="Email or username"
               autocomplete="username"
               required
             >

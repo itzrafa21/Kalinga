@@ -11,6 +11,8 @@
             $activeNav = 'donation';
         } elseif (request()->is('organization/profile')) {
             $activeNav = 'profile';
+        } elseif (request()->is('organization/users')) {
+            $activeNav = 'users';
         } elseif (request()->is('settings') || request()->is('organization/settings')) {
             $activeNav = 'settings';
         } elseif (request()->is('missions/create', 'missions/edit', 'missions/details')) {
@@ -37,6 +39,7 @@
     <a href="/settings" class="{{ $isActive('settings') }}"><i class="bi bi-gear"></i> Settings</a>
 
     <a href="/organization/profile" class="{{ $isActive('profile') }}"><i class="bi bi-person"></i> Account</a>
+    <a href="/organization/users" class="{{ $isActive('users') }}" id="orgNavUsers" data-owner-only="users"><i class="bi bi-person-gear"></i> Users</a>
 
     <button type="button" id="logoutBtn" class="org-sidebar-logout-link sidebar-logout-link">
       <i class="bi bi-box-arrow-right"></i> Logout

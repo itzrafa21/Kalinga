@@ -30,8 +30,8 @@ Route::get('/missions/edit', function () {
 Route::get('/organization/profile', function () {
     return view('organization.profile');
 });
-Route::get('/organization/profile', function () {
-    return view('organization.profile'); // or your blade filename
+Route::get('/organization/users', function () {
+    return view('organization.users');
 });
 Route::get('/missions/history', function () {
     return view('missions.history'); // ✅ This loads resources/views/missions/history.blade.php

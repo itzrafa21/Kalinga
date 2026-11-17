@@ -196,6 +196,47 @@ export async function assertOrgVerified(user) {
         const check = await fetchOrgVerification(user.uid);
         if (check.ok) return true;
 
+        // Team users are stored under the owner org, not organizations/{theirUid}.
+        if (check.reason === "no_profile") {
+            const { findTeamMembership } = await import("./org-team.js");
+            const membership = await findTeamMembership(user);
+            if (membership?.orgId) {
+                if (membership.member?.status === "disabled") {
+                    const auth = getAuth();
+                    try {
+                        await signOut(auth);
+                    } catch {
+                        /* ignore */
+                    }
+                    sessionStorage.setItem(
+                        "orgLoginBlockReason",
+                        "Your organization access has been disabled. Contact the account owner."
+                    );
+                    window.location.href = ORG_LOGIN_PATH;
+                    return false;
+                }
+
+                const orgCheck = await fetchOrgVerification(membership.orgId);
+                if (orgCheck.ok) return true;
+
+                const auth = getAuth();
+                try {
+                    await signOut(auth);
+                } catch {
+                    /* ignore */
+                }
+                sessionStorage.setItem(
+                    "orgLoginBlockReason",
+                    getVerificationBlockMessageForData(
+                        orgCheck.data,
+                        orgCheck.reason
+                    )
+                );
+                window.location.href = ORG_LOGIN_PATH;
+                return false;
+            }
+        }
+
         const auth = getAuth();
         try {
             await signOut(auth);

@@ -11,6 +11,7 @@ import {
     fetchOrgVerification,
     getVerificationBlockMessageForData,
 } from "./org-verification.js";
+import { lookupTeamUsername } from "./org-team.js";
 
 function getLoginErrorMessage(error) {
     const code = error?.code || "";
@@ -155,7 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const email = document.getElementById("email").value.trim();
+        const loginId = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value;
         const keepSignedIn = document.getElementById("keepSignedIn")?.checked ?? true;
         const submitBtn = form.querySelector('button[type="submit"]');
@@ -171,6 +172,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 keepSignedIn ? browserLocalPersistence : browserSessionPersistence
             );
 
+            let email = loginId;
+            let teamIndex = null;
+            if (loginId && !loginId.includes("@")) {
+                teamIndex = await lookupTeamUsername(loginId);
+                if (!teamIndex?.email) {
+                    openLoginErrorModal(
+                        "No organization user was found with that username.",
+                        "Login failed"
+                    );
+                    return;
+                }
+                if (teamIndex.status === "disabled") {
+                    openLoginErrorModal(
+                        "Your organization access has been disabled. Contact the account owner.",
+                        "Access disabled"
+                    );
+                    return;
+                }
+                email = teamIndex.email;
+            }
+
             const userCredential = await signInWithEmailAndPassword(
                 auth,
                 email,
@@ -178,14 +200,37 @@ document.addEventListener("DOMContentLoaded", () => {
             );
             const user = userCredential.user;
 
-            const check = await fetchOrgVerification(user.uid);
-            if (!check.ok) {
-                await signOut(auth);
-                openLoginErrorModal(
-                    getVerificationBlockMessageForData(check.data, check.reason),
-                    "Approval required"
-                );
-                return;
+            if (teamIndex?.orgId) {
+                if (teamIndex.status === "disabled") {
+                    await signOut(auth);
+                    openLoginErrorModal(
+                        "Your organization access has been disabled. Contact the account owner.",
+                        "Access disabled"
+                    );
+                    return;
+                }
+                const orgCheck = await fetchOrgVerification(teamIndex.orgId);
+                if (!orgCheck.ok) {
+                    await signOut(auth);
+                    openLoginErrorModal(
+                        getVerificationBlockMessageForData(
+                            orgCheck.data,
+                            orgCheck.reason
+                        ),
+                        "Approval required"
+                    );
+                    return;
+                }
+            } else {
+                const check = await fetchOrgVerification(user.uid);
+                if (!check.ok) {
+                    await signOut(auth);
+                    openLoginErrorModal(
+                        getVerificationBlockMessageForData(check.data, check.reason),
+                        "Approval required"
+                    );
+                    return;
+                }
             }
 
             console.log("[SUCCESS] Logged in:", user.email);

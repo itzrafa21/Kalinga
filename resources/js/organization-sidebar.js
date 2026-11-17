@@ -1,6 +1,7 @@
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getOrgProfileOnce } from "./org-verification.js";
+import { findTeamMembership } from "./org-team.js";
 import {
     ORG_CACHE_KEYS,
     readOrgCache,
@@ -103,6 +104,13 @@ function setOrgWelcomeName(displayName) {
     if (welcomeNameEl) welcomeNameEl.textContent = displayName;
 }
 
+function setUsersNavVisible(visible) {
+    const usersLink = document.getElementById("orgNavUsers");
+    if (!usersLink) return;
+    usersLink.hidden = !visible;
+    usersLink.style.display = visible ? "" : "none";
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         if (!window.location.pathname.includes("/organization/login")) {
@@ -118,6 +126,14 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         const orgData = await getOrgProfileOnce(user.uid);
+        const isOwner = Boolean(orgData);
+        setUsersNavVisible(isOwner);
+
+        if (!isOwner && window.location.pathname.startsWith("/organization/users")) {
+            window.location.href = "/organization/dashboard";
+            return;
+        }
+
         let displayName;
         if (orgData) {
             displayName =
@@ -126,12 +142,24 @@ onAuthStateChanged(auth, async (user) => {
                 user.displayName ||
                 user.email;
         } else {
-            displayName = user.displayName || user.email;
+            const membership = await findTeamMembership(user);
+            if (membership?.orgId) {
+                const ownerOrg = await getOrgProfileOnce(membership.orgId);
+                displayName =
+                    (ownerOrg?.name && String(ownerOrg.name).trim()) ||
+                    (ownerOrg?.orgName && String(ownerOrg.orgName).trim()) ||
+                    membership.member?.name ||
+                    user.displayName ||
+                    user.email;
+            } else {
+                displayName = user.displayName || user.email;
+            }
         }
 
         setOrgWelcomeName(displayName);
     } catch (err) {
         console.warn("[WARN] sidebar user:", err);
+        setUsersNavVisible(false);
         setOrgWelcomeName(user.displayName || user.email);
     }
 });
