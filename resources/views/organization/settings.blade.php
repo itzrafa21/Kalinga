@@ -406,21 +406,8 @@
             <div class="setting-row">
               <div class="setting-copy">
                 <h3>Dark mode</h3>
-                <p>Use a darker theme for the organization portal. Your choice is saved on this device.</p>
+                <p>Use the switch in the top header to turn dark mode on or off. Your choice is saved on this device.</p>
               </div>
-              <label class="switch" aria-label="Dark mode">
-                <input type="checkbox" id="darkModeToggle">
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-actions">
-              <button type="button" class="btn-settings btn-settings-secondary" id="resetDisplaySettings">
-                Reset
-              </button>
-              <button type="button" class="btn-settings btn-settings-primary" id="saveDisplaySettings">
-                <i class="bi bi-check-lg"></i> Save changes
-              </button>
             </div>
           </div>
         </section>
@@ -453,57 +440,6 @@
           e.preventDefault();
           showToast(btn.dataset.toast);
         });
-      });
-
-      const THEME_KEY = "kalinga-org-theme";
-      const darkToggle = document.getElementById("darkModeToggle");
-
-      function getSavedTheme() {
-        try {
-          return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
-        } catch (e) {
-          return "light";
-        }
-      }
-
-      function applyTheme(theme) {
-        if (theme === "dark") {
-          document.documentElement.setAttribute("data-theme", "dark");
-        } else {
-          document.documentElement.removeAttribute("data-theme");
-        }
-        if (darkToggle) darkToggle.checked = theme === "dark";
-      }
-
-      function saveTheme(theme) {
-        try {
-          if (theme === "dark") {
-            localStorage.setItem(THEME_KEY, "dark");
-          } else {
-            localStorage.removeItem(THEME_KEY);
-          }
-        } catch (e) {}
-        applyTheme(theme);
-      }
-
-      applyTheme(getSavedTheme());
-
-      darkToggle?.addEventListener("change", () => {
-        applyTheme(darkToggle.checked ? "dark" : "light");
-      });
-
-      document.getElementById("saveDisplaySettings")?.addEventListener("click", () => {
-        saveTheme(darkToggle?.checked ? "dark" : "light");
-        showToast(
-          darkToggle?.checked
-            ? "Dark mode turned on."
-            : "Dark mode turned off."
-        );
-      });
-
-      document.getElementById("resetDisplaySettings")?.addEventListener("click", () => {
-        saveTheme("light");
-        showToast("Display settings reset to light mode.");
       });
     })();
   </script>

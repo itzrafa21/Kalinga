@@ -20,8 +20,19 @@ html[data-theme="dark"] .org-topbar {
   border-bottom-color: #1f2937 !important;
   color: #86efac !important;
 }
-html[data-theme="dark"] .org-topbar p {
+html[data-theme="dark"] .org-topbar-title,
+html[data-theme="dark"] .org-topbar-theme,
+html[data-theme="dark"] .org-topbar-theme-label {
   color: #86efac !important;
+}
+html[data-theme="dark"] .org-topbar-theme i {
+  color: #4ade80 !important;
+}
+html[data-theme="dark"] .org-theme-switch-slider {
+  background: #475569 !important;
+}
+html[data-theme="dark"] .org-theme-switch input:checked + .org-theme-switch-slider {
+  background: #28a745 !important;
 }
 html[data-theme="dark"] .org-sidebar-logo {
   border-bottom-color: rgba(148, 163, 184, 0.18) !important;

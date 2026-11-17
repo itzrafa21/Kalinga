@@ -17,6 +17,20 @@ function applyOrgTheme(theme) {
     } else {
         document.documentElement.removeAttribute("data-theme");
     }
+    const toggle = document.getElementById("orgDarkModeToggle");
+    if (toggle) toggle.checked = theme === "dark";
+}
+
+function saveOrgTheme(theme) {
+    try {
+        if (theme === "dark") {
+            localStorage.setItem(THEME_KEY, "dark");
+        } else {
+            localStorage.removeItem(THEME_KEY);
+        }
+    } catch (e) {}
+    applyOrgTheme(theme);
+    hardenDarkSurfaces();
 }
 
 function syncOrgThemeFromStorage() {
@@ -25,6 +39,16 @@ function syncOrgThemeFromStorage() {
     } catch (e) {
         applyOrgTheme("light");
     }
+}
+
+function wireOrgDarkModeToggle() {
+    const toggle = document.getElementById("orgDarkModeToggle");
+    if (!toggle || toggle.dataset.ready === "1") return;
+    toggle.dataset.ready = "1";
+    syncOrgThemeFromStorage();
+    toggle.addEventListener("change", () => {
+        saveOrgTheme(toggle.checked ? "dark" : "light");
+    });
 }
 
 /** Darken leftover white/near-white surfaces page CSS still paints. */
@@ -52,6 +76,7 @@ window.addEventListener("storage", (event) => {
     if (event.key === THEME_KEY) syncOrgThemeFromStorage();
 });
 document.addEventListener("DOMContentLoaded", () => {
+    wireOrgDarkModeToggle();
     syncOrgThemeFromStorage();
     hardenDarkSurfaces();
     // Re-run after async UI paints tables/cards
