@@ -60,6 +60,11 @@
     .topbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
     .topbar-actions { display: flex; align-items: center; gap: 10px; }
     .topbar-user { font-size: 12px; color: var(--color-muted); }
+    .saved-flash {
+      display: none; align-items: center; gap: 4px;
+      color: var(--color-accent); font-size: 12px; font-weight: 500;
+    }
+    .saved-flash:not([hidden]) { display: inline-flex; }
 
     .content {
       flex: 1; overflow: hidden; display: flex; flex-direction: column;
@@ -310,6 +315,7 @@
     <div class="topbar">
       <div class="topbar-title">Emergency Hotlines</div>
       <div class="topbar-actions">
+        <span id="hotlinesSaveToast" class="saved-flash" hidden><i class="ti ti-check" aria-hidden="true"></i> Saved to Firestore</span>
         <span class="topbar-user" id="adminEmail"></span>
       </div>
     </div>

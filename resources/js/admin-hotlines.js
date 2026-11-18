@@ -1,24 +1,24 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { SEED_HOTLINE_CATEGORIES } from "./hotlines-seed.js";
 import {
     hotlineContactHasValue,
-    migrateFlatItemsToCategories,
     parseHotlineCoords,
+    readHotlinesFromDocData,
 } from "./hotlines-data.js";
 import { initLocationMap } from "./mission-map.js";
 
 const SEED_HOTLINE_IDS = new Set(SEED_HOTLINE_CATEGORIES.map((c) => c.id));
 
-function isOnlyAutoSeedCategories(categories) {
-    if (!Array.isArray(categories) || categories.length === 0) return false;
-    return categories.every((c) => SEED_HOTLINE_IDS.has(c.id));
+function isOnlyAutoSeedHotlines(hotlines) {
+    if (!Array.isArray(hotlines) || hotlines.length === 0) return false;
+    return hotlines.every((c) => SEED_HOTLINE_IDS.has(c.id));
 }
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
-/** @type {import('./hotlines-data.js').HotlineCategory[]} */
+/** @type {import('./hotlines-data.js').HotlineEntry[]} */
 let hotlineCategories = [];
 
 /** @type {Map<string, { map: import("mapbox-gl").Map, resize: () => void, restorePin: () => Promise<void> }>} */
@@ -540,8 +540,7 @@ function addCategoryFromForm() {
     });
     renderHotlineCategories(hotlineCategories);
     hideAddCategoryForm();
-    persistHotlines();
-    flashSaved();
+    void saveHotlinesToFirestore({ silent: false });
 }
 
 function removeCategory(categoryId) {
@@ -770,58 +769,82 @@ function flashSaved() {
 
 async function saveHotlinesToFirestore(options = {}) {
     const { silent = false } = options;
-    const categories = collectCategoriesFromState();
-    hotlineCategories = categories;
+    const hotlines = collectCategoriesFromState();
+    hotlineCategories = hotlines;
     try {
+        // Single doc: platform_config/hotlines — field is `hotlines[]`, not a collection.
+        // Clear legacy `categories` / `items` so Firestore stays clean.
         await setDoc(
             doc(db, ...HOTLINES_DOC),
-            { categories, items: [], updatedAt: serverTimestamp() },
+            {
+                hotlines,
+                categories: deleteField(),
+                items: deleteField(),
+                updatedAt: serverTimestamp(),
+            },
             { merge: true }
         );
+        console.log(
+            "[SUCCESS] Hotlines saved to Firestore platform_config/hotlines:",
+            hotlines.length,
+            "entries"
+        );
         if (!silent) flashSaved();
+        return true;
     } catch (err) {
         console.error("[ERROR] save hotlines:", err);
-        if (!silent) {
-            alert(
-                "Could not save hotlines. Check Firestore rules for platform_config/hotlines."
-            );
-        }
+        alert(
+            "Could not save hotlines to Firestore. Sign in as admin and check rules for platform_config/hotlines.\n\n" +
+                (err?.message || String(err))
+        );
+        return false;
     }
 }
 
 function persistHotlines() {
-    saveHotlinesToFirestore({ silent: true });
+    void saveHotlinesToFirestore({ silent: true });
 }
 
 async function saveEmptyHotlinesDoc() {
     await setDoc(
         doc(db, ...HOTLINES_DOC),
-        { categories: [], items: [], updatedAt: serverTimestamp() },
+        {
+            hotlines: [],
+            categories: deleteField(),
+            items: deleteField(),
+            updatedAt: serverTimestamp(),
+        },
         { merge: true }
     );
     return [];
 }
 
 async function normalizeLoadedData(data) {
-    if (Array.isArray(data.categories) && data.categories.length > 0) {
+    const list = readHotlinesFromDocData(data || {});
+    if (list.length > 0) {
         // Clear old auto-seeded sample hotlines so admins can enter real details.
-        if (isOnlyAutoSeedCategories(data.categories)) {
+        if (isOnlyAutoSeedHotlines(list)) {
             return saveEmptyHotlinesDoc();
         }
-        return data.categories.map((cat, i) => normalizeCategory(cat, i));
-    }
-    if (Array.isArray(data.items) && data.items.length > 0) {
-        const migrated = migrateFlatItemsToCategories(data.items);
-        await setDoc(
-            doc(db, ...HOTLINES_DOC),
-            {
-                categories: migrated,
-                items: [],
-                updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-        );
-        return migrated;
+        const normalized = list.map((cat, i) => normalizeCategory(cat, i));
+        // Migrate legacy categories/items → hotlines on load.
+        if (
+            Array.isArray(data?.categories) ||
+            Array.isArray(data?.items) ||
+            !Array.isArray(data?.hotlines)
+        ) {
+            await setDoc(
+                doc(db, ...HOTLINES_DOC),
+                {
+                    hotlines: normalized,
+                    categories: deleteField(),
+                    items: deleteField(),
+                    updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+            );
+        }
+        return normalized;
     }
     // Do not auto-seed sample hotlines — admins add their own.
     return saveEmptyHotlinesDoc();
@@ -831,10 +854,10 @@ async function loadHotlinesFromFirestore() {
     try {
         const ref = doc(db, ...HOTLINES_DOC);
         const snap = await getDoc(ref);
-        const categories = snap.exists()
+        const hotlines = snap.exists()
             ? await normalizeLoadedData(snap.data())
             : await normalizeLoadedData({});
-        renderHotlineCategories(categories);
+        renderHotlineCategories(hotlines);
     } catch (err) {
         console.warn("[WARN] load hotlines:", err);
         renderHotlineCategories([]);

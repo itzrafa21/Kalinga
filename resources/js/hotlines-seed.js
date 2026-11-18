@@ -97,7 +97,7 @@ export const SEED_HOTLINE_CATEGORIES = [
 
 export function buildInitialHotlinesSeed() {
     return {
-        categories: SEED_HOTLINE_CATEGORIES.map((c) => ({
+        hotlines: SEED_HOTLINE_CATEGORIES.map((c) => ({
             ...c,
             numbers: c.numbers.map((n) => ({ ...n })),
         })),

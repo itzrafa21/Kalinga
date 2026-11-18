@@ -2,8 +2,8 @@ import { doc, getDoc } from "firebase/firestore";
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
-/** @typedef {{ id: string, label: string, number: string, email: string, active?: boolean, sortOrder?: number }} HotlineNumber */
-/** @typedef {{ id: string, name: string, location?: string, latitude?: number|null, longitude?: number|null, active?: boolean, sortOrder?: number, numbers: HotlineNumber[] }} HotlineCategory */
+/** @typedef {{ id: string, label: string, number: string, email: string, active?: boolean, sortOrder?: number }} HotlineContact */
+/** @typedef {{ id: string, name: string, location?: string, latitude?: number|null, longitude?: number|null, active?: boolean, sortOrder?: number, numbers: HotlineContact[] }} HotlineEntry */
 
 export function hotlineContactHasValue(entry) {
     return Boolean(String(entry?.number || "").trim() || String(entry?.email || "").trim());
@@ -30,11 +30,30 @@ export function parseHotlineCoords(lat, lng) {
 }
 
 /**
- * Migrate legacy flat `items[]` (one number per row) into grouped categories.
- * @param {Array<Record<string, unknown>>} items
- * @returns {HotlineCategory[]}
+ * Read hotlines array from the platform_config/hotlines document.
+ * Prefers `hotlines[]`; falls back to legacy `categories[]` / `items[]`.
+ * @param {Record<string, unknown>} data
+ * @returns {HotlineEntry[]}
  */
-export function migrateFlatItemsToCategories(items) {
+export function readHotlinesFromDocData(data = {}) {
+    if (Array.isArray(data.hotlines) && data.hotlines.length > 0) {
+        return data.hotlines;
+    }
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+        return data.categories;
+    }
+    if (Array.isArray(data.items) && data.items.length > 0) {
+        return migrateFlatItemsToHotlines(data.items);
+    }
+    return [];
+}
+
+/**
+ * Migrate legacy flat `items[]` (one number per row) into hotline entries.
+ * @param {Array<Record<string, unknown>>} items
+ * @returns {HotlineEntry[]}
+ */
+export function migrateFlatItemsToHotlines(items) {
     if (!Array.isArray(items) || items.length === 0) return [];
 
     return items.map((item, i) => {
@@ -61,10 +80,14 @@ export function migrateFlatItemsToCategories(items) {
     });
 }
 
+/** @deprecated use migrateFlatItemsToHotlines */
+export const migrateFlatItemsToCategories = migrateFlatItemsToHotlines;
+
 /**
- * Load active hotline categories for display (volunteer / org apps).
+ * Load active hotlines for display (volunteer / org apps).
+ * Still a field on platform_config/hotlines — not a separate collection.
  * @param {import('firebase/firestore').Firestore} db
- * @returns {Promise<HotlineCategory[]>}
+ * @returns {Promise<HotlineEntry[]>}
  */
 export async function loadHotlineCategories(db) {
     try {
@@ -72,24 +95,15 @@ export async function loadHotlineCategories(db) {
         if (!snap.exists()) {
             return [];
         }
-        const data = snap.data();
-        if (Array.isArray(data.categories) && data.categories.length > 0) {
-            return data.categories
-                .filter((c) => c.active !== false)
-                .map((c) => ({
-                    ...c,
-                    numbers: (c.numbers || []).filter(
-                        (n) => n.active !== false && hotlineContactHasValue(n)
-                    ),
-                }))
-                .filter((c) => c.numbers.length > 0);
-        }
-        if (Array.isArray(data.items) && data.items.length > 0) {
-            return migrateFlatItemsToCategories(data.items).filter(
-                (c) => c.active !== false && c.numbers.length > 0
-            );
-        }
-        return [];
+        return readHotlinesFromDocData(snap.data())
+            .filter((c) => c.active !== false)
+            .map((c) => ({
+                ...c,
+                numbers: (c.numbers || []).filter(
+                    (n) => n.active !== false && hotlineContactHasValue(n)
+                ),
+            }))
+            .filter((c) => c.numbers.length > 0);
     } catch (err) {
         console.warn("[WARN] loadHotlineCategories:", err);
         return [];

@@ -118,6 +118,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Admin-managed platform settings (hotlines, rewards config, etc.)
+    match /platform_config/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // Also allow orgs to update their paymongo map on organizations/{orgId}
     // (keep your existing organization rules; ensure update includes paymongo.*).
 
