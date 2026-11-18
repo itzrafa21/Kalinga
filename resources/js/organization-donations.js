@@ -418,11 +418,6 @@ async function loadCampaigns({ force = false } = {}) {
 }
 
 function wireUi() {
-    document.getElementById("editPaymongoBtn")?.addEventListener("click", () => {
-        togglePaymongoEdit();
-    });
-    document.getElementById("paymongoForm")?.addEventListener("submit", savePaymongoAccount);
-
     document.querySelectorAll("[data-campaign-filter]").forEach((btn) => {
         btn.addEventListener("click", () => {
             campaignFilter = btn.getAttribute("data-campaign-filter") || "all";
@@ -503,6 +498,5 @@ onAuthStateChanged(auth, async (user) => {
                 el.style.display = "none";
             });
     }
-    await loadOrgPaymongo();
     await loadCampaigns();
 });

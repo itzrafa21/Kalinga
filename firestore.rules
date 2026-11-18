@@ -18,11 +18,23 @@ service cloud.firestore {
       );
     }
 
+    function ownsCampaign(campaignId) {
+      return signedIn() &&
+        get(/databases/$(database)/documents/donation_campaigns/$(campaignId)).data.orgId
+          == request.auth.uid;
+    }
+
+    function isOrgTeamOf(orgId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/organizations/$(orgId)/team/$(request.auth.uid));
+    }
+
     match /donation_campaigns/{campaignId} {
       allow read: if resource.data.status == 'published' ||
         (signedIn() && (
           isAdmin() ||
-          resource.data.orgId == request.auth.uid
+          resource.data.orgId == request.auth.uid ||
+          isOrgTeamOf(resource.data.orgId)
         ));
 
       allow create: if signedIn() &&
@@ -42,22 +54,47 @@ service cloud.firestore {
           ) &&
           request.resource.data.raisedAmountCentavos == resource.data.raisedAmountCentavos &&
           request.resource.data.donorCount == resource.data.donorCount
-        );
+        ) ||
+        // Donor (or settlement client) may only bump totals + recentDonations.
+        (signedIn() &&
+          resource.data.status == 'published' &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['raisedAmountCentavos', 'donorCount', 'recentDonations', 'updatedAt']) &&
+          request.resource.data.raisedAmountCentavos >= resource.data.raisedAmountCentavos &&
+          request.resource.data.donorCount >= resource.data.donorCount);
 
       allow delete: if isAdmin() ||
         (signedIn() &&
           resource.data.orgId == request.auth.uid &&
           resource.data.status in ['draft', 'rejected']);
+
+      // Per-campaign receipts so org can always list who donated.
+      match /transactions/{donationId} {
+        allow read: if signedIn() && (
+          isAdmin() ||
+          resource.data.volunteerId == request.auth.uid ||
+          ownsCampaign(campaignId) ||
+          isOrgTeamOf(get(/databases/$(database)/documents/donation_campaigns/$(campaignId)).data.orgId)
+        );
+        allow create, update: if signedIn() &&
+          request.resource.data.volunteerId == request.auth.uid &&
+          request.resource.data.campaignId == campaignId;
+        allow delete: if false;
+      }
     }
 
     match /donations/{donationId} {
       allow read: if signedIn() && (
         isAdmin() ||
         resource.data.volunteerId == request.auth.uid ||
-        resource.data.orgId == request.auth.uid
+        resource.data.orgId == request.auth.uid ||
+        ownsCampaign(resource.data.campaignId) ||
+        isOrgTeamOf(resource.data.orgId)
       );
-      // Writes only via Laravel Admin SDK / service account.
-      allow create, update, delete: if false;
+      // Prefer Admin SDK when available; allow donor self-write for sandbox/local.
+      allow create, update: if signedIn() &&
+        request.resource.data.volunteerId == request.auth.uid;
+      allow delete: if false;
     }
 
     match /payment_events/{eventId} {

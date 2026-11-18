@@ -142,15 +142,14 @@ class PayMongoWebhookController extends Controller
         $this->firestore->patchDocument('donations', $donationId, $patch, $mask);
 
         if ($status === 'paid' && $previousStatus !== 'paid') {
-            $this->incrementCampaignTotals(
-                (string) ($donation['campaignId'] ?? ''),
-                (int) ($donation['amountCentavos'] ?? 0)
-            );
+            $this->incrementCampaignTotals($donationId, $donation);
         }
     }
 
-    private function incrementCampaignTotals(string $campaignId, int $amountCentavos): void
+    private function incrementCampaignTotals(string $donationId, array $donation): void
     {
+        $campaignId = (string) ($donation['campaignId'] ?? '');
+        $amountCentavos = (int) ($donation['amountCentavos'] ?? 0);
         if ($campaignId === '' || $amountCentavos <= 0) {
             return;
         }
@@ -162,11 +161,32 @@ class PayMongoWebhookController extends Controller
 
         $raised = (int) ($campaign['raisedAmountCentavos'] ?? 0) + $amountCentavos;
         $donors = (int) ($campaign['donorCount'] ?? 0) + 1;
+        $recent = $campaign['recentDonations'] ?? [];
+        if (! is_array($recent)) {
+            $recent = [];
+        }
+
+        $entry = [
+            'id' => $donationId,
+            'volunteerName' => (string) ($donation['volunteerName'] ?? $donation['donorName'] ?? ''),
+            'volunteerEmail' => (string) ($donation['volunteerEmail'] ?? $donation['donorEmail'] ?? ''),
+            'amountCentavos' => $amountCentavos,
+            'status' => 'paid',
+            'paidAt' => now()->toIso8601String(),
+        ];
+
+        $recent = array_values(array_filter(
+            $recent,
+            fn ($item) => ! is_array($item) || (string) ($item['id'] ?? '') !== $donationId
+        ));
+        $recent[] = $entry;
+        $recent = array_slice($recent, -50);
 
         $this->firestore->patchDocument('donation_campaigns', $campaignId, [
             'raisedAmountCentavos' => $raised,
             'donorCount' => $donors,
+            'recentDonations' => $recent,
             'updatedAt' => now()->toIso8601String(),
-        ], ['raisedAmountCentavos', 'donorCount', 'updatedAt']);
+        ], ['raisedAmountCentavos', 'donorCount', 'recentDonations', 'updatedAt']);
     }
 }

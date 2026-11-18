@@ -304,7 +304,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             console.log("[SUCCESS] Logged in:", user.email);
-            window.location.href = "/organization/dashboard";
+            let nextPath = "/organization/dashboard";
+            try {
+                const saved = sessionStorage.getItem("kalinga-donate-return");
+                if (saved && saved.startsWith("/donate/")) {
+                    nextPath = saved;
+                    sessionStorage.removeItem("kalinga-donate-return");
+                }
+            } catch (e) {}
+            window.location.href = nextPath;
         } catch (error) {
             console.error("[ERROR] Login failed:", error.message);
             openLoginErrorModal(getLoginErrorMessage(error));

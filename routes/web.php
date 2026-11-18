@@ -52,12 +52,11 @@ Route::get('/donation/campaigns/{campaignId}', function (string $campaignId) {
     return view('organization.campaign-details', ['campaignId' => $campaignId]);
 })->where('campaignId', '[^/]+');
 
-Route::get('/donations/success', function () {
-    return view('donations.success');
-});
-Route::get('/donations/cancel', function () {
-    return view('donations.cancel');
-});
+Route::get('/donations/success', [\App\Http\Controllers\DonationReturnController::class, 'success']);
+Route::get('/donations/cancel', [\App\Http\Controllers\DonationReturnController::class, 'cancel']);
+Route::get('/donate/{campaignId}', function (string $campaignId) {
+    return view('donations.donate', ['campaignId' => $campaignId]);
+})->where('campaignId', '[^/]+');
 Route::redirect('/settings', '/organization/dashboard');
 Route::redirect('/organization/settings', '/organization/dashboard');
 Route::get('/admin/login', function () {

@@ -33,6 +33,8 @@ export default defineConfig({
                 'resources/js/organization-donations.js',
                 'resources/js/organization-campaign-form.js',
                 'resources/js/organization-campaign-details.js',
+                'resources/js/donation-checkout.js',
+                'resources/js/donation-success.js',
             ],
             refresh: true,
         }),

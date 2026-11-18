@@ -304,35 +304,18 @@ function setCoverPreview(url) {
     updateLivePreview();
 }
 
-async function loadPaymongoStatus() {
-    const orgSnap = await getDoc(doc(db, "organizations", orgId));
-    const linked = orgSnap.data()?.paymongo?.linkedAccountId || "";
-    const icon = document.getElementById("paymongoIcon");
+function loadPaymongoStatus() {
     const title = document.getElementById("paymongoTitle");
     const help = document.getElementById("paymongoHelp");
-    const link = document.getElementById("paymongoChangeLink");
-
-    if (linked) {
-        if (title) title.textContent = "Payments go to your organization.";
-        if (help) {
-            help.textContent = `Using your connected PayMongo account ending in ${maskAccountId(linked)}.`;
-        }
-        if (icon) {
-            icon.className = "pay-card__icon";
-            icon.innerHTML = '<i class="bi bi-shield-check"></i>';
-        }
-        if (link) link.textContent = "Change";
-    } else {
-        if (title) title.textContent = "PayMongo account not connected.";
-        if (help) {
-            help.textContent =
-                "Connect a PayMongo Linked Account in Donation Center before submitting money campaigns.";
-        }
-        if (icon) {
-            icon.className = "pay-card__icon is-off";
-            icon.innerHTML = '<i class="bi bi-shield-exclamation"></i>';
-        }
-        if (link) link.textContent = "Connect";
+    const icon = document.getElementById("paymongoIcon");
+    if (title) title.textContent = "Donors pay with Maya.";
+    if (help) {
+        help.textContent =
+            "Money campaigns use Maya Checkout in sandbox. No PayMongo account is required.";
+    }
+    if (icon) {
+        icon.className = "pay-card__icon";
+        icon.innerHTML = '<i class="bi bi-shield-check"></i>';
     }
 }
 
@@ -490,25 +473,10 @@ function collectPayload(status) {
     };
 }
 
-async function ensurePaymongoConnected() {
-    const orgSnap = await getDoc(doc(db, "organizations", orgId));
-    const linked = orgSnap.data()?.paymongo?.linkedAccountId || "";
-    if (!linked) {
-        throw new Error(
-            "Connect your PayMongo Linked Account in Donation Center before submitting a money campaign."
-        );
-    }
-    return linked;
-}
-
 async function saveCampaign(status) {
     setStatusMessage("");
     const payload = collectPayload(status);
-    if (status === CAMPAIGN_STATUS.PENDING && payload.acceptsMoney) {
-        const linked = await ensurePaymongoConnected();
-        payload.paymongoAccountId = linked;
-        payload.submittedAt = serverTimestamp();
-    } else if (status === CAMPAIGN_STATUS.PENDING) {
+    if (status === CAMPAIGN_STATUS.PENDING) {
         payload.submittedAt = serverTimestamp();
     }
 
@@ -638,7 +606,7 @@ onAuthStateChanged(auth, async (user) => {
     orgName = orgSnap.data()?.name || orgSnap.data()?.orgName || "";
 
     wireUi();
-    await loadPaymongoStatus();
+    loadPaymongoStatus();
     await loadMissions();
     await loadCampaign();
     updateLivePreview();

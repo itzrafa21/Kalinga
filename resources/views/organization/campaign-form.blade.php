@@ -668,10 +668,9 @@
             <section class="pay-card" id="paymongoCard">
               <div class="pay-card__icon" id="paymongoIcon"><i class="bi bi-shield-check"></i></div>
               <div class="pay-card__copy">
-                <strong id="paymongoTitle">Payments go to your organization.</strong>
-                <span id="paymongoHelp">Connect a PayMongo Linked Account in Donation Center before submitting.</span>
+                <strong id="paymongoTitle">Donors pay with Maya.</strong>
+                <span id="paymongoHelp">Money campaigns use Maya Checkout in sandbox. No PayMongo account is required.</span>
               </div>
-              <a href="/donation" id="paymongoChangeLink">Change</a>
             </section>
           </div>
 

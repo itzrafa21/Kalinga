@@ -440,28 +440,20 @@
     <div class="donation-page__body">
       <div class="page-top">
         <div>
-          <p>Run fundraising campaigns for your organization. Payments go directly to your PayMongo account.</p>
+          <p>Run fundraising campaigns for your organization. Donors pay through Maya Checkout (sandbox).</p>
         </div>
         <a class="btn-primary" href="/donation/campaigns/create">
           <i class="bi bi-plus-lg"></i> Create campaign
         </a>
       </div>
 
-      <section class="paymongo-card" id="paymongoCard">
-        <div class="paymongo-card__icon" id="paymongoIcon"><i class="bi bi-shield-check"></i></div>
+      <section class="paymongo-card" id="mayaCard">
+        <div class="paymongo-card__icon"><i class="bi bi-shield-check"></i></div>
         <div class="paymongo-card__copy">
-          <strong id="paymongoTitle">PayMongo account not connected</strong>
-          <span id="paymongoHelp">Connect your Linked Account so donations settle to your organization — not Kalinga.</span>
+          <strong>Maya Checkout is active</strong>
+          <span>Donations use Maya Sandbox Party 1. Donors are redirected to Maya to pay by card or Maya wallet.</span>
         </div>
-        <span class="paymongo-badge is-off" id="paymongoStatusBadge">Not connected</span>
-        <button type="button" class="btn-secondary" id="editPaymongoBtn">Connect account</button>
-        <form id="paymongoForm" class="paymongo-edit">
-          <div>
-            <label for="paymongoLinkedAccountId">Linked Account ID</label>
-            <input id="paymongoLinkedAccountId" type="text" placeholder="acct_test_…" autocomplete="off">
-          </div>
-          <button type="submit" class="btn-primary" id="savePaymongoBtn">Save account</button>
-        </form>
+        <span class="paymongo-badge">Sandbox</span>
       </section>
 
       <section class="stats">

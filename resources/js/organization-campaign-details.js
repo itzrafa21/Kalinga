@@ -6,7 +6,6 @@ import {
     getDoc,
     getDocs,
     limit,
-    orderBy,
     query,
     serverTimestamp,
     updateDoc,
@@ -48,56 +47,266 @@ function setMessage(message, isError = false) {
     el.classList.toggle("is-error", isError);
 }
 
-async function loadTransactions() {
+function donorLabel(donation) {
+    const name = String(
+        donation.volunteerName ||
+            donation.donorName ||
+            donation.name ||
+            ""
+    ).trim();
+    const email = String(
+        donation.volunteerEmail || donation.donorEmail || donation.email || ""
+    ).trim();
+    if (name && email) return `${name} (${email})`;
+    if (name) return name;
+    if (email) return email;
+    return "Anonymous donor";
+}
+
+function donationWhen(donation) {
+    const raw = donation.paidAt || donation.createdAt || "";
+    if (!raw) return "—";
+    if (typeof raw?.toDate === "function") {
+        return raw.toDate().toISOString().slice(0, 19).replace("T", " ");
+    }
+    return String(raw).slice(0, 19).replace("T", " ");
+}
+
+function mergeDonationRows(...lists) {
+    const byId = new Map();
+    lists.flat().forEach((row) => {
+        if (!row) return;
+        const id = String(row.id || "").trim();
+        if (!id) return;
+        const prev = byId.get(id) || {};
+        byId.set(id, { ...prev, ...row, id });
+    });
+    return Array.from(byId.values());
+}
+
+async function loadFirestoreDonations() {
+    const rows = [];
+    const errors = [];
+
+    // Prefer per-campaign receipts (works even without Admin SDK).
+    try {
+        const snap = await getDocs(
+            collection(db, "donation_campaigns", campaignId, "transactions")
+        );
+        snap.docs.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+    } catch (error) {
+        console.warn("[WARN] campaign transactions:", error);
+        errors.push(error);
+    }
+
+    // Security rules require orgId == auth.uid for top-level list queries.
+    if (orgId) {
+        try {
+            const snap = await getDocs(
+                query(
+                    collection(db, "donations"),
+                    where("orgId", "==", orgId),
+                    where("campaignId", "==", campaignId),
+                    limit(100)
+                )
+            );
+            snap.docs.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+        } catch (error) {
+            console.warn("[WARN] donations orgId+campaignId:", error);
+            errors.push(error);
+            try {
+                const snap = await getDocs(
+                    query(
+                        collection(db, "donations"),
+                        where("orgId", "==", orgId),
+                        limit(200)
+                    )
+                );
+                snap.docs.forEach((d) => {
+                    const data = d.data() || {};
+                    if (String(data.campaignId || "") === String(campaignId)) {
+                        rows.push({ id: d.id, ...data });
+                    }
+                });
+            } catch (fallbackError) {
+                console.warn("[WARN] donations by orgId:", fallbackError);
+                errors.push(fallbackError);
+            }
+        }
+    }
+
+    if (!rows.length) {
+        try {
+            const snap = await getDocs(
+                query(
+                    collection(db, "donations"),
+                    where("campaignId", "==", campaignId),
+                    limit(100)
+                )
+            );
+            snap.docs.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+        } catch (error) {
+            console.warn("[WARN] donations by campaignId:", error);
+            errors.push(error);
+        }
+    }
+
+    return { rows, errors };
+}
+
+async function loadApiDonations() {
+    const user = auth.currentUser;
+    if (!user) return { donations: [], raisedCentavos: null, donorCount: null };
+    const token = await user.getIdToken();
+    const response = await fetch(
+        `/api/donations?campaignId=${encodeURIComponent(campaignId)}&orgId=${encodeURIComponent(orgId || "")}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+            },
+        }
+    );
+    if (!response.ok) {
+        throw new Error(`Donation API failed (${response.status})`);
+    }
+    const payload = await response.json();
+    return {
+        donations: Array.isArray(payload.donations) ? payload.donations : [],
+        raisedCentavos:
+            typeof payload.raisedCentavos === "number" ? payload.raisedCentavos : null,
+        donorCount: typeof payload.donorCount === "number" ? payload.donorCount : null,
+    };
+}
+
+function paintRaisedFromRows(rows) {
+    const paid = rows.filter(
+        (d) => String(d.status || "").toLowerCase() === "paid"
+    );
+    if (!paid.length) return;
+
+    const raised = paid.reduce(
+        (sum, d) => sum + (Number(d.amountCentavos) || 0),
+        0
+    );
+    const donors = new Set(
+        paid
+            .map((d) => d.volunteerId || d.volunteerEmail || d.id)
+            .filter(Boolean)
+    );
+
+    const raisedEl = document.getElementById("raisedAmount");
+    const donorsEl = document.getElementById("donorCount");
+    if (raisedEl) raisedEl.textContent = formatCentavos(raised);
+    if (donorsEl) donorsEl.textContent = String(donors.size);
+
+    const target = Number(currentCampaign?.targetAmountCentavos) || 0;
+    const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
+    const fill = document.getElementById("progressFill");
+    const label = document.getElementById("progressLabel");
+    if (fill) fill.style.width = `${pct}%`;
+    if (label) label.textContent = `${pct}% funded`;
+}
+
+function campaignRecentDonations() {
+    const list = currentCampaign?.recentDonations;
+    if (!Array.isArray(list)) return [];
+    return list
+        .filter((item) => item && typeof item === "object")
+        .map((item, index) => ({
+            id: String(item.id || `recent-${index}`),
+            volunteerName: item.volunteerName || item.donorName || item.name || "",
+            volunteerEmail: item.volunteerEmail || item.donorEmail || item.email || "",
+            amountCentavos: Number(item.amountCentavos) || 0,
+            status: item.status || "paid",
+            paidAt: item.paidAt || item.createdAt || "",
+            createdAt: item.createdAt || item.paidAt || "",
+        }));
+}
+
+function renderDonationRows(rows) {
     const tbody = document.getElementById("donationsTableBody");
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading…</td></tr>';
-    let snap;
-    try {
-        snap = await getDocs(
-            query(
-                collection(db, "donations"),
-                where("campaignId", "==", campaignId),
-                orderBy("createdAt", "desc"),
-                limit(50)
-            )
-        );
-    } catch {
-        snap = await getDocs(
-            query(
-                collection(db, "donations"),
-                where("campaignId", "==", campaignId),
-                limit(50)
-            )
-        );
-    }
-    const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    rows.sort((a, b) =>
-        String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
-    );
+
     if (!rows.length) {
-        tbody.innerHTML =
-            '<tr><td colspan="5" class="text-center text-muted">No donations yet.</td></tr>';
+        const counted = Number(currentCampaign?.donorCount) || 0;
+        tbody.innerHTML = counted
+            ? `<tr><td colspan="5" class="text-center text-muted">
+                Totals show ${counted} donor(s), but no donor names were saved for those payments.
+                New donations will list the donor name and email here after checkout succeeds.
+              </td></tr>`
+            : `<tr><td colspan="5" class="text-center text-muted">No donations yet.</td></tr>`;
         return;
     }
+
     tbody.innerHTML = rows
         .map((d) => {
-            const when = d.paidAt || d.createdAt || "—";
             const goods = normalizeInKindItems(d.inKindItems || []);
             const amountLabel = goods.length
                 ? goods
-                      .map((item) => `${item.label} × ${item.targetQuantity || item.quantity || 0}`)
+                      .map(
+                          (item) =>
+                              `${item.label} × ${item.targetQuantity || item.quantity || 0}`
+                      )
                       .join(", ")
                 : formatCentavos(d.amountCentavos);
+            const name = String(
+                d.volunteerName || d.donorName || d.name || ""
+            ).trim();
+            const email = String(
+                d.volunteerEmail || d.donorEmail || d.email || ""
+            ).trim();
+            const donorHtml =
+                name || email
+                    ? `<strong>${escapeHtml(name || "Donor")}</strong>${
+                          email
+                              ? `<div class="small text-muted">${escapeHtml(email)}</div>`
+                              : ""
+                      }`
+                    : `<strong>${escapeHtml(donorLabel(d))}</strong>`;
             return `<tr>
-        <td>${escapeHtml(d.volunteerName || d.volunteerEmail || "Donor")}</td>
+        <td>${donorHtml}</td>
         <td>${escapeHtml(amountLabel)}</td>
         <td>${escapeHtml(String(d.status || "").toUpperCase())}</td>
-        <td>${escapeHtml(String(when).slice(0, 19).replace("T", " "))}</td>
+        <td>${escapeHtml(donationWhen(d))}</td>
         <td class="small text-muted">${escapeHtml(d.id)}</td>
       </tr>`;
         })
         .join("");
+}
+
+async function loadTransactions() {
+    const tbody = document.getElementById("donationsTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading…</td></tr>';
+
+    let apiRows = [];
+    let firestoreRows = [];
+
+    try {
+        const api = await loadApiDonations();
+        apiRows = api.donations;
+    } catch (error) {
+        console.warn("Donation API unavailable:", error);
+    }
+
+    try {
+        const loaded = await loadFirestoreDonations();
+        firestoreRows = loaded.rows || [];
+    } catch (error) {
+        console.warn("Firestore donations unavailable:", error);
+    }
+
+    const recentRows = campaignRecentDonations();
+    const rows = mergeDonationRows(firestoreRows, apiRows, recentRows).sort((a, b) =>
+        donationWhen(b).localeCompare(donationWhen(a))
+    );
+
+    if (rows.length) {
+        paintRaisedFromRows(rows);
+    }
+
+    renderDonationRows(rows);
 }
 
 async function loadCampaign() {
@@ -222,15 +431,8 @@ async function loadCampaign() {
 
 async function submitForApproval() {
     if (campaignAcceptsMoney(currentCampaign || {})) {
-        const orgSnap = await getDoc(doc(db, "organizations", orgId));
-        const linked = orgSnap.data()?.paymongo?.linkedAccountId || "";
-        if (!linked) {
-            alert("Connect your PayMongo Linked Account first.");
-            return;
-        }
         await updateDoc(doc(db, "donation_campaigns", campaignId), {
             status: CAMPAIGN_STATUS.PENDING,
-            paymongoAccountId: linked,
             submittedAt: serverTimestamp(),
             rejectionReason: "",
             updatedAt: serverTimestamp(),
@@ -271,7 +473,7 @@ onAuthStateChanged(auth, async (user) => {
         );
         return;
     }
-    orgId = access.actor.uid;
+    orgId = access.session?.orgId || access.actor?.uid || "";
     if (!campaignId) {
         setMessage("Missing campaign id.", true);
         return;
