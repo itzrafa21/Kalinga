@@ -523,6 +523,33 @@ html[data-theme="dark"] body.org-app .md-slots-open {
   color: #86efac !important;
 }
 
+html[data-theme="dark"] body.org-app .update-modal {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .update-modal h2 {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.org-app .update-modal__help {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .update-modal textarea {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .update-photo-picker {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #bbf7d0 !important;
+}
+html[data-theme="dark"] body.org-app .update-modal-cancel {
+  background: #334155 !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
 html[data-theme="dark"] {
   scrollbar-color: #334155 #0b1220;
 }

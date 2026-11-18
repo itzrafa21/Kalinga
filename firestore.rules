@@ -97,6 +97,22 @@ service cloud.firestore {
           request.resource.data.campaignId == campaignId;
         allow delete: if false;
       }
+
+      // Post-campaign story updates (text + photos).
+      match /updates/{updateId} {
+        allow read: if
+          get(/databases/$(database)/documents/donation_campaigns/$(campaignId)).data.status == 'published' ||
+          (signedIn() && (
+            isAdmin() ||
+            ownsCampaign(campaignId) ||
+            isOrgTeamOf(get(/databases/$(database)/documents/donation_campaigns/$(campaignId)).data.orgId)
+          ));
+        allow create, update, delete: if signedIn() && (
+          isAdmin() ||
+          ownsCampaign(campaignId) ||
+          isOrgTeamOf(get(/databases/$(database)/documents/donation_campaigns/$(campaignId)).data.orgId)
+        );
+      }
     }
 
     match /donations/{donationId} {

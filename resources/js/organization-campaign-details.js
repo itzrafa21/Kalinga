@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
 import {
+    addDoc,
     collection,
     doc,
     getDoc,
@@ -30,6 +31,10 @@ import {
     normalizeInKindItems,
     resolveDonationMode,
 } from "./donation-shared.js";
+import {
+    isCloudinaryConfigured,
+    uploadImageToCloudinary,
+} from "./cloudinary-upload.js";
 
 const campaignId =
     document.body.dataset.campaignId ||
@@ -38,6 +43,9 @@ const campaignId =
 
 let orgId = null;
 let currentCampaign = null;
+/** @type {File[]} */
+let pendingUpdatePhotos = [];
+let updateModalWired = false;
 
 function setMessage(message, isError = false) {
     const el = document.getElementById("campaignDetailsStatus");
@@ -464,25 +472,175 @@ async function loadCampaign() {
                 `<button type="button" class="btn btn-primary" id="submitForApprovalBtn">Submit for approval</button>`
             );
         }
-        if (c.status === CAMPAIGN_STATUS.PUBLISHED) {
-            bits.push(
-                `<button type="button" class="btn btn-outline" id="closeCampaignBtn">Close campaign</button>`
-            );
-        }
+        bits.push(
+            `<button type="button" class="btn btn-add-update" id="addCampaignUpdateBtn">Add Update</button>`
+        );
         actions.innerHTML = bits.join(" ");
         document
             .getElementById("submitForApprovalBtn")
             ?.addEventListener("click", submitForApproval);
         document
-            .getElementById("closeCampaignBtn")
-            ?.addEventListener("click", closeCampaign);
+            .getElementById("addCampaignUpdateBtn")
+            ?.addEventListener("click", onAddCampaignUpdate);
     }
 
     if (c.status === CAMPAIGN_STATUS.REJECTED && c.rejectionReason) {
         setMessage(`Rejected: ${c.rejectionReason}`, true);
     }
 
+    wireUpdateModal();
     await loadTransactions();
+}
+
+function setUpdateModalError(message = "") {
+    const el = document.getElementById("campaignUpdateError");
+    if (el) el.textContent = message || "";
+}
+
+function renderUpdatePhotoPreviews() {
+    const root = document.getElementById("campaignUpdatePhotoPreviews");
+    if (!root) return;
+    if (!pendingUpdatePhotos.length) {
+        root.innerHTML = "";
+        return;
+    }
+    root.innerHTML = pendingUpdatePhotos
+        .map((file, index) => {
+            const url = URL.createObjectURL(file);
+            return `<div class="preview">
+        <img src="${escapeHtml(url)}" alt="Selected photo ${index + 1}">
+        <button type="button" data-remove-photo="${index}" aria-label="Remove photo">×</button>
+      </div>`;
+        })
+        .join("");
+}
+
+function openUpdateModal() {
+    const modal = document.getElementById("campaignUpdateModal");
+    const text = document.getElementById("campaignUpdateText");
+    const fileInput = document.getElementById("campaignUpdatePhotos");
+    pendingUpdatePhotos = [];
+    if (text) text.value = "";
+    if (fileInput) fileInput.value = "";
+    setUpdateModalError("");
+    renderUpdatePhotoPreviews();
+    if (modal) {
+        modal.hidden = false;
+        modal.classList.add("is-open");
+    }
+    text?.focus();
+}
+
+function closeUpdateModal() {
+    const modal = document.getElementById("campaignUpdateModal");
+    if (modal) {
+        modal.classList.remove("is-open");
+        modal.hidden = true;
+    }
+    pendingUpdatePhotos = [];
+    const fileInput = document.getElementById("campaignUpdatePhotos");
+    if (fileInput) fileInput.value = "";
+    renderUpdatePhotoPreviews();
+    setUpdateModalError("");
+}
+
+function onAddCampaignUpdate() {
+    openUpdateModal();
+}
+
+async function saveCampaignUpdate() {
+    const textEl = document.getElementById("campaignUpdateText");
+    const saveBtn = document.getElementById("campaignUpdateSave");
+    const body = String(textEl?.value || "").trim();
+    if (!body) {
+        setUpdateModalError("Please write a short update about the campaign.");
+        textEl?.focus();
+        return;
+    }
+    if (!pendingUpdatePhotos.length) {
+        setUpdateModalError("Please add at least one picture from the campaign.");
+        return;
+    }
+    if (!isCloudinaryConfigured()) {
+        setUpdateModalError("Image upload is not configured.");
+        return;
+    }
+
+    if (saveBtn) saveBtn.disabled = true;
+    setUpdateModalError("Uploading photos…");
+
+    try {
+        const imageUrls = [];
+        for (const file of pendingUpdatePhotos) {
+            const url = await uploadImageToCloudinary(file, {
+                folder: `kalinga/campaigns/${campaignId}/updates`,
+                tags: ["campaign-update", campaignId],
+            });
+            if (url) imageUrls.push(url);
+        }
+        if (!imageUrls.length) {
+            throw new Error("Could not upload photos. Please try again.");
+        }
+
+        setUpdateModalError("Saving update…");
+        await addDoc(collection(db, "donation_campaigns", campaignId, "updates"), {
+            body,
+            imageUrls,
+            orgId: orgId || "",
+            createdBy: auth.currentUser?.uid || "",
+            createdAt: serverTimestamp(),
+        });
+
+        closeUpdateModal();
+        setMessage("Campaign update posted.", false);
+    } catch (error) {
+        console.error("[ERROR] saveCampaignUpdate:", error);
+        setUpdateModalError(
+            error?.message || "Could not post the update. Please try again."
+        );
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
+}
+
+function wireUpdateModal() {
+    if (updateModalWired) return;
+    updateModalWired = true;
+
+    document
+        .getElementById("campaignUpdateCancel")
+        ?.addEventListener("click", closeUpdateModal);
+    document
+        .getElementById("campaignUpdateSave")
+        ?.addEventListener("click", () => {
+            void saveCampaignUpdate();
+        });
+    document
+        .getElementById("campaignUpdateModal")
+        ?.addEventListener("click", (event) => {
+            if (event.target?.id === "campaignUpdateModal") closeUpdateModal();
+        });
+    document
+        .getElementById("campaignUpdatePhotos")
+        ?.addEventListener("change", (event) => {
+            const files = Array.from(event.target.files || []).filter((file) =>
+                String(file.type || "").startsWith("image/")
+            );
+            pendingUpdatePhotos = [...pendingUpdatePhotos, ...files].slice(0, 8);
+            renderUpdatePhotoPreviews();
+            setUpdateModalError("");
+            event.target.value = "";
+        });
+    document
+        .getElementById("campaignUpdatePhotoPreviews")
+        ?.addEventListener("click", (event) => {
+            const btn = event.target.closest("[data-remove-photo]");
+            if (!btn) return;
+            const index = Number(btn.getAttribute("data-remove-photo"));
+            if (!Number.isFinite(index)) return;
+            pendingUpdatePhotos.splice(index, 1);
+            renderUpdatePhotoPreviews();
+        });
 }
 
 async function submitForApproval() {
@@ -501,17 +659,6 @@ async function submitForApproval() {
             updatedAt: serverTimestamp(),
         });
     }
-    await loadCampaign();
-}
-
-async function closeCampaign() {
-    if (!confirm("Close this campaign? Volunteers will no longer be able to donate.")) {
-        return;
-    }
-    await updateDoc(doc(db, "donation_campaigns", campaignId), {
-        status: CAMPAIGN_STATUS.CLOSED,
-        updatedAt: serverTimestamp(),
-    });
     await loadCampaign();
 }
 

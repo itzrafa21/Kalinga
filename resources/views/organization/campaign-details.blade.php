@@ -236,6 +236,162 @@
       border: none;
       color: #fff;
     }
+    .btn-add-update {
+      background: #166534;
+      border: none;
+      color: #fff;
+    }
+    .btn-add-update:hover {
+      background: #14532d;
+    }
+    .updates-panel {
+      margin-top: 1rem;
+    }
+    .update-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 36, 25, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 400;
+      padding: 1rem;
+    }
+    .update-modal-overlay.is-open {
+      display: flex;
+    }
+    .update-modal {
+      width: min(760px, 100%);
+      max-height: min(92vh, 900px);
+      overflow: auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 1.6rem 1.75rem 1.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    }
+    .update-modal h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1.35rem;
+      color: #111827;
+    }
+    .update-modal__help {
+      margin: 0 0 1.15rem;
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+    .update-modal label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.4rem;
+    }
+    .update-modal textarea {
+      width: 100%;
+      min-height: 180px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font: inherit;
+      font-size: 1rem;
+      resize: vertical;
+      margin-bottom: 1rem;
+      box-sizing: border-box;
+    }
+    .update-modal textarea:focus {
+      outline: none;
+      border-color: #16a34a;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+    }
+    .update-photos-input {
+      display: none;
+    }
+    .update-photo-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      border: 1px dashed #86efac;
+      background: #f0fdf4;
+      color: #166534;
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+    }
+    .update-photo-picker:hover {
+      background: #dcfce7;
+    }
+    .update-photo-previews {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+    }
+    .update-photo-previews .preview {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      aspect-ratio: 1;
+      background: #f8fafc;
+    }
+    .update-photo-previews img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .update-photo-previews button {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      border: none;
+      background: rgba(15, 23, 42, 0.75);
+      color: #fff;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .update-modal-error {
+      color: #b91c1c;
+      font-size: 0.85rem;
+      margin: 0 0 0.75rem;
+      min-height: 1.1em;
+    }
+    .update-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.55rem;
+    }
+    .update-modal-cancel {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      border-radius: 10px;
+      padding: 0.6rem 1rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .update-modal-save {
+      background: #166534;
+      border: none;
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.6rem 1rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .update-modal-save:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
     .side-stack {
       display: flex;
       flex-direction: column;
@@ -347,5 +503,43 @@
       </div>
     </div>
   </main>
+
+  <div
+    id="campaignUpdateModal"
+    class="update-modal-overlay"
+    hidden
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="campaignUpdateModalTitle"
+  >
+    <div class="update-modal" role="document">
+      <h2 id="campaignUpdateModalTitle">Add Update</h2>
+      <p class="update-modal__help">
+        Share how the campaign went — add a short story and photos from the field.
+      </p>
+      <label for="campaignUpdateText">What happened?</label>
+      <textarea
+        id="campaignUpdateText"
+        placeholder="Describe how the campaign went, what was delivered, and the impact…"
+        maxlength="4000"
+      ></textarea>
+      <label class="update-photo-picker" for="campaignUpdatePhotos">
+        <i class="bi bi-image" aria-hidden="true"></i> Add pictures
+      </label>
+      <input
+        id="campaignUpdatePhotos"
+        class="update-photos-input"
+        type="file"
+        accept="image/*"
+        multiple
+      >
+      <div class="update-photo-previews" id="campaignUpdatePhotoPreviews"></div>
+      <p id="campaignUpdateError" class="update-modal-error" role="alert"></p>
+      <div class="update-modal-actions">
+        <button type="button" class="update-modal-cancel" id="campaignUpdateCancel">Cancel</button>
+        <button type="button" class="update-modal-save" id="campaignUpdateSave">Post update</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
