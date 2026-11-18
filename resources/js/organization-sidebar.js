@@ -15,7 +15,7 @@ import "../css/org-dark-theme.css";
 
 const THEME_KEY = "kalinga-org-theme";
 const SKIP_SURFACE =
-    "img, svg, canvas, video, path, .mapboxgl-canvas, .mapboxgl-marker";
+    "img, svg, canvas, video, path, .mapboxgl-map, .mapboxgl-canvas, .mapboxgl-marker, .mapboxgl-ctrl, .mapboxgl-ctrl-group, .map-wrap";
 
 function syncThemeToggleIcons(theme) {
     const btn = document.getElementById("orgThemeToggleBtn");
@@ -111,7 +111,11 @@ function lightTextFor(color) {
 function shouldSkipSurface(el) {
     return (
         el.matches(SKIP_SURFACE) ||
-        Boolean(el.closest(".mapboxgl-canvas, .mapboxgl-marker"))
+        Boolean(
+            el.closest(
+                ".mapboxgl-map, .mapboxgl-canvas, .mapboxgl-marker, .mapboxgl-ctrl-group, .map-wrap"
+            )
+        )
     );
 }
 

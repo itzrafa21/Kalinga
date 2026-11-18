@@ -226,7 +226,7 @@
     .saved-flash { color: var(--color-accent); font-size: 11px; display: none; align-items: center; gap: 4px; }
   </style>
 </head>
-<body>
+<body class="admin-app">
 <div class="shell">
   <aside class="sidebar">
     <div class="sb-header">

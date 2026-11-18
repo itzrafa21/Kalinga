@@ -493,7 +493,7 @@
     .btn-admin:hover { background: #15803d; transform: none; box-shadow: none; }
   </style>
 </head>
-<body>
+<body class="admin-app">
 <div class="shell">
   <aside class="sidebar">
     <div class="sb-header">

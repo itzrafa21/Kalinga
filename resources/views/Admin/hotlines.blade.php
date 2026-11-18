@@ -278,7 +278,7 @@
     .mapboxgl-canvas { outline: none; }
   </style>
 </head>
-<body>
+<body class="admin-app">
 <div class="shell">
   <aside class="sidebar">
     <div class="sb-header">

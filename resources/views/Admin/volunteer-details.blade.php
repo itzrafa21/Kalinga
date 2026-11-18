@@ -260,7 +260,7 @@
     .org-action--back:hover { background: #15803d; color: #fff; }
   </style>
 </head>
-<body data-volunteer-id="{{ $volunteerId }}">
+<body class="admin-app" data-volunteer-id="{{ $volunteerId }}">
 <div class="shell">
   <aside class="sidebar">
     <div class="sb-header">

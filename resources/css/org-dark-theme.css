@@ -407,18 +407,6 @@ html[data-theme="dark"] body.org-app .needs-copy p {
   color: #94a3b8 !important;
 }
 
-html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group,
-html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group button {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  box-shadow: none !important;
-}
-html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group button + button {
-  border-top-color: #334155 !important;
-}
-html[data-theme="dark"] body.org-app .mapboxgl-ctrl-group button span {
-  filter: invert(1);
-}
 html[data-theme="dark"] {
   scrollbar-color: #334155 #0b1220;
 }

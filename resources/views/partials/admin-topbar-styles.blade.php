@@ -87,10 +87,13 @@
     color: #86efac !important;
   }
   html[data-theme="dark"] .admin-topbar .org-topbar-theme-btn {
-    color: #86efac !important;
+    color: #fbbf24 !important;
   }
   html[data-theme="dark"] .admin-topbar .org-topbar-theme-btn:hover {
-    background: #1f2937 !important;
-    color: #bbf7d0 !important;
+    background: rgba(251, 191, 36, 0.12) !important;
+    color: #fde68a !important;
+  }
+  html[data-theme="dark"] .admin-topbar .org-theme-icon-sun {
+    color: #fbbf24 !important;
   }
 </style>

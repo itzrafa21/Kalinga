@@ -397,7 +397,7 @@
     }
   </style>
 </head>
-<body data-org-id="{{ $orgId }}">
+<body class="admin-app" data-org-id="{{ $orgId }}">
 <div class="shell">
   <aside class="sidebar">
     <div class="sb-header">

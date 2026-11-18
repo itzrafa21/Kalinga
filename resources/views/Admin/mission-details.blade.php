@@ -353,7 +353,7 @@
     }
   </style>
 </head>
-<body data-mission-id="{{ $missionId }}">
+<body class="admin-app" data-mission-id="{{ $missionId }}">
 <div class="shell">
   <aside class="sidebar">
     <div class="sb-header">

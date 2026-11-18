@@ -1,0 +1,325 @@
+/* Loaded via admin-theme.js so it wins over page <style> blocks */
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  scrollbar-color: #334155 #0b1220;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body.admin-app {
+  background: #0b1220 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Shell / sidebar */
+html[data-theme="dark"] body.admin-app .shell {
+  background: #0b1220 !important;
+}
+html[data-theme="dark"] body.admin-app .sidebar {
+  background: #111827 !important;
+  border-right-color: #1f2937 !important;
+}
+html[data-theme="dark"] body.admin-app .sb-header,
+html[data-theme="dark"] body.admin-app .sb-footer {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] body.admin-app .sb-section {
+  color: #64748b !important;
+}
+html[data-theme="dark"] body.admin-app .nav-item {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app .nav-item i {
+  color: #cbd5e1 !important;
+}
+html[data-theme="dark"] body.admin-app .nav-item:hover {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.admin-app .nav-item.active {
+  background: #166534 !important;
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] body.admin-app .nav-item.active i {
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] body.admin-app .sb-user {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.admin-app .sidebar-logo-title {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.admin-app .sidebar-logo-visual,
+html[data-theme="dark"] body.admin-app .sidebar-logo-mark,
+html[data-theme="dark"] body.admin-app .kalinga-logo,
+html[data-theme="dark"] body.admin-app .sidebar-logo-img {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Topbar */
+html[data-theme="dark"] body.admin-app .admin-topbar.org-topbar,
+html[data-theme="dark"] body.admin-app .org-topbar.admin-topbar {
+  background: #111827 !important;
+  border-bottom-color: #1f2937 !important;
+  color: #86efac !important;
+}
+html[data-theme="dark"] body.admin-app .admin-topbar .org-topbar-title {
+  color: #86efac !important;
+}
+html[data-theme="dark"] body.admin-app .admin-topbar .org-topbar-theme-btn {
+  color: #fbbf24 !important;
+}
+html[data-theme="dark"] body.admin-app .admin-topbar .org-topbar-theme-btn:hover {
+  background: rgba(251, 191, 36, 0.12) !important;
+  color: #fde68a !important;
+}
+html[data-theme="dark"] body.admin-app .admin-topbar .org-theme-icon-sun {
+  color: #fbbf24 !important;
+}
+html[data-theme="dark"] body.admin-app .tbadge,
+html[data-theme="dark"] body.admin-app #configSaveToast {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #bbf7d0 !important;
+}
+html[data-theme="dark"] body.admin-app .saved-flash {
+  color: #86efac !important;
+}
+
+/* Main content */
+html[data-theme="dark"] body.admin-app .main,
+html[data-theme="dark"] body.admin-app .content {
+  background: #0b1220 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Cards / panels */
+html[data-theme="dark"] body.admin-app .stat-card,
+html[data-theme="dark"] body.admin-app .admin-card,
+html[data-theme="dark"] body.admin-app .card,
+html[data-theme="dark"] body.admin-app .section-panel,
+html[data-theme="dark"] body.admin-app .hotline-category,
+html[data-theme="dark"] body.admin-app .org-page,
+html[data-theme="dark"] body.admin-app .table-responsive,
+html[data-theme="dark"] body.admin-app .dashboard-chart-card,
+html[data-theme="dark"] body.admin-app .reject-modal,
+html[data-theme="dark"] body.admin-app .success-modal,
+html[data-theme="dark"] body.admin-app .org-details-modal {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+html[data-theme="dark"] body.admin-app .admin-card .card-header,
+html[data-theme="dark"] body.admin-app .card-header,
+html[data-theme="dark"] body.admin-app .section-head,
+html[data-theme="dark"] body.admin-app .category-head,
+html[data-theme="dark"] body.admin-app .numbers-block,
+html[data-theme="dark"] body.admin-app .org-page__footer,
+html[data-theme="dark"] body.admin-app .org-details-modal__footer,
+html[data-theme="dark"] body.admin-app .org-details-modal__header {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] body.admin-app .stat-val,
+html[data-theme="dark"] body.admin-app h1,
+html[data-theme="dark"] body.admin-app h2,
+html[data-theme="dark"] body.admin-app h3,
+html[data-theme="dark"] body.admin-app h4,
+html[data-theme="dark"] body.admin-app h5,
+html[data-theme="dark"] body.admin-app .section-title,
+html[data-theme="dark"] body.admin-app .category-name,
+html[data-theme="dark"] body.admin-app .org-detail-panel__title,
+html[data-theme="dark"] body.admin-app .org-detail-row__label,
+html[data-theme="dark"] body.admin-app strong,
+html[data-theme="dark"] body.admin-app label {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] body.admin-app .stat-label,
+html[data-theme="dark"] body.admin-app .section-desc,
+html[data-theme="dark"] body.admin-app .category-location,
+html[data-theme="dark"] body.admin-app .info-hint,
+html[data-theme="dark"] body.admin-app .text-muted,
+html[data-theme="dark"] body.admin-app .org-page__status,
+html[data-theme="dark"] body.admin-app .org-detail-row__value,
+html[data-theme="dark"] body.admin-app .reject-modal-help,
+html[data-theme="dark"] body.admin-app .success-modal-message,
+html[data-theme="dark"] body.admin-app p,
+html[data-theme="dark"] body.admin-app th {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] body.admin-app .stat-icon {
+  color: #86efac !important;
+}
+
+/* Tabs / filters */
+html[data-theme="dark"] body.admin-app .main-tab,
+html[data-theme="dark"] body.admin-app .org-detail-tab,
+html[data-theme="dark"] body.admin-app .filter-btn,
+html[data-theme="dark"] body.admin-app .btn:not(.btn-admin):not(.btn-g):not(.btn-success):not(.btn-save-all):not(.org-action--verify):not(.success-modal-confirm):not(.reject-modal-confirm) {
+  background: #334155 !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app .main-tab:hover,
+html[data-theme="dark"] body.admin-app .org-detail-tab:hover,
+html[data-theme="dark"] body.admin-app .btn:not(.btn-admin):not(.btn-g):not(.btn-success):not(.btn-save-all):hover {
+  background: #475569 !important;
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.admin-app .main-tab.active,
+html[data-theme="dark"] body.admin-app .org-detail-tab.active {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #bbf7d0 !important;
+}
+
+/* Forms */
+html[data-theme="dark"] body.admin-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-theme="dark"] body.admin-app select,
+html[data-theme="dark"] body.admin-app textarea,
+html[data-theme="dark"] body.admin-app .form-control {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app input::placeholder,
+html[data-theme="dark"] body.admin-app textarea::placeholder {
+  color: #64748b !important;
+}
+html[data-theme="dark"] body.admin-app option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* Tables */
+html[data-theme="dark"] body.admin-app table {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app th,
+html[data-theme="dark"] body.admin-app td {
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+html[data-theme="dark"] body.admin-app tbody tr:hover,
+html[data-theme="dark"] body.admin-app tbody tr:nth-child(even),
+html[data-theme="dark"] body.admin-app tbody tr:nth-child(even) td,
+html[data-theme="dark"] body.admin-app tbody tr:hover td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+/* Detail rows */
+html[data-theme="dark"] body.admin-app .org-detail-row,
+html[data-theme="dark"] body.admin-app .org-detail-row__icon {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app .org-page__header {
+  background: #166534 !important;
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] body.admin-app .org-page__header h1,
+html[data-theme="dark"] body.admin-app .org-page__header i {
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] body.admin-app .org-action--back,
+html[data-theme="dark"] body.admin-app .org-action:not(.org-action--verify):not(.org-action--reject) {
+  background: #334155 !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app .org-action--reject {
+  background: transparent !important;
+  border-color: #7f1d1d !important;
+  color: #fecaca !important;
+}
+html[data-theme="dark"] body.admin-app .org-action--reject:hover {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+html[data-theme="dark"] body.admin-app a:not(.btn):not(.nav-item):not(.org-action) {
+  color: #86efac;
+}
+
+/* Badges / pills */
+html[data-theme="dark"] body.admin-app .badge-pill.bp-green,
+html[data-theme="dark"] body.admin-app .badge.bg-success,
+html[data-theme="dark"] body.admin-app .status-verified {
+  background: #14532d !important;
+  color: #bbf7d0 !important;
+}
+html[data-theme="dark"] body.admin-app .badge-pill.bp-gray {
+  background: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app .badge.bg-warning,
+html[data-theme="dark"] body.admin-app .status-pending {
+  background: #78350f !important;
+  color: #fde68a !important;
+}
+html[data-theme="dark"] body.admin-app .badge.bg-danger,
+html[data-theme="dark"] body.admin-app .status-rejected {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+
+/* Modals */
+html[data-theme="dark"] body.admin-app .reject-modal-cancel {
+  background: #334155 !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.admin-app .reject-modal h2,
+html[data-theme="dark"] body.admin-app .success-modal h2 {
+  color: #f8fafc !important;
+}
+
+/* Hotlines extras */
+html[data-theme="dark"] body.admin-app .numbers-empty,
+html[data-theme="dark"] body.admin-app .hotline-empty,
+html[data-theme="dark"] body.admin-app .add-number-form,
+html[data-theme="dark"] body.admin-app .add-category-form,
+html[data-theme="dark"] body.admin-app .hotline-map-suggestions {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+/* Keep Mapbox on the light streets look in dark mode (no theme tinting) */
+html[data-theme="dark"] body.admin-app .map-wrap,
+html[data-theme="dark"] body.admin-app .hotline-map,
+html[data-theme="dark"] body.admin-app .mapboxgl-map,
+html[data-theme="dark"] body.admin-app .mapboxgl-canvas {
+  filter: none !important;
+}
+html[data-theme="dark"] body.admin-app .toggle {
+  background: #475569 !important;
+}
+html[data-theme="dark"] body.admin-app .toggle.on {
+  background: #22c55e !important;
+}
+/* Config panels */
+html[data-theme="dark"] body.admin-app .split-layout .section-panel,
+html[data-theme="dark"] body.admin-app .cfg-row,
+html[data-theme="dark"] body.admin-app .type-row,
+html[data-theme="dark"] body.admin-app .level-row,
+html[data-theme="dark"] body.admin-app .reward-row {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Inline white leftovers */
+html[data-theme="dark"] body.admin-app [style*="background:#fff"],
+html[data-theme="dark"] body.admin-app [style*="background: #fff"],
+html[data-theme="dark"] body.admin-app [style*="background:#ffffff"],
+html[data-theme="dark"] body.admin-app [style*="background: #ffffff"],
+html[data-theme="dark"] body.admin-app [style*="background:white"],
+html[data-theme="dark"] body.admin-app [style*="background: white"] {
+  background: #1e293b !important;
+}

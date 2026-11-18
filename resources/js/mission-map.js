@@ -373,10 +373,8 @@ export function initLocationMap(options = {}) {
 
     const map = new mapboxgl.Map({
         container: ids.map,
-        style:
-            document.documentElement.getAttribute("data-theme") === "dark"
-                ? "mapbox://styles/mapbox/dark-v11"
-                : "mapbox://styles/mapbox/streets-v11",
+        // Keep the light streets style even when the app theme is dark.
+        style: "mapbox://styles/mapbox/streets-v11",
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
         pixelRatio: window.devicePixelRatio || 1,
