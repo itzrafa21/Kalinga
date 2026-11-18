@@ -1,5 +1,4 @@
 import { doc, getDoc } from "firebase/firestore";
-import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
@@ -71,7 +70,7 @@ export async function loadHotlineCategories(db) {
     try {
         const snap = await getDoc(doc(db, ...HOTLINES_DOC));
         if (!snap.exists()) {
-            return buildInitialHotlinesSeed().categories;
+            return [];
         }
         const data = snap.data();
         if (Array.isArray(data.categories) && data.categories.length > 0) {
@@ -90,9 +89,9 @@ export async function loadHotlineCategories(db) {
                 (c) => c.active !== false && c.numbers.length > 0
             );
         }
-        return buildInitialHotlinesSeed().categories;
+        return [];
     } catch (err) {
         console.warn("[WARN] loadHotlineCategories:", err);
-        return buildInitialHotlinesSeed().categories;
+        return [];
     }
 }

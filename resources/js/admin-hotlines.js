@@ -1,13 +1,20 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
+import { SEED_HOTLINE_CATEGORIES } from "./hotlines-seed.js";
 import {
     hotlineContactHasValue,
     migrateFlatItemsToCategories,
     parseHotlineCoords,
 } from "./hotlines-data.js";
 import { initLocationMap } from "./mission-map.js";
+
+const SEED_HOTLINE_IDS = new Set(SEED_HOTLINE_CATEGORIES.map((c) => c.id));
+
+function isOnlyAutoSeedCategories(categories) {
+    if (!Array.isArray(categories) || categories.length === 0) return false;
+    return categories.every((c) => SEED_HOTLINE_IDS.has(c.id));
+}
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
@@ -16,6 +23,9 @@ let hotlineCategories = [];
 
 /** @type {Map<string, { map: import("mapbox-gl").Map, resize: () => void, restorePin: () => Promise<void> }>} */
 const hotlineMapApis = new Map();
+
+/** @type {{ map: import("mapbox-gl").Map, resize: () => void, restorePin: () => Promise<void> } | null} */
+let createHotlineMapApi = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     checkAdminAuth();
@@ -418,40 +428,115 @@ function bindAllCategoryCards() {
     document.querySelectorAll("#hotline-categories .hotline-category").forEach(bindCategoryCard);
 }
 
+function destroyCreateHotlineMap() {
+    if (!createHotlineMapApi) return;
+    try {
+        createHotlineMapApi.map?.remove();
+    } catch {
+        /* ignore */
+    }
+    createHotlineMapApi = null;
+}
+
+function initCreateHotlineMap() {
+    if (typeof mapboxgl === "undefined") {
+        console.error("[ERROR] mapboxgl is not loaded for new hotline form");
+        return;
+    }
+    if (!document.getElementById("nc-map")) return;
+
+    destroyCreateHotlineMap();
+    createHotlineMapApi = initLocationMap({
+        map: "nc-map",
+        search: "nc-search",
+        suggestions: "nc-suggestions",
+        location: "nc-location",
+        latitude: "nc-lat",
+        longitude: "nc-lng",
+        restoreGlobalName: "restoreCreateHotlineMapPin",
+        autoInit: false,
+    });
+    requestAnimationFrame(() => {
+        createHotlineMapApi?.resize();
+        void createHotlineMapApi?.restorePin?.();
+    });
+}
+
 function showAddCategoryForm() {
     const form = document.getElementById("add-category-form");
     if (form) {
         form.hidden = false;
         document.getElementById("nc-name")?.focus();
+        // Wait a tick so the map container has layout before Mapbox init.
+        requestAnimationFrame(() => initCreateHotlineMap());
     }
 }
 
 function hideAddCategoryForm() {
+    destroyCreateHotlineMap();
     const form = document.getElementById("add-category-form");
     if (form) form.hidden = true;
-    ["nc-name", "nc-location"].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-    });
+    ["nc-name", "nc-label", "nc-phone", "nc-email", "nc-search", "nc-location", "nc-lat", "nc-lng"].forEach(
+        (id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+        }
+    );
 }
 
 function addCategoryFromForm() {
     const name = document.getElementById("nc-name")?.value.trim();
+    const label =
+        document.getElementById("nc-label")?.value.trim() || "Main line";
+    const phone = document.getElementById("nc-phone")?.value.trim() || "";
+    const email = document.getElementById("nc-email")?.value.trim() || "";
     const location = document.getElementById("nc-location")?.value.trim() || "";
+    const coords = parseHotlineCoords(
+        document.getElementById("nc-lat")?.value,
+        document.getElementById("nc-lng")?.value
+    );
+
     if (!name) {
         alert("Organization name is required (e.g. NDRRMC, Philippine Red Cross).");
         return;
     }
+    if (!phone) {
+        alert("Phone number is required.");
+        return;
+    }
+    if (!email) {
+        alert("Email is required.");
+        return;
+    }
+    if (!isValidEmail(email)) {
+        alert("Enter a valid email address.");
+        return;
+    }
+    if (coords.latitude == null || coords.longitude == null) {
+        alert("Pin the hotline location on the map.");
+        return;
+    }
+
     const id = uniqueCategoryId(slugId(name));
+    const contactId = slugId(label) || "main-line";
     hotlineCategories.push({
         id,
         name,
         location,
-        latitude: null,
-        longitude: null,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
         active: true,
         sortOrder: hotlineCategories.length,
-        numbers: [],
+        numbers: [
+            {
+                id: contactId,
+                label,
+                number: phone,
+                email,
+                active: true,
+                sortOrder: 0,
+            },
+        ],
     });
     renderHotlineCategories(hotlineCategories);
     hideAddCategoryForm();
@@ -708,8 +793,21 @@ function persistHotlines() {
     saveHotlinesToFirestore({ silent: true });
 }
 
+async function saveEmptyHotlinesDoc() {
+    await setDoc(
+        doc(db, ...HOTLINES_DOC),
+        { categories: [], items: [], updatedAt: serverTimestamp() },
+        { merge: true }
+    );
+    return [];
+}
+
 async function normalizeLoadedData(data) {
     if (Array.isArray(data.categories) && data.categories.length > 0) {
+        // Clear old auto-seeded sample hotlines so admins can enter real details.
+        if (isOnlyAutoSeedCategories(data.categories)) {
+            return saveEmptyHotlinesDoc();
+        }
         return data.categories.map((cat, i) => normalizeCategory(cat, i));
     }
     if (Array.isArray(data.items) && data.items.length > 0) {
@@ -725,17 +823,8 @@ async function normalizeLoadedData(data) {
         );
         return migrated;
     }
-    const seed = buildInitialHotlinesSeed();
-    await setDoc(
-        doc(db, ...HOTLINES_DOC),
-        {
-            categories: seed.categories,
-            items: [],
-            updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-    );
-    return seed.categories;
+    // Do not auto-seed sample hotlines — admins add their own.
+    return saveEmptyHotlinesDoc();
 }
 
 async function loadHotlinesFromFirestore() {
@@ -744,10 +833,10 @@ async function loadHotlinesFromFirestore() {
         const snap = await getDoc(ref);
         const categories = snap.exists()
             ? await normalizeLoadedData(snap.data())
-            : (await normalizeLoadedData({}));
+            : await normalizeLoadedData({});
         renderHotlineCategories(categories);
     } catch (err) {
         console.warn("[WARN] load hotlines:", err);
-        renderHotlineCategories(buildInitialHotlinesSeed().categories);
+        renderHotlineCategories([]);
     }
 }

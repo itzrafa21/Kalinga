@@ -199,6 +199,15 @@
     .btn-edit:hover { background: #eff6ff; }
 
     .add-category-form-wrap { margin-bottom: 12px; }
+    .add-category-panel {
+      padding: 14px; background: #fff;
+      border: 1px dashed #d1d5db; border-radius: 10px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .add-category-panel .add-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      padding: 0; background: transparent; border: none; border-radius: 0;
+    }
     .add-row, .add-category-form-wrap .add-row {
       display: flex; gap: 6px; flex-wrap: wrap;
       padding: 12px; background: #fff;
@@ -207,6 +216,12 @@
     .add-row input {
       flex: 1; min-width: 140px; height: 30px; padding: 0 10px;
       font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px;
+    }
+    .add-category-actions {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+    }
+    .add-category-panel .hotline-map-block {
+      padding: 0; border-bottom: none;
     }
     .add-number-form { margin-top: 10px; }
     .hotline-empty {
@@ -306,7 +321,7 @@
             <div class="section-title" id="hotlines-heading">
               <i class="ti ti-phone-call" aria-hidden="true"></i> Hotline directory
             </div>
-            <p class="section-desc">Group phone numbers and emails by organization — each contact needs both a number and an email</p>
+            <p class="section-desc">Add an organization with phone, email, and a map pin — each contact needs both a number and an email</p>
           </div>
           <button type="button" class="btn btn-g btn-sm" id="categoryAddBtn">
             <i class="ti ti-plus" style="font-size:12px"></i> Add Emergency Hotline
@@ -314,20 +329,48 @@
         </div>
         <div class="section-body">
           <div id="add-category-form" class="add-category-form-wrap" hidden>
-            <div class="add-row">
-              <input id="nc-name" type="text" placeholder="Organization name (e.g. NDRRMC)" aria-label="Organization name" />
-              <input id="nc-location" type="text" placeholder="Location (e.g. Metro Manila, Kalinga)" aria-label="Location" />
-              <button type="button" class="btn btn-g btn-sm" id="categoryAddConfirmBtn">Add organization</button>
-              <button type="button" class="btn btn-sm" id="categoryAddCancelBtn">Cancel</button>
+            <div class="add-category-panel">
+              <div class="add-row">
+                <input id="nc-name" type="text" placeholder="Organization name (e.g. NDRRMC)" aria-label="Organization name" />
+                <input id="nc-label" type="text" placeholder="Contact label (e.g. Operations Center)" aria-label="Contact label" />
+              </div>
+              <div class="add-row">
+                <input id="nc-phone" type="text" placeholder="Phone number" aria-label="Phone number" />
+                <input id="nc-email" type="email" placeholder="Email" aria-label="Email" required />
+              </div>
+              <div class="hotline-map-block">
+                <div class="hotline-map-title"><i class="ti ti-map-pin" aria-hidden="true"></i> Pin location</div>
+                <div class="map-search-wrap">
+                  <input
+                    type="text"
+                    id="nc-search"
+                    class="hotline-map-search"
+                    placeholder="Search place, barangay, landmark…"
+                    autocomplete="off"
+                    aria-label="Search hotline location"
+                  />
+                  <ul id="nc-suggestions" class="hotline-map-suggestions" role="listbox" aria-label="Location suggestions"></ul>
+                </div>
+                <input type="hidden" id="nc-location" value="" />
+                <input type="hidden" id="nc-lat" value="" />
+                <input type="hidden" id="nc-lng" value="" />
+                <div class="map-wrap">
+                  <div id="nc-map" class="hotline-map" aria-label="New hotline location map"></div>
+                </div>
+              </div>
+              <div class="add-category-actions">
+                <button type="button" class="btn btn-g btn-sm" id="categoryAddConfirmBtn">Add emergency hotline</button>
+                <button type="button" class="btn btn-sm" id="categoryAddCancelBtn">Cancel</button>
+              </div>
             </div>
           </div>
           <div id="hotline-empty" class="hotline-empty" hidden>
-            No organizations yet. Add one (e.g. NDRRMC) then add contacts (phone + email) inside it.
+            No organizations yet. Add one with a phone number, email, and map pin.
           </div>
           <div id="hotline-categories"></div>
           <p class="info-hint">
             <i class="ti ti-info-circle" aria-hidden="true"></i>
-            Each card is one agency or organization. Pin its location on the map, then use <strong>Add contact</strong> for a phone number and email. Hidden organizations or contacts are not shown to volunteers.
+            Each card is one agency or organization. Use <strong>Add Emergency Hotline</strong> to set phone, email, and map pin together. You can still add more contacts later. Hidden organizations or contacts are not shown to volunteers.
           </p>
         </div>
       </section>
