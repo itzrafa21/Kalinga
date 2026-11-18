@@ -407,6 +407,122 @@ html[data-theme="dark"] body.org-app .needs-copy p {
   color: #94a3b8 !important;
 }
 
+/* Mission details hero + info cells (page CSS hardcodes light mint) */
+html[data-theme="dark"] body.org-app .md-hero {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .md-hero::before {
+  display: none !important;
+}
+html[data-theme="dark"] body.org-app .md-title {
+  color: #ecfdf5 !important;
+}
+html[data-theme="dark"] body.org-app .md-desc {
+  color: #bbf7d0 !important;
+}
+html[data-theme="dark"] body.org-app .md-cell {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  box-shadow: none !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .md-cell:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28) !important;
+}
+html[data-theme="dark"] body.org-app .md-cell-label {
+  color: #86efac !important;
+}
+html[data-theme="dark"] body.org-app .md-cell-label i {
+  color: #4ade80 !important;
+}
+html[data-theme="dark"] body.org-app .md-cell-val {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.org-app .md-cell-sub {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .md-pts-cell {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+html[data-theme="dark"] body.org-app .md-pts-cell .md-cell-label,
+html[data-theme="dark"] body.org-app .md-pts-cell .md-cell-val {
+  color: #86efac !important;
+}
+html[data-theme="dark"] body.org-app .md-pts-val {
+  color: #86efac !important;
+}
+html[data-theme="dark"] body.org-app .md-hero-badge,
+html[data-theme="dark"] body.org-app .md-badge,
+html[data-theme="dark"] body.org-app .md-type-badge,
+html[data-theme="dark"] body.org-app .md-donation-badge {
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body.org-app .md-hero-badge.md-b-green,
+html[data-theme="dark"] body.org-app .md-b-green {
+  background: #14532d !important;
+  color: #bbf7d0 !important;
+  border-color: #22c55e !important;
+}
+html[data-theme="dark"] body.org-app .md-hero-badge.md-b-amber,
+html[data-theme="dark"] body.org-app .md-b-amber {
+  background: #78350f !important;
+  color: #fde68a !important;
+  border-color: #f59e0b !important;
+}
+html[data-theme="dark"] body.org-app .md-hero-badge.md-b-blue,
+html[data-theme="dark"] body.org-app .md-b-blue {
+  background: #1e3a8a !important;
+  color: #bfdbfe !important;
+  border-color: #3b82f6 !important;
+}
+html[data-theme="dark"] body.org-app .md-hero-badge.md-b-gray,
+html[data-theme="dark"] body.org-app .md-b-gray {
+  background: #334155 !important;
+  color: #e2e8f0 !important;
+  border-color: #64748b !important;
+}
+html[data-theme="dark"] body.org-app .md-hero-badge.md-b-red,
+html[data-theme="dark"] body.org-app .md-b-red {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+  border-color: #ef4444 !important;
+}
+html[data-theme="dark"] body.org-app .md-doc-link {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .md-doc-link:hover {
+  background: #14532d !important;
+  border-color: #166534 !important;
+}
+html[data-theme="dark"] body.org-app .md-doc-link__icon {
+  background: #14532d !important;
+}
+html[data-theme="dark"] body.org-app .md-foot {
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .md-prog-wrap,
+html[data-theme="dark"] body.org-app .md-prog {
+  background: #334155 !important;
+}
+html[data-theme="dark"] body.org-app .md-prog {
+  background: #22c55e !important;
+}
+html[data-theme="dark"] body.org-app .md-muted,
+html[data-theme="dark"] body.org-app .md-sec-label,
+html[data-theme="dark"] body.org-app .md-foot-meta {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .md-slots-open {
+  color: #86efac !important;
+}
+
 html[data-theme="dark"] {
   scrollbar-color: #334155 #0b1220;
 }
