@@ -250,6 +250,7 @@ function getLastTwelveMonthBuckets() {
             label: d.toLocaleString("en-US", { month: "short" }),
             missions: 0,
             volunteers: 0,
+            campaigns: 0,
         });
     }
     return buckets;
@@ -265,6 +266,16 @@ function incrementActivityBucket(buckets, dateValue, field) {
 
 function missionSubmissionDate(data) {
     return data?.submittedAt || data?.createdAt || null;
+}
+
+function campaignActivityDate(data) {
+    return (
+        data?.submittedAt ||
+        data?.publishedAt ||
+        data?.createdAt ||
+        data?.updatedAt ||
+        null
+    );
 }
 
 function applicationActivityDate(data) {
@@ -433,11 +444,31 @@ async function fetchVolunteerMonthlyCounts(buckets) {
     }
 }
 
+async function fetchCampaignMonthlyCounts(buckets) {
+    const seenCampaignIds = new Set();
+
+    try {
+        const snap = await getDocs(collection(db, "donation_campaigns"));
+        snap.docs.forEach((docSnap) => {
+            if (seenCampaignIds.has(docSnap.id)) return;
+            seenCampaignIds.add(docSnap.id);
+            incrementActivityBucket(
+                buckets,
+                campaignActivityDate(docSnap.data()),
+                "campaigns"
+            );
+        });
+    } catch (err) {
+        console.warn("[WARN] donation_campaigns for activity chart:", err);
+    }
+}
+
 async function fetchActivityAnalyticsData() {
     const buckets = getLastTwelveMonthBuckets();
     await Promise.all([
         fetchMissionMonthlyCounts(buckets),
         fetchVolunteerMonthlyCounts(buckets),
+        fetchCampaignMonthlyCounts(buckets),
     ]);
     return buckets;
 }
@@ -447,6 +478,9 @@ function updateActivityChart(buckets) {
     activityChart.data.labels = buckets.map((b) => b.label);
     activityChart.data.datasets[0].data = buckets.map((b) => b.missions);
     activityChart.data.datasets[1].data = buckets.map((b) => b.volunteers);
+    if (activityChart.data.datasets[2]) {
+        activityChart.data.datasets[2].data = buckets.map((b) => b.campaigns);
+    }
     activityChart.update();
 }
 
@@ -483,6 +517,13 @@ function initializeActivityChart() {
                     data: buckets.map(() => 0),
                     borderColor: "#f093fb",
                     backgroundColor: "rgba(240, 147, 251, 0.1)",
+                    tension: 0.4,
+                },
+                {
+                    label: "Campaigns",
+                    data: buckets.map(() => 0),
+                    borderColor: "#16a34a",
+                    backgroundColor: "rgba(22, 163, 74, 0.1)",
                     tension: 0.4,
                 },
             ],
@@ -1261,51 +1302,104 @@ async function loadMissionsData({ force = false } = {}) {
     }
 }
 
-async function loadDashboardData() {
-    try {
-        await loadDashboardStats();
-        await refreshMissionTypesChart();
-        await refreshActivityChart();
+function setStatValue(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const text =
+        value == null || value === ""
+            ? "—"
+            : String(value);
+    el.textContent = text;
+}
 
-        console.log("[SUCCESS] Dashboard data loaded from Firebase");
-    } catch (error) {
-        console.error("Error loading dashboard data:", error);
-        document.getElementById("totalUsers").textContent = "—";
-        document.getElementById("totalOrganizations").textContent = "—";
-        document.getElementById("totalMissions").textContent = "—";
-        document.getElementById("totalVolunteers").textContent = "—";
-    }
+function setDashboardStatsLoading() {
+    setStatValue("totalUsers", "...");
+    setStatValue("totalOrganizations", "...");
+    setStatValue("totalMissions", "...");
+    setStatValue("totalVolunteers", "...");
+    setStatValue("totalCampaigns", "...");
+}
+
+function setDashboardStatsError() {
+    setStatValue("totalUsers", "—");
+    setStatValue("totalOrganizations", "—");
+    setStatValue("totalMissions", "—");
+    setStatValue("totalVolunteers", "—");
+    setStatValue("totalCampaigns", "—");
+}
+
+async function loadDashboardData() {
+    // Keep each section independent so a chart failure cannot wipe the stats cards.
+    const results = await Promise.allSettled([
+        loadDashboardStats(),
+        refreshMissionTypesChart(),
+        refreshActivityChart(),
+    ]);
+    results.forEach((result, index) => {
+        if (result.status === "rejected") {
+            const labels = ["stats", "mission-types", "activity"];
+            console.error(
+                `[ERROR] Dashboard ${labels[index]} failed:`,
+                result.reason
+            );
+        }
+    });
+    console.log("[SUCCESS] Dashboard data load finished");
 }
 
 function paintDashboardStats(stats) {
     if (!stats) return;
-    const organizations = Number(stats.organizations) || 0;
-    const volunteers = Number(stats.volunteers) || 0;
-    document.getElementById("totalUsers").textContent = String(
-        organizations + volunteers
+    const organizations = Number(stats.organizations);
+    const volunteers = Number(stats.volunteers);
+    const missions = Number(stats.missions);
+    const campaigns = Number(stats.campaigns);
+    const orgCount = Number.isFinite(organizations) ? organizations : 0;
+    const volunteerCount = Number.isFinite(volunteers) ? volunteers : 0;
+
+    setStatValue("totalUsers", orgCount + volunteerCount);
+    setStatValue(
+        "totalOrganizations",
+        Number.isFinite(organizations) ? organizations : "—"
     );
-    document.getElementById("totalOrganizations").textContent = String(
-        stats.organizations ?? "—"
+    setStatValue("totalMissions", Number.isFinite(missions) ? missions : "—");
+    setStatValue(
+        "totalVolunteers",
+        Number.isFinite(volunteers) ? volunteers : "—"
     );
-    document.getElementById("totalMissions").textContent = String(
-        stats.missions ?? "—"
+    setStatValue(
+        "totalCampaigns",
+        Number.isFinite(campaigns) ? campaigns : "—"
     );
-    document.getElementById("totalVolunteers").textContent = String(
-        stats.volunteers ?? "—"
-    );
+}
+
+async function safeCount(collectionName) {
+    try {
+        const snap = await getCountFromServer(collection(db, collectionName));
+        return snap.data().count || 0;
+    } catch (err) {
+        console.warn(`[WARN] getCountFromServer(${collectionName}):`, err);
+        try {
+            const snap = await getDocs(collection(db, collectionName));
+            return snap.size;
+        } catch (fallbackErr) {
+            console.warn(`[WARN] getDocs(${collectionName}) fallback:`, fallbackErr);
+            return 0;
+        }
+    }
 }
 
 async function loadDashboardStats() {
     try {
         console.log("[INFO] Loading dashboard stats from Firebase...");
-        document.getElementById("totalUsers").textContent = "...";
-        document.getElementById("totalOrganizations").textContent = "...";
-        document.getElementById("totalMissions").textContent = "...";
-        document.getElementById("totalVolunteers").textContent = "...";
+        setDashboardStatsLoading();
 
         if (isAdminCacheFresh(ADMIN_CACHE_KEYS.DASHBOARD_STATS)) {
             const cached = readAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
-            if (cached?.payload) {
+            if (
+                cached?.payload &&
+                cached.payload.campaigns != null &&
+                cached.payload.organizations != null
+            ) {
                 paintDashboardStats(cached.payload);
                 return;
             }
@@ -1314,22 +1408,27 @@ async function loadDashboardStats() {
         const stats = await adminCachedFetch(
             ADMIN_CACHE_KEYS.DASHBOARD_STATS,
             async () => {
-                // Use server aggregation counts — never .size on a limited query.
-                const [orgsCountSnap, missionsCountSnap, volunteerEntries] =
+                const [organizations, missions, campaigns, volunteerEntries] =
                     await Promise.all([
-                        getCountFromServer(collection(db, "organizations")),
-                        getCountFromServer(collection(db, "mission_submissions")),
-                        loadVolunteerUserEntries(),
+                        safeCount("organizations"),
+                        safeCount("mission_submissions"),
+                        safeCount("donation_campaigns"),
+                        loadVolunteerUserEntries().catch((err) => {
+                            console.warn("[WARN] volunteer stats:", err);
+                            return [];
+                        }),
                     ]);
 
-                const organizations = orgsCountSnap.data().count || 0;
-                const volunteers = volunteerEntries.length;
+                const volunteers = Array.isArray(volunteerEntries)
+                    ? volunteerEntries.length
+                    : 0;
 
                 return {
                     users: organizations + volunteers,
                     organizations,
-                    missions: missionsCountSnap.data().count || 0,
+                    missions,
                     volunteers,
+                    campaigns,
                 };
             },
             { maxAgeMs: ADMIN_FRESH_MS }
@@ -1339,10 +1438,7 @@ async function loadDashboardStats() {
         console.log("[SUCCESS] Dashboard stats loaded from Firebase:", stats);
     } catch (error) {
         console.error("[ERROR] Error loading dashboard stats:", error);
-        document.getElementById("totalUsers").textContent = "—";
-        document.getElementById("totalOrganizations").textContent = "—";
-        document.getElementById("totalMissions").textContent = "—";
-        document.getElementById("totalVolunteers").textContent = "—";
+        setDashboardStatsError();
     }
 }
 

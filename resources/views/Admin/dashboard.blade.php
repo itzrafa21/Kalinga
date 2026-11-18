@@ -383,10 +383,11 @@
     .content { padding: 24px; flex: 1; }
 
     .stat-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr);
+      display: grid; grid-template-columns: repeat(5, 1fr);
       gap: 12px; margin-bottom: 20px;
     }
-    @media (max-width: 992px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 1100px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 576px) { .stat-grid { grid-template-columns: 1fr; } }
     .stat-card {
       background: #fff; border: 1px solid #eaecef;
@@ -580,6 +581,11 @@
           <div class="stat-icon"><i class="ti ti-award"></i></div>
           <div class="stat-val" id="totalVolunteers">-</div>
           <div class="stat-label">Volunteers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="ti ti-gift"></i></div>
+          <div class="stat-val" id="totalCampaigns">-</div>
+          <div class="stat-label">Total campaigns</div>
         </div>
       </div>
 
