@@ -7,10 +7,12 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite([
     'resources/css/app.css',
     'resources/js/admin-dashboard.js'
   ])
+  @include('partials.admin-topbar-styles')
   <script>
     (function () {
       var tab = (window.location.hash || "").replace(/^#/, "");
@@ -373,13 +375,6 @@
       flex: 1; overflow-y: auto; background: #f5f6f8;
       display: flex; flex-direction: column;
     }
-    .topbar {
-      background: #fff; border-bottom: 1px solid #eaecef;
-      padding: 0 24px; height: 50px;
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    }
-    .topbar-title { font-size: 14px; font-weight: 600; color: #111; }
-    .topbar-user { font-size: 12px; color: #b0b0b0; }
     .content { padding: 24px; flex: 1; }
 
     .stat-grid {
@@ -541,17 +536,15 @@
   </aside>
 
   <div class="main">
-    <div class="topbar">
-      <span class="topbar-title" id="topbarTitle">Dashboard</span>
-      <span class="topbar-user" id="adminEmail"></span>
-    </div>
+    @include('partials.admin-topbar', ['pageTitle' => 'Dashboard', 'titleId' => 'topbarTitle'])
     <script>
       (function () {
         var titles = {
           dashboard: "Dashboard",
           organizations: "Organizations",
           missions: "Missions",
-          volunteers: "Volunteers"
+          volunteers: "Volunteers",
+          campaigns: "Campaigns"
         };
         var tab = document.documentElement.getAttribute("data-admin-tab") || "dashboard";
         var el = document.getElementById("topbarTitle");

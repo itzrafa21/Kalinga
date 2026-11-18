@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import "./admin-theme.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
     deleteDoc,

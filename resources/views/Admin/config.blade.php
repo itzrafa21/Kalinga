@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rules &amp; Rewards - Kalinga Admin</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite(['resources/css/app.css', 'resources/js/admin-config.js'])
+  @include('partials.admin-topbar-styles')
   <style>
     :root {
       --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -52,17 +54,10 @@
       color: #ef4444; cursor: pointer; background: none; border: none; font-family: inherit;
     }
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
-    .topbar {
-      padding: 0 20px; height: 52px; border-bottom: 1px solid var(--color-border);
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    }
-    .topbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
-    .topbar-actions { display: flex; align-items: center; gap: 10px; }
     .tbadge {
       font-size: 11px; color: #15803d; background: var(--color-accent-soft);
       padding: 3px 10px; border-radius: 20px; border: 1px solid #bbf7d0;
     }
-    .topbar-user { font-size: 12px; color: var(--color-muted); }
     .btn-save-all {
       display: inline-flex; align-items: center; gap: 5px;
       padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
@@ -259,17 +254,10 @@
   </aside>
 
   <div class="main">
-    <div class="topbar">
-      <div class="topbar-title">Rules &amp; Rewards</div>
-      <div class="topbar-actions">
-        <span id="configSaveToast" hidden><i class="ti ti-check"></i> Saved</span>
-        <span class="tbadge">Platform settings</span>
-        <button type="button" class="btn-save-all" id="configSaveAllBtn">
-          <i class="ti ti-device-floppy" style="font-size:14px"></i> Save all
-        </button>
-        <span class="topbar-user" id="adminEmail"></span>
-      </div>
-    </div>
+    @include('partials.admin-topbar', [
+      'pageTitle' => 'Rules & Rewards',
+      'topbarActions' => '<span id="configSaveToast" hidden><i class="ti ti-check"></i> Saved</span><span class="tbadge">Platform settings</span><button type="button" class="btn-save-all" id="configSaveAllBtn"><i class="ti ti-device-floppy" style="font-size:14px"></i> Save all</button>',
+    ])
 
     <div class="content">
       <div class="main-tabs" role="tablist">

@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hotlines - Kalinga Admin</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   @vite(['resources/css/app.css', 'resources/js/admin-hotlines.js'])
+  @include('partials.admin-topbar-styles')
   <style>
     :root {
       --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -53,13 +55,6 @@
       color: #ef4444; cursor: pointer; background: none; border: none; font-family: inherit;
     }
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
-    .topbar {
-      padding: 0 20px; height: 52px; border-bottom: 1px solid var(--color-border);
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    }
-    .topbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
-    .topbar-actions { display: flex; align-items: center; gap: 10px; }
-    .topbar-user { font-size: 12px; color: var(--color-muted); }
     .saved-flash {
       display: none; align-items: center; gap: 4px;
       color: var(--color-accent); font-size: 12px; font-weight: 500;
@@ -312,13 +307,10 @@
   </aside>
 
   <div class="main">
-    <div class="topbar">
-      <div class="topbar-title">Emergency Hotlines</div>
-      <div class="topbar-actions">
-        <span id="hotlinesSaveToast" class="saved-flash" hidden><i class="ti ti-check" aria-hidden="true"></i> Saved to Firestore</span>
-        <span class="topbar-user" id="adminEmail"></span>
-      </div>
-    </div>
+    @include('partials.admin-topbar', [
+      'pageTitle' => 'Emergency Hotlines',
+      'topbarActions' => '<span id="hotlinesSaveToast" class="saved-flash" hidden><i class="ti ti-check" aria-hidden="true"></i> Saved to Firestore</span>',
+    ])
 
     <div class="content">
       <section class="section-panel" aria-labelledby="hotlines-heading">

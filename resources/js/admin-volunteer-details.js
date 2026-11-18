@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import "./admin-theme.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { getLevelForPoints, loadPlatformConfig } from "./platform-config.js";

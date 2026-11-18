@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import "./admin-theme.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { SEED_HOTLINE_CATEGORIES } from "./hotlines-seed.js";

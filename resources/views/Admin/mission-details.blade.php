@@ -6,7 +6,9 @@
   <title>Mission Details - Kalinga Admin</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite(['resources/css/app.css', 'resources/js/admin-mission-details.js'])
+  @include('partials.admin-topbar-styles')
   <style>
     * { box-sizing: border-box; }
     body {
@@ -52,20 +54,6 @@
       flex: 1; overflow: hidden; background: #f5f6f8;
       display: flex; flex-direction: column; min-width: 0;
     }
-    .topbar {
-      background: #fff; border-bottom: 1px solid #eaecef;
-      padding: 0 24px; height: 50px;
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    }
-    .topbar-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #111;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .topbar-title:hover { color: #16a34a; text-decoration: underline; }
-    .topbar-user { font-size: 12px; color: #b0b0b0; }
     .content {
       padding: 0;
       flex: 1;
@@ -393,10 +381,10 @@
   </aside>
 
   <div class="main">
-    <div class="topbar">
-      <a class="topbar-title" href="/admin/dashboard#missions">Missions</a>
-      <span class="topbar-user" id="adminEmail"></span>
-    </div>
+    @include('partials.admin-topbar', [
+      'pageTitle' => 'Missions',
+      'titleHref' => '/admin/dashboard#missions',
+    ])
     <div class="content">
       <section class="org-page" aria-labelledby="missionDetailsTitle">
         <header class="org-page__header">

@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import "./admin-theme.js";
 import { 
     signOut, 
     onAuthStateChanged 
@@ -109,7 +110,8 @@ function checkAdminAuth() {
             if (user.email.includes('@admin.kalinga.com') || user.email.includes('admin@')) {
                 console.log("[SUCCESS] Admin authenticated:", user.email);
                 const email = user.email;
-                document.getElementById('adminEmail').textContent = email;
+                const topEmail = document.getElementById('adminEmail');
+                if (topEmail) topEmail.textContent = email;
                 const sidebarEmail = document.getElementById('adminEmailSidebar');
                 if (sidebarEmail) sidebarEmail.textContent = email;
                 
