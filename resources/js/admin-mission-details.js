@@ -257,7 +257,7 @@ function renderMission(mission, orgDisplayName) {
 
     const donationRows = hasDonations
         ? [
-              detailRow("fa-hand-holding-heart", "Donations:", "Enabled"),
+              detailRow("fa-hand-holding-dollar", "Donations:", "Enabled"),
               detailRow("fa-wallet", "Method:", showText(donation.method)),
               detailRow("fa-user", "Account name:", showText(donation.accountName)),
               detailRow("fa-phone", "Account number:", showText(donation.gcashNumber)),

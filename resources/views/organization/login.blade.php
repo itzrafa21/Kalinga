@@ -355,7 +355,6 @@
   <div class="auth-shell">
     <div class="auth-form-side">
       <a class="brand" href="/organization/login">
-        <i class="bi bi-heart-fill" aria-hidden="true"></i>
         Kalinga
       </a>
 

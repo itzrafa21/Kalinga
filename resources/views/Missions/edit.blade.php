@@ -754,7 +754,7 @@
             </div>
             <div class="option-card mt-3">
               <a href="/missions/donation-details" class="donation-action-btn make" id="openMissionDonationBtn">
-                <i class="bi bi-heart"></i> Make donations for this mission
+                <i class="bi bi-gift"></i> Make donations for this mission
               </a>
               <p class="text-muted small mb-0 mt-2" id="missionDonationStatus">
                 No donation details set for this mission yet.

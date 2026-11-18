@@ -521,7 +521,7 @@
         <i class="ti ti-users"></i> Volunteers
       </a>
       <a class="nav-item" href="#campaigns" data-tab="campaigns">
-        <i class="ti ti-heart-handshake"></i> Campaigns
+        <i class="ti ti-gift"></i> Campaigns
       </a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config">
@@ -791,7 +791,7 @@
     <div id="campaigns-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-hand-holding-heart"></i> Donation Campaigns</h5>
+          <h5 class="mb-0"><i class="fas fa-hand-holding-dollar"></i> Donation Campaigns</h5>
           <div class="d-flex gap-2">
             <input type="text" class="form-control search-box" id="campaignSearch" placeholder="Search campaigns...">
             <select class="form-select filter-dropdown" id="campaignFilter">

@@ -31,7 +31,7 @@
     <a href="/organization/dashboard" class="{{ $isActive('dashboard') }}" data-access-module="missions"><i class="bi bi-grid-1x2"></i> Mission Management</a>
     <a href="/missions/history" class="{{ $isActive('history') }}" data-access-module="history"><i class="bi bi-journal-text"></i> History of Missions</a>
     <a href="/organization/volunteers" class="{{ $isActive('volunteers') }}" data-access-module="volunteers"><i class="bi bi-people"></i> Volunteers</a>
-    <a href="/donation" class="{{ $isActive('donation') }}" data-access-module="donations"><i class="bi bi-heart"></i> Donation</a>
+    <a href="/donation" class="{{ $isActive('donation') }}" data-access-module="donations"><i class="bi bi-gift"></i> Donation</a>
 
     <div class="org-sidebar-section sidebar-section">Account</div>
     <a href="/organization/profile" class="{{ $isActive('profile') }}" data-access-module="account"><i class="bi bi-person"></i> Account</a>

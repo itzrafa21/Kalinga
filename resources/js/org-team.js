@@ -57,7 +57,7 @@ export const ACCESS_MODULES = [
     {
         id: "donations",
         label: "Donation",
-        icon: "bi-heart",
+        icon: "bi-gift",
         permissions: [
             { id: "view", label: "Can view donation center" },
             { id: "create", label: "Can create campaigns" },

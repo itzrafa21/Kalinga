@@ -230,7 +230,6 @@
 </head>
 <body>
   <a class="brand" href="/admin/login">
-    <i class="bi bi-heart-fill" aria-hidden="true"></i>
     Kalinga
   </a>
 

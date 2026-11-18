@@ -157,7 +157,7 @@
 </head>
 <body data-campaign-id="{{ $campaignId }}">
   <div class="wrap">
-    <a class="brand" href="/organization/dashboard"><i class="bi bi-heart-fill"></i> Kalinga</a>
+    <a class="brand" href="/organization/dashboard">Kalinga</a>
     <section class="card">
       <img class="cover" id="campaignCover" alt="" hidden>
       <h1 id="campaignTitle">Loading campaign…</h1>
