@@ -9,6 +9,7 @@ import {
     readHotlinesFromDocData,
 } from "./hotlines-data.js";
 import { initLocationMap } from "./mission-map.js";
+import { ensureMapbox } from "./lazy-cdn.js";
 
 const SEED_HOTLINE_IDS = new Set(SEED_HOTLINE_CATEGORIES.map((c) => c.id));
 
@@ -27,6 +28,9 @@ const hotlineMapApis = new Map();
 
 /** @type {{ map: import("mapbox-gl").Map, resize: () => void, restorePin: () => Promise<void> } | null} */
 let createHotlineMapApi = null;
+
+/** @type {IntersectionObserver | null} */
+let hotlineMapObserver = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     checkAdminAuth();
@@ -178,6 +182,10 @@ function mapFieldIds(categoryId) {
 }
 
 function destroyHotlineMaps() {
+    if (hotlineMapObserver) {
+        hotlineMapObserver.disconnect();
+        hotlineMapObserver = null;
+    }
     hotlineMapApis.forEach((api) => {
         try {
             api.map?.remove();
@@ -231,33 +239,65 @@ function bindHotlineMapPersistence(categoryId) {
     });
 }
 
-function initHotlineMaps() {
-    if (typeof mapboxgl === "undefined") {
+async function initSingleHotlineMap(categoryId) {
+    if (hotlineMapApis.has(categoryId)) return;
+    const ids = mapFieldIds(categoryId);
+    if (!document.getElementById(ids.map)) return;
+
+    const ready = await ensureMapbox();
+    if (!ready) {
         console.error("[ERROR] mapboxgl is not loaded for admin hotlines");
         return;
     }
+    if (hotlineMapApis.has(categoryId) || !document.getElementById(ids.map)) return;
 
-    hotlineCategories.forEach((cat) => {
-        const ids = mapFieldIds(cat.id);
-        if (!document.getElementById(ids.map)) return;
-
-        const api = initLocationMap({
-            map: ids.map,
-            search: ids.search,
-            suggestions: ids.suggestions,
-            location: ids.location,
-            latitude: ids.latitude,
-            longitude: ids.longitude,
-            restoreGlobalName: `restoreHotlineMapPin_${cat.id}`,
-            autoInit: false,
-        });
-        if (!api) return;
-
-        hotlineMapApis.set(cat.id, api);
-        bindHotlineMapPersistence(cat.id);
-
-        requestAnimationFrame(() => api.resize());
+    const api = initLocationMap({
+        map: ids.map,
+        search: ids.search,
+        suggestions: ids.suggestions,
+        location: ids.location,
+        latitude: ids.latitude,
+        longitude: ids.longitude,
+        restoreGlobalName: `restoreHotlineMapPin_${categoryId}`,
+        autoInit: false,
     });
+    if (!api) return;
+
+    hotlineMapApis.set(categoryId, api);
+    bindHotlineMapPersistence(categoryId);
+    requestAnimationFrame(() => {
+        api.resize();
+        void api.restorePin?.();
+    });
+}
+
+function scheduleHotlineMaps() {
+    if (hotlineMapObserver) {
+        hotlineMapObserver.disconnect();
+        hotlineMapObserver = null;
+    }
+
+    const maps = hotlineCategories
+        .map((cat) => document.getElementById(mapFieldIds(cat.id).map))
+        .filter(Boolean);
+    if (!maps.length) return;
+
+    hotlineMapObserver = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                const categoryId = entry.target
+                    .closest("[data-category-id]")
+                    ?.getAttribute("data-category-id");
+                if (!categoryId) return;
+                hotlineMapObserver?.unobserve(entry.target);
+                void initSingleHotlineMap(categoryId);
+            });
+        },
+        { rootMargin: "120px 0px", threshold: 0.01 }
+    );
+
+    maps.forEach((el) => hotlineMapObserver.observe(el));
 }
 
 function createCategoryCardElement(cat) {
@@ -352,7 +392,7 @@ function renderHotlineCategories(categories) {
     }
 
     bindAllCategoryCards();
-    initHotlineMaps();
+    scheduleHotlineMaps();
 }
 
 function getCategoryById(id) {
@@ -439,8 +479,11 @@ function destroyCreateHotlineMap() {
     createHotlineMapApi = null;
 }
 
-function initCreateHotlineMap() {
-    if (typeof mapboxgl === "undefined") {
+async function initCreateHotlineMap() {
+    if (!document.getElementById("nc-map")) return;
+
+    const ready = await ensureMapbox();
+    if (!ready) {
         console.error("[ERROR] mapboxgl is not loaded for new hotline form");
         return;
     }
@@ -469,7 +512,9 @@ function showAddCategoryForm() {
         form.hidden = false;
         document.getElementById("nc-name")?.focus();
         // Wait a tick so the map container has layout before Mapbox init.
-        requestAnimationFrame(() => initCreateHotlineMap());
+        requestAnimationFrame(() => {
+            void initCreateHotlineMap();
+        });
     }
 }
 

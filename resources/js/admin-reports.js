@@ -7,6 +7,7 @@ import {
 } from "./donation-shared.js";
 import { getOrgVerificationLabel } from "./org-verification.js";
 import { resolveMissionIdFromApplication } from "./application-storage.js";
+import { ensureJsPdf } from "./lazy-cdn.js";
 
 function toJsDate(value) {
     if (!value) return null;
@@ -592,7 +593,8 @@ function exportCsv(type, headers, rows) {
     downloadTextFile(stampFilename(type, "csv"), csv, "text/csv;charset=utf-8");
 }
 
-function exportPdfWithJsPdf(type, headers, rows) {
+async function exportPdfWithJsPdf(type, headers, rows) {
+    await ensureJsPdf();
     const jspdfNS = window.jspdf;
     const JsPDF = jspdfNS?.jsPDF || window.jsPDF;
     if (!JsPDF) return false;
@@ -718,7 +720,7 @@ export async function exportReport(format = "csv") {
         }
 
         if (fmt === "pdf") {
-            const ok = exportPdfWithJsPdf(type, headers, rows);
+            const ok = await exportPdfWithJsPdf(type, headers, rows);
             if (!ok) exportPdfViaPrint(type, headers, rows);
         } else {
             exportCsv(type, headers, rows);

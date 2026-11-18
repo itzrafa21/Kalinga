@@ -6,7 +6,6 @@
   <title>Hotlines - Kalinga Admin</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   @vite(['resources/css/app.css', 'resources/js/admin-hotlines.js'])
   @include('partials.admin-topbar-styles')
   <style>
@@ -375,6 +374,5 @@
     </div>
   </div>
 </div>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 </body>
 </html>

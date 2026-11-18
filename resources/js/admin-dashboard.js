@@ -1,5 +1,6 @@
 import { auth, db } from "./firebase.js";
 import "./admin-theme.js";
+import { ensureChartJs } from "./lazy-cdn.js";
 import { 
     signOut, 
     onAuthStateChanged 
@@ -90,6 +91,7 @@ const MISSION_TYPE_CHART_COLORS = [
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log("[INFO] DOM Content Loaded - Initializing admin dashboard...");
+    paintCachedDashboardStats();
     checkAdminAuth();
     bindAdminReportExports();
 
@@ -115,8 +117,7 @@ function checkAdminAuth() {
                 const sidebarEmail = document.getElementById('adminEmailSidebar');
                 if (sidebarEmail) sidebarEmail.textContent = email;
                 
-                // Initialize dashboard on the tab from the URL hash (no Dashboard flash)
-                initializeDashboard();
+                // Charts load lazily with dashboard data; show shell/tab immediately.
                 setupEventListeners();
                 const hashTab = window.location.hash.replace(/^#/, "");
                 const initialTab =
@@ -137,9 +138,36 @@ function checkAdminAuth() {
     });
 }
 
-function initializeDashboard() {
-    initializeActivityChart();
-    initializeMissionTypesChart();
+function paintCachedDashboardStats() {
+    const cached = readAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+    if (
+        cached?.payload &&
+        cached.payload.campaigns != null &&
+        cached.payload.organizations != null
+    ) {
+        paintDashboardStats(cached.payload);
+    }
+}
+
+let chartsReadyPromise = null;
+
+async function ensureChartsReady() {
+    if (!chartsReadyPromise) {
+        chartsReadyPromise = (async () => {
+            const ok = await ensureChartJs();
+            if (!ok) {
+                console.error("[ERROR] Chart.js failed to load");
+                return false;
+            }
+            initializeActivityChart();
+            initializeMissionTypesChart();
+            return true;
+        })().catch((err) => {
+            chartsReadyPromise = null;
+            throw err;
+        });
+    }
+    return chartsReadyPromise;
 }
 
 function normalizeMissionTypeKey(raw) {
@@ -490,7 +518,21 @@ function updateActivityChart(buckets) {
 
 async function refreshActivityChart() {
     try {
-        const buckets = await fetchActivityAnalyticsData();
+        await ensureChartsReady();
+        const cached = readAdminCache(ADMIN_CACHE_KEYS.ACTIVITY);
+        if (Array.isArray(cached?.payload) && cached.payload.length) {
+            updateActivityChart(cached.payload);
+            if (isAdminCacheFresh(ADMIN_CACHE_KEYS.ACTIVITY)) return;
+        }
+
+        const buckets = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.ACTIVITY,
+            fetchActivityAnalyticsData,
+            {
+                force: !isAdminCacheFresh(ADMIN_CACHE_KEYS.ACTIVITY),
+                maxAgeMs: ADMIN_FRESH_MS,
+            }
+        );
         updateActivityChart(buckets);
         console.log("[SUCCESS] Activity analytics loaded:", buckets);
     } catch (err) {
@@ -614,15 +656,28 @@ function initializeMissionTypesChart(initialData = null) {
 
 async function refreshMissionTypesChart() {
     try {
-        await loadPlatformConfig();
-        const configuredTypes = getMissionTypes(false);
-        const counts = await fetchMissionTypeCounts(configuredTypes);
-        const chartData = buildMissionTypeChartData(counts, configuredTypes);
-        initializeMissionTypesChart(chartData);
-        console.log(
-            "[SUCCESS] Mission type chart loaded from platform config:",
-            Object.fromEntries(counts)
+        await ensureChartsReady();
+        const cached = readAdminCache(ADMIN_CACHE_KEYS.MISSION_TYPES);
+        if (cached?.payload?.labels) {
+            initializeMissionTypesChart(cached.payload);
+            if (isAdminCacheFresh(ADMIN_CACHE_KEYS.MISSION_TYPES)) return;
+        }
+
+        const chartData = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.MISSION_TYPES,
+            async () => {
+                await loadPlatformConfig();
+                const configuredTypes = getMissionTypes(false);
+                const counts = await fetchMissionTypeCounts(configuredTypes);
+                return buildMissionTypeChartData(counts, configuredTypes);
+            },
+            {
+                force: !isAdminCacheFresh(ADMIN_CACHE_KEYS.MISSION_TYPES),
+                maxAgeMs: ADMIN_FRESH_MS,
+            }
         );
+        initializeMissionTypesChart(chartData);
+        console.log("[SUCCESS] Mission type chart loaded from platform config");
     } catch (err) {
         console.error("[ERROR] loading mission type chart:", err);
     }
@@ -988,17 +1043,17 @@ function renderOrganizationsTable(list) {
             const verifyBtn =
                 statusKey !== "verified"
                     ? `<button type="button" class="btn btn-sm btn-success me-1" onclick="approveOrganization('${org.id}')">
-                            <i class="fas fa-check"></i> Verify
+                            <i class="ti ti-check"></i> Verify
                        </button>`
                     : "";
             const rejectOrDeactivateBtn =
                 statusKey === "pending"
                     ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectOrganization('${org.id}')">
-                            <i class="fas fa-times"></i> Reject
+                            <i class="ti ti-x"></i> Reject
                        </button>`
                     : statusKey === "verified"
                       ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="deactivateOrganization('${org.id}')">
-                            <i class="fas fa-ban"></i> Deactivate
+                            <i class="ti ti-ban"></i> Deactivate
                        </button>`
                       : "";
 
@@ -1013,7 +1068,7 @@ function renderOrganizationsTable(list) {
                         ${verifyBtn}
                         ${rejectOrDeactivateBtn}
                         <a class="btn btn-sm btn-outline-info" href="/admin/organizations/${encodeURIComponent(org.id)}">
-                            <i class="fas fa-eye"></i> View
+                            <i class="ti ti-eye"></i> View
                         </a>
                     </td>
                 </tr>`;
@@ -1172,18 +1227,18 @@ function renderAdminMissionsTable(missions) {
                     <td>
                         ${normalizedStatus === "pending" ? `
                             <button class="btn btn-sm btn-success me-1" onclick="approveMission('${mission.id}')" title="Approve Mission">
-                                <i class="fas fa-check"></i> Approve
+                                <i class="ti ti-check"></i> Approve
                             </button>
                             <button class="btn btn-sm btn-danger me-1" onclick="rejectMission('${mission.id}')" title="Reject Mission">
-                                <i class="fas fa-times"></i> Reject
+                                <i class="ti ti-x"></i> Reject
                             </button>
                         ` : `
                             <button class="btn btn-sm btn-outline-secondary" disabled title="Already ${mission.status}">
-                                <i class="fas fa-check-circle"></i>
+                                <i class="ti ti-circle-check"></i>
                             </button>
                         `}
                         <a class="btn btn-sm btn-outline-info" href="/admin/missions/${encodeURIComponent(mission.id)}" title="View Details">
-                            <i class="fas fa-eye"></i> View
+                            <i class="ti ti-eye"></i> View
                         </a>
                     </td>
                 </tr>
@@ -1395,18 +1450,17 @@ async function safeCount(collectionName) {
 async function loadDashboardStats() {
     try {
         console.log("[INFO] Loading dashboard stats from Firebase...");
-        setDashboardStatsLoading();
+        const cached = readAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+        const hasUsableCache =
+            cached?.payload &&
+            cached.payload.campaigns != null &&
+            cached.payload.organizations != null;
 
-        if (isAdminCacheFresh(ADMIN_CACHE_KEYS.DASHBOARD_STATS)) {
-            const cached = readAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
-            if (
-                cached?.payload &&
-                cached.payload.campaigns != null &&
-                cached.payload.organizations != null
-            ) {
-                paintDashboardStats(cached.payload);
-                return;
-            }
+        if (hasUsableCache) {
+            paintDashboardStats(cached.payload);
+            if (isAdminCacheFresh(ADMIN_CACHE_KEYS.DASHBOARD_STATS)) return;
+        } else {
+            setDashboardStatsLoading();
         }
 
         const stats = await adminCachedFetch(
@@ -1435,7 +1489,10 @@ async function loadDashboardStats() {
                     campaigns,
                 };
             },
-            { maxAgeMs: ADMIN_FRESH_MS }
+            {
+                force: !isAdminCacheFresh(ADMIN_CACHE_KEYS.DASHBOARD_STATS),
+                maxAgeMs: ADMIN_FRESH_MS,
+            }
         );
 
         paintDashboardStats(stats);
@@ -1795,7 +1852,7 @@ function renderVolunteersTable(volunteers) {
             <td><span class="badge ${statusClass}">${escapeHtml(status)}</span></td>
             <td>
                 <a class="btn btn-sm btn-admin" href="/admin/volunteers/${encodeURIComponent(volunteer.id)}" title="View volunteer">
-                    <i class="fas fa-eye"></i>
+                    <i class="ti ti-eye"></i>
                 </a>
             </td>
         </tr>`;
@@ -2299,11 +2356,11 @@ function renderCampaignsTable(list) {
             const status = String(c.status || "draft");
             const approveBtn =
                 status === CAMPAIGN_STATUS.PENDING
-                    ? `<button type="button" class="btn btn-sm btn-success me-1" onclick="approveCampaign('${c.id}')"><i class="fas fa-check"></i> Approve</button>`
+                    ? `<button type="button" class="btn btn-sm btn-success me-1" onclick="approveCampaign('${c.id}')"><i class="ti ti-check"></i> Approve</button>`
                     : "";
             const rejectBtn =
                 status === CAMPAIGN_STATUS.PENDING
-                    ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectCampaign('${c.id}')"><i class="fas fa-times"></i> Reject</button>`
+                    ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectCampaign('${c.id}')"><i class="ti ti-x"></i> Reject</button>`
                     : "";
             return `<tr>
         <td>

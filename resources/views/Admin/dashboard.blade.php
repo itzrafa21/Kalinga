@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard - Kalinga</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   @vite([
@@ -586,7 +585,7 @@
         <div class="col-md-6 mb-4 d-flex">
           <div class="card admin-card dashboard-chart-card flex-fill">
             <div class="card-header">
-              <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Activity Analytics</h5>
+              <h5 class="mb-0"><i class="ti ti-chart-bar"></i> Activity Analytics</h5>
             </div>
             <div class="card-body">
               <div class="dashboard-chart-wrap">
@@ -598,7 +597,7 @@
         <div class="col-md-6 mb-4 d-flex">
           <div class="card admin-card dashboard-chart-card flex-fill">
             <div class="card-header">
-              <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Mission Types</h5>
+              <h5 class="mb-0"><i class="ti ti-chart-pie"></i> Mission Types</h5>
             </div>
             <div class="card-body">
               <div class="dashboard-chart-wrap">
@@ -613,13 +612,13 @@
         <div class="col-12">
           <div class="card admin-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-              <h5 class="mb-0"><i class="fas fa-download"></i> Export Reports</h5>
+              <h5 class="mb-0"><i class="ti ti-download"></i> Export Reports</h5>
               <div class="d-flex gap-2">
                 <button type="button" class="btn btn-admin" data-export-format="csv">
-                  <i class="fas fa-file-csv"></i> Export CSV
+                  <i class="ti ti-file-type-csv"></i> Export CSV
                 </button>
                 <button type="button" class="btn btn-admin" data-export-format="pdf">
-                  <i class="fas fa-file-pdf"></i> Export PDF
+                  <i class="ti ti-file-type-pdf"></i> Export PDF
                 </button>
               </div>
             </div>
@@ -660,7 +659,7 @@
     <div id="organizations-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-building"></i> Organization Management</h5>
+          <h5 class="mb-0"><i class="ti ti-building"></i> Organization Management</h5>
           <div class="d-flex gap-2">
             <input type="text" class="form-control search-box" id="orgSearch" placeholder="Search organizations...">
             <select class="form-select filter-dropdown" id="orgFilter">
@@ -697,7 +696,7 @@
     <div id="missions-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-bullseye"></i> Mission Management</h5>
+          <h5 class="mb-0"><i class="ti ti-target"></i> Mission Management</h5>
           <div class="d-flex gap-2">
             <input type="text" class="form-control search-box" id="missionSearch" placeholder="Search missions...">
             <select class="form-select filter-dropdown" id="missionFilter">
@@ -753,7 +752,7 @@
     <div id="volunteers-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-hands-helping"></i> Volunteer Management</h5>
+          <h5 class="mb-0"><i class="ti ti-users"></i> Volunteer Management</h5>
           <div class="d-flex gap-2">
             <input type="text" class="form-control search-box" id="volunteerSearch" placeholder="Search volunteers...">
             <select class="form-select filter-dropdown" id="volunteerFilter">
@@ -790,7 +789,7 @@
     <div id="campaigns-tab" class="tab-content" style="display: none;">
       <div class="card admin-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-hand-holding-dollar"></i> Donation Campaigns</h5>
+          <h5 class="mb-0"><i class="ti ti-gift"></i> Donation Campaigns</h5>
           <div class="d-flex gap-2">
             <input type="text" class="form-control search-box" id="campaignSearch" placeholder="Search campaigns...">
             <select class="form-select filter-dropdown" id="campaignFilter">
@@ -840,7 +839,7 @@
 >
   <div class="success-modal" role="document">
     <div class="success-modal-icon" aria-hidden="true">
-      <i class="fas fa-check-circle"></i>
+      <i class="ti ti-circle-check"></i>
   </div>
     <h2 id="missionApproveSuccessTitle">Mission approved</h2>
     <p class="success-modal-message">
@@ -863,7 +862,7 @@
 >
   <div class="success-modal" role="document">
     <div class="success-modal-icon" aria-hidden="true">
-      <i class="fas fa-check-circle"></i>
+      <i class="ti ti-circle-check"></i>
     </div>
     <h2 id="orgVerifySuccessTitle">Organization verified</h2>
     <p class="success-modal-message" id="orgVerifySuccessMessage">
@@ -931,9 +930,5 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
