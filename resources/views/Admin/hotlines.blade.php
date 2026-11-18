@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hotlines - Kalinga Admin</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   @vite(['resources/css/app.css', 'resources/js/admin-hotlines.js'])
   <style>
     :root {
@@ -216,6 +217,51 @@
       margin-top: 14px; padding-top: 10px; border-top: 1px solid #f3f4f6;
     }
     .info-hint i { color: var(--color-accent); margin-right: 4px; }
+
+    .hotline-map-block {
+      padding: 0 14px 14px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .hotline-map-title {
+      font-size: 11px; font-weight: 600; color: var(--color-muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin: 12px 0 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hotline-map-title i { font-size: 14px; color: var(--color-accent); }
+    .map-search-wrap { position: relative; margin-bottom: 8px; }
+    .hotline-map-search {
+      width: 100%; height: 34px; padding: 0 12px 0 34px;
+      font-size: 12px; border: 1px solid var(--color-border); border-radius: 8px;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
+    }
+    .hotline-map-suggestions {
+      position: absolute; z-index: 40; left: 0; right: 0;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(15, 36, 25, 0.12);
+      display: none; margin-top: 4px; max-height: 220px; overflow-y: auto;
+      list-style: none; padding: 4px 0;
+    }
+    .map-location-suggestion { padding: 8px 12px; cursor: pointer; }
+    .map-location-suggestion-title { font-weight: 600; color: #1e293b; font-size: 12px; }
+    .map-location-suggestion-meta { margin-top: 2px; font-size: 11px; color: #64748b; }
+    .map-location-suggestion:hover { background: #f0fdf4; }
+    .map-location-suggestion--empty { cursor: default; color: #64748b; }
+    .map-location-suggestion--empty:hover { background: transparent; }
+    .map-wrap { position: relative; width: 100%; }
+    .hotline-map {
+      height: 220px; width: 100%;
+      border-radius: 10px; border: 1px solid #dde3e8; overflow: hidden;
+    }
+    .map-pin-hint {
+      position: absolute; top: 10px; left: 10px; z-index: 2;
+      pointer-events: none; display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 500;
+      color: #1e3a2f; background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(30, 58, 47, 0.12);
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+    }
+    .mapboxgl-canvas { outline: none; }
   </style>
 </head>
 <body>
@@ -281,12 +327,13 @@
           <div id="hotline-categories"></div>
           <p class="info-hint">
             <i class="ti ti-info-circle" aria-hidden="true"></i>
-            Each card is one agency or organization. Use <strong>Add contact</strong> inside a card for a phone number and email (operations center, trunk line, etc.). Hidden organizations or contacts are not shown to volunteers.
+            Each card is one agency or organization. Pin its location on the map, then use <strong>Add contact</strong> for a phone number and email. Hidden organizations or contacts are not shown to volunteers.
           </p>
         </div>
       </section>
     </div>
   </div>
 </div>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 </body>
 </html>

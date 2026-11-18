@@ -8,8 +8,9 @@ const MAPBOX_TOKEN =
     import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim() ||
     "pk.eyJ1Ijoia2FuZWVlY3Jhc2giLCJhIjoiY21nd2c4amVqMGMwMDJrc2R0ZXhxcTA2ZiJ9._ihHfQRKW2oW9wGup1yTNw";
 const SEARCH_BOX_BASE = "https://api.mapbox.com/search/searchbox/v1";
-const DEFAULT_CENTER = [123.9024, 10.2943];
-const DEFAULT_ZOOM = 12;
+/** Metro Manila — [longitude, latitude]. Do not use Number(null) coords (becomes 0,0 in the ocean). */
+const DEFAULT_CENTER = [120.9842, 14.5995];
+const DEFAULT_ZOOM = 11;
 
 let searchSessionToken = null;
 
@@ -438,10 +439,16 @@ export function initLocationMap(options = {}) {
 
     async function restorePin() {
         const existingLocation = document.getElementById(ids.location)?.value?.trim();
-        const existingLat = parseFloat(document.getElementById(ids.latitude)?.value);
-        const existingLng = parseFloat(document.getElementById(ids.longitude)?.value);
+        const latRaw = document.getElementById(ids.latitude)?.value;
+        const lngRaw = document.getElementById(ids.longitude)?.value;
+        if (latRaw == null || latRaw === "" || lngRaw == null || lngRaw === "") return;
+
+        const existingLat = parseFloat(latRaw);
+        const existingLng = parseFloat(lngRaw);
 
         if (!Number.isFinite(existingLat) || !Number.isFinite(existingLng)) return;
+        // Ignore corrupted unset pins previously stored as 0,0 (Gulf of Guinea)
+        if (existingLat === 0 && existingLng === 0) return;
 
         const label = existingLocation || null;
         await applyMapPoint(existingLng, existingLat, label);

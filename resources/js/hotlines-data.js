@@ -4,10 +4,30 @@ import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
 /** @typedef {{ id: string, label: string, number: string, email: string, active?: boolean, sortOrder?: number }} HotlineNumber */
-/** @typedef {{ id: string, name: string, location?: string, active?: boolean, sortOrder?: number, numbers: HotlineNumber[] }} HotlineCategory */
+/** @typedef {{ id: string, name: string, location?: string, latitude?: number|null, longitude?: number|null, active?: boolean, sortOrder?: number, numbers: HotlineNumber[] }} HotlineCategory */
 
 export function hotlineContactHasValue(entry) {
     return Boolean(String(entry?.number || "").trim() || String(entry?.email || "").trim());
+}
+
+/** Avoid Number(null) === 0, which pins maps in the ocean at 0°N 0°E. */
+export function parseHotlineCoord(value) {
+    if (value == null || value === "") return null;
+    const n = typeof value === "number" ? value : Number(String(value).trim());
+    return Number.isFinite(n) ? n : null;
+}
+
+export function parseHotlineCoords(lat, lng) {
+    const latitude = parseHotlineCoord(lat);
+    const longitude = parseHotlineCoord(lng);
+    if (latitude == null || longitude == null) {
+        return { latitude: null, longitude: null };
+    }
+    // Clear corrupted unset pins previously saved as 0,0
+    if (latitude === 0 && longitude === 0) {
+        return { latitude: null, longitude: null };
+    }
+    return { latitude, longitude };
 }
 
 /**
@@ -18,23 +38,28 @@ export function hotlineContactHasValue(entry) {
 export function migrateFlatItemsToCategories(items) {
     if (!Array.isArray(items) || items.length === 0) return [];
 
-    return items.map((item, i) => ({
-        id: String(item.id || `org-${i}`),
-        name: String(item.name || "Hotline"),
-        location: String(item.location || item.description || ""),
-        active: item.active !== false,
-        sortOrder: item.sortOrder ?? i,
-        numbers: [
-            {
-                id: `line-${i}`,
-                label: String(item.category || "Main line"),
-                number: String(item.number || ""),
-                email: String(item.email || "").trim(),
-                active: item.active !== false,
-                sortOrder: 0,
-            },
-        ].filter(hotlineContactHasValue),
-    }));
+    return items.map((item, i) => {
+        const coords = parseHotlineCoords(item.latitude, item.longitude);
+        return {
+            id: String(item.id || `org-${i}`),
+            name: String(item.name || "Hotline"),
+            location: String(item.location || item.description || ""),
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            active: item.active !== false,
+            sortOrder: item.sortOrder ?? i,
+            numbers: [
+                {
+                    id: `line-${i}`,
+                    label: String(item.category || "Main line"),
+                    number: String(item.number || ""),
+                    email: String(item.email || "").trim(),
+                    active: item.active !== false,
+                    sortOrder: 0,
+                },
+            ].filter(hotlineContactHasValue),
+        };
+    });
 }
 
 /**

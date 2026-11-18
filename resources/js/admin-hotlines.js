@@ -5,12 +5,17 @@ import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
 import {
     hotlineContactHasValue,
     migrateFlatItemsToCategories,
+    parseHotlineCoords,
 } from "./hotlines-data.js";
+import { initLocationMap } from "./mission-map.js";
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
 /** @type {import('./hotlines-data.js').HotlineCategory[]} */
 let hotlineCategories = [];
+
+/** @type {Map<string, { map: import("mapbox-gl").Map, resize: () => void, restorePin: () => Promise<void> }>} */
+const hotlineMapApis = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
     checkAdminAuth();
@@ -150,6 +155,100 @@ function createNumberRowHtml(categoryId, num) {
       </div>`;
 }
 
+function mapFieldIds(categoryId) {
+    return {
+        map: `hotline-map-${categoryId}`,
+        search: `hotline-search-${categoryId}`,
+        suggestions: `hotline-suggestions-${categoryId}`,
+        location: `hotline-location-${categoryId}`,
+        latitude: `hotline-lat-${categoryId}`,
+        longitude: `hotline-lng-${categoryId}`,
+    };
+}
+
+function destroyHotlineMaps() {
+    hotlineMapApis.forEach((api) => {
+        try {
+            api.map?.remove();
+        } catch {
+            /* ignore */
+        }
+    });
+    hotlineMapApis.clear();
+}
+
+function syncCategoryLocationFromInputs(categoryId) {
+    const cat = getCategoryById(categoryId);
+    if (!cat) return;
+
+    const ids = mapFieldIds(categoryId);
+    const location = document.getElementById(ids.location)?.value.trim() || "";
+    const coords = parseHotlineCoords(
+        document.getElementById(ids.latitude)?.value,
+        document.getElementById(ids.longitude)?.value
+    );
+
+    if (location) cat.location = location;
+    cat.latitude = coords.latitude;
+    cat.longitude = coords.longitude;
+
+    const card = document.getElementById("cat-" + categoryId);
+    const locEl = card?.querySelector(".category-location");
+    if (locEl) {
+        locEl.textContent = cat.location || "";
+        locEl.hidden = !cat.location;
+    } else if (cat.location && card && !card.classList.contains("is-editing-cat")) {
+        const headText = card.querySelector(".category-head-text");
+        if (headText && !headText.querySelector(".category-location")) {
+            const p = document.createElement("p");
+            p.className = "category-location";
+            p.textContent = cat.location;
+            headText.appendChild(p);
+        }
+    }
+
+    persistHotlines();
+}
+
+function bindHotlineMapPersistence(categoryId) {
+    const ids = mapFieldIds(categoryId);
+    const locationEl = document.getElementById(ids.location);
+    if (!locationEl || locationEl.dataset.mapBound === "1") return;
+    locationEl.dataset.mapBound = "1";
+    locationEl.addEventListener("change", () => {
+        syncCategoryLocationFromInputs(categoryId);
+    });
+}
+
+function initHotlineMaps() {
+    if (typeof mapboxgl === "undefined") {
+        console.error("[ERROR] mapboxgl is not loaded for admin hotlines");
+        return;
+    }
+
+    hotlineCategories.forEach((cat) => {
+        const ids = mapFieldIds(cat.id);
+        if (!document.getElementById(ids.map)) return;
+
+        const api = initLocationMap({
+            map: ids.map,
+            search: ids.search,
+            suggestions: ids.suggestions,
+            location: ids.location,
+            latitude: ids.latitude,
+            longitude: ids.longitude,
+            restoreGlobalName: `restoreHotlineMapPin_${cat.id}`,
+            autoInit: false,
+        });
+        if (!api) return;
+
+        hotlineMapApis.set(cat.id, api);
+        bindHotlineMapPersistence(cat.id);
+
+        requestAnimationFrame(() => api.resize());
+    });
+}
+
 function createCategoryCardElement(cat) {
     const isActive = cat.active !== false;
     const numbers = cat.numbers || [];
@@ -157,6 +256,11 @@ function createCategoryCardElement(cat) {
     card.className = "hotline-category";
     card.id = "cat-" + cat.id;
     card.dataset.categoryId = cat.id;
+
+    const ids = mapFieldIds(cat.id);
+    const coords = parseHotlineCoords(cat.latitude, cat.longitude);
+    const latValue = coords.latitude != null ? String(coords.latitude) : "";
+    const lngValue = coords.longitude != null ? String(coords.longitude) : "";
 
     const numbersHtml =
         numbers.length > 0
@@ -167,7 +271,7 @@ function createCategoryCardElement(cat) {
     <header class="category-head">
       <div class="category-head-text">
         <h3 class="category-name">${escapeHtml(cat.name)}</h3>
-        ${cat.location ? `<p class="category-location">${escapeHtml(cat.location)}</p>` : ""}
+        ${cat.location ? `<p class="category-location">${escapeHtml(cat.location)}</p>` : `<p class="category-location" hidden></p>`}
       </div>
       <div class="cfg-right">
         <span class="badge-pill ${isActive ? "bp-green" : "bp-gray"} cat-status-pill">${isActive ? "Active" : "Hidden"}</span>
@@ -176,6 +280,26 @@ function createCategoryCardElement(cat) {
         <button type="button" class="btn btn-r btn-sm" data-remove-category aria-label="Remove organization"><i class="ti ti-trash" style="font-size:12px"></i></button>
       </div>
     </header>
+    <div class="hotline-map-block">
+      <div class="hotline-map-title"><i class="ti ti-map-pin" aria-hidden="true"></i> Pin location</div>
+      <div class="map-search-wrap">
+        <input
+          type="text"
+          id="${escapeHtml(ids.search)}"
+          class="hotline-map-search"
+          placeholder="Search place, barangay, landmark…"
+          autocomplete="off"
+          aria-label="Search hotline location"
+        />
+        <ul id="${escapeHtml(ids.suggestions)}" class="hotline-map-suggestions" role="listbox" aria-label="Location suggestions"></ul>
+      </div>
+      <input type="hidden" id="${escapeHtml(ids.location)}" value="${escapeHtml(cat.location || "")}" />
+      <input type="hidden" id="${escapeHtml(ids.latitude)}" value="${escapeHtml(latValue)}" />
+      <input type="hidden" id="${escapeHtml(ids.longitude)}" value="${escapeHtml(lngValue)}" />
+      <div class="map-wrap">
+        <div id="${escapeHtml(ids.map)}" class="hotline-map" aria-label="Hotline location map for ${escapeHtml(cat.name)}"></div>
+      </div>
+    </div>
     <div class="numbers-block">
       <div class="numbers-head">
         <span class="numbers-title">Contacts</span>
@@ -199,6 +323,7 @@ function createCategoryCardElement(cat) {
 }
 
 function renderHotlineCategories(categories) {
+    destroyHotlineMaps();
     hotlineCategories = sortCategories(categories);
     const root = document.getElementById("hotline-categories");
     const empty = document.getElementById("hotline-empty");
@@ -216,6 +341,7 @@ function renderHotlineCategories(categories) {
     }
 
     bindAllCategoryCards();
+    initHotlineMaps();
 }
 
 function getCategoryById(id) {
@@ -321,6 +447,8 @@ function addCategoryFromForm() {
         id,
         name,
         location,
+        latitude: null,
+        longitude: null,
         active: true,
         sortOrder: hotlineCategories.length,
         numbers: [],
@@ -523,9 +651,12 @@ function toggleNumberEdit(categoryId, numberId) {
 
 function normalizeCategory(cat, i) {
     const { description, ...rest } = cat;
+    const coords = parseHotlineCoords(cat.latitude, cat.longitude);
     return {
         ...rest,
         location: String(cat.location || description || "").trim(),
+        latitude: coords.latitude,
+        longitude: coords.longitude,
         sortOrder: i,
         numbers: (cat.numbers || [])
             .map((num, j) => ({
