@@ -1,5 +1,12 @@
 import { auth, db } from "./firebase";
-import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
+import {
+    collection,
+    getCountFromServer,
+    getDocs,
+    doc,
+    getDoc,
+    deleteDoc,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import {
     assertOrgVerified,
@@ -23,6 +30,10 @@ let CURRENT_USER = null;
 let historySearchListenerAttached = false;
 let historyPageSize = 10;
 let historyCurrentPage = 1;
+/** Full history list kept in memory; only the active filter is painted into the DOM. */
+let historyItems = [];
+/** Source of truth for period filter — defaults to This month, updated only by user changes. */
+let activeHistoryPeriod = "this_month";
 
 async function populateSidebarUser(user) {
     try {
@@ -98,76 +109,73 @@ function updateHistoryMissionFooter(visibleCount) {
         visibleCount === 1 ? "Showing 1 mission" : `Showing ${visibleCount} missions`;
 }
 
-function filterHistoryMissionsTable() {
-    const tbody = document.getElementById("historyMissionsBody");
-    if (!tbody) return;
-
-    const q = (document.getElementById("historySearch")?.value || "").trim().toLowerCase();
-    const period = document.getElementById("historyPeriodFilter")?.value || "all";
-    const rows = tbody.querySelectorAll("tr.history-mission-row");
-
-    rows.forEach((tr) => {
-        const rowPeriod = tr.dataset.period || "older";
-        const periodMatch = period === "all" || rowPeriod === period;
-
-        const date = (tr.cells[0]?.textContent || "").toLowerCase();
-        const name = (tr.cells[1]?.textContent || "").toLowerCase();
-        const loc = (tr.cells[2]?.textContent || "").toLowerCase();
-        const haystack = `${name} ${date} ${loc}`;
-        const searchMatch = !q || haystack.includes(q);
-
-        const match = periodMatch && searchMatch;
-        tr.style.display = match ? "" : "none";
-        tr.classList.remove("history-row-paged-out");
-    });
-
-    historyCurrentPage = 1;
-    applyHistoryPagination();
+function getActiveHistoryPeriod() {
+    return activeHistoryPeriod || "this_month";
 }
 
-    function getVisibleHistoryRows() {
-        const tbody = document.getElementById("historyMissionsBody");
-        if (!tbody) return [];
-        return Array.from(tbody.querySelectorAll("tr.history-mission-row")).filter(
-            (tr) => tr.style.display !== "none"
-        );
+function syncHistoryPeriodSelect() {
+    const periodSelect = document.getElementById("historyPeriodFilter");
+    if (!periodSelect) return;
+    if (periodSelect.value !== activeHistoryPeriod) {
+        periodSelect.value = activeHistoryPeriod;
     }
-    
+}
+
+function getActiveHistorySearch() {
+    return (document.getElementById("historySearch")?.value || "")
+        .trim()
+        .toLowerCase();
+}
+
+function historyItemMatchesFilters(item, period, q) {
+    const completedOn =
+        item.completedOn instanceof Date
+            ? item.completedOn
+            : toJsDate(item.completedOn) ||
+              (item.completedOnMs ? new Date(item.completedOnMs) : null);
+    const periodBucket =
+        getPeriodBucket(completedOn) || item.periodBucket || "older";
+    const periodMatch = period === "all" || periodBucket === period;
+    if (!periodMatch) return false;
+    if (!q) return true;
+    const haystack = `${item.searchText || ""}`.toLowerCase();
+    return haystack.includes(q);
+}
+
+function getFilteredHistoryItems() {
+    const period = getActiveHistoryPeriod();
+    const q = getActiveHistorySearch();
+    return historyItems.filter((item) =>
+        historyItemMatchesFilters(item, period, q)
+    );
+}
+
+function filterHistoryMissionsTable() {
+    historyCurrentPage = 1;
+    paintFilteredHistoryTable();
+}
+
     function applyHistoryPagination() {
-        const allVisible = getVisibleHistoryRows();
-        const total = allVisible.length;
+        paintFilteredHistoryTable({ keepPage: true });
+    }
+
+    function updateHistoryPaginationUi(total) {
         const totalPages = Math.max(1, Math.ceil(total / historyPageSize));
-    
-        if (historyCurrentPage > totalPages) {
-            historyCurrentPage = totalPages;
-        }
-        if (historyCurrentPage < 1) {
-            historyCurrentPage = 1;
-        }
-    
+        if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+        if (historyCurrentPage < 1) historyCurrentPage = 1;
+
         const start = (historyCurrentPage - 1) * historyPageSize;
         const end = start + historyPageSize;
-    
-        const tbody = document.getElementById("historyMissionsBody");
-        if (tbody) {
-            tbody.querySelectorAll("tr.history-mission-row").forEach((tr) => {
-                tr.classList.remove("history-row-paged-out");
-            });
-            allVisible.forEach((tr, index) => {
-                if (index < start || index >= end) {
-                    tr.classList.add("history-row-paged-out");
-                }
-            });
-        }
-    
         const prevBtn = document.getElementById("historyPrevPage");
         const nextBtn = document.getElementById("historyNextPage");
         const pageInfo = document.getElementById("historyPageInfo");
-    
+
         if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1 || total === 0;
         if (nextBtn) nextBtn.disabled = historyCurrentPage >= totalPages || total === 0;
-        if (pageInfo) pageInfo.textContent = `Page ${historyCurrentPage} of ${totalPages}`;
-    
+        if (pageInfo) {
+            pageInfo.textContent = `Page ${historyCurrentPage} of ${totalPages}`;
+        }
+
         const countEl = document.getElementById("historyCountText");
         if (countEl) {
             if (total === 0) {
@@ -181,6 +189,8 @@ function filterHistoryMissionsTable() {
                         : `Showing ${from}–${to} of ${total} missions`;
             }
         }
+
+        return { start, end, totalPages };
     }
     
     function initHistoryPaginationControls() {
@@ -220,18 +230,21 @@ function filterHistoryMissionsTable() {
     function ensureHistorySearchListener() {
         const input = document.getElementById("historySearch");
         const periodSelect = document.getElementById("historyPeriodFilter");
-    
+
+        syncHistoryPeriodSelect();
+
         if (input && !historySearchListenerAttached) {
             historySearchListenerAttached = true;
             input.addEventListener("input", filterHistoryMissionsTable);
         }
-    
+
         if (periodSelect && !periodSelect.dataset.bound) {
             periodSelect.dataset.bound = "1";
-            periodSelect.addEventListener("change", filterHistoryMissionsTable);
+            periodSelect.addEventListener("change", () => {
+                activeHistoryPeriod = periodSelect.value || "this_month";
+                filterHistoryMissionsTable();
+            });
         }
-    
-        filterHistoryMissionsTable();
     }
 function toJsDate(value) {
     if (!value) return null;
@@ -367,47 +380,43 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;");
 }
 
-async function processHistoryMission(docSnap, userId) {
-    const mission = docSnap.data();
-    const missionId = docSnap.id;
-    const status = (mission.status || "").toLowerCase();
-    const mainMissionSnap = await getDoc(doc(db, "missions", missionId));
-    const showInHistory = status === "rejected" || mainMissionSnap.exists();
-
-    if (!showInHistory) {
-        try {
-            await deleteDoc(doc(db, "organizations", userId, "history", missionId));
-        } catch (deleteError) {
-            console.error(
-                `[ERROR] Error removing mission ${missionId} from history:`,
-                deleteError
-            );
-        }
-        return { removed: true };
+function readStoredVolunteerCount(mission = {}) {
+    const keys = [
+        "approvedVolunteers",
+        "volunteersJoined",
+        "actualVolunteers",
+        "volunteerCount",
+        "currentVolunteers",
+        "acceptedCount",
+        "approvedCount",
+    ];
+    for (const key of keys) {
+        const n = Number(mission[key]);
+        if (Number.isFinite(n) && n >= 0) return n;
     }
+    return null;
+}
 
-    const actualVolunteers =
-        status === "rejected"
-            ? 0
-            : await getActualVolunteerCount(
-                  missionId,
-                  mission.orgId || mission.organizationId || userId
-              );
-    const totalNeeded = parseInt(mission.volunteers, 10) || 0;
+function buildHistoryRow(item) {
+    const {
+        missionId,
+        mission,
+        status,
+        actualVolunteers,
+        totalNeeded,
+        periodBucket,
+    } = item;
+    const statusLabel = status === "rejected" ? "Rejected" : "Completed";
+    const statusClass = getHistoryStatusClass(status);
+    const missionName = mission.missionName || mission.name || "Untitled";
+    const detailsUrl = `/missions/details?id=${encodeURIComponent(missionId)}`;
     const volunteerDisplay =
         status === "rejected"
             ? "—"
             : `${actualVolunteers}/${totalNeeded} volunteers`;
 
-    const completedOn = getMissionCompletionDate(mission);
-    const periodBucket = getPeriodBucket(completedOn);
-    const statusLabel = status === "rejected" ? "Rejected" : "Completed";
-    const statusClass = getHistoryStatusClass(status);
-    const missionName = mission.missionName || mission.name || "Untitled";
-    const detailsUrl = `/missions/details?id=${encodeURIComponent(missionId)}`;
-
-    const row = `
-        <tr class="history-mission-row" data-period="${periodBucket}">
+    return `
+        <tr class="history-mission-row" data-period="${periodBucket}" data-mission-id="${escapeHtml(missionId)}">
             <td class="col-date">${renderHistoryDateCellHtml(mission)}</td>
             <td class="col-mission">
                 <a href="${detailsUrl}" class="mission-name-link">${escapeHtml(missionName)}</a>
@@ -423,23 +432,136 @@ async function processHistoryMission(docSnap, userId) {
                 <a href="${detailsUrl}" class="mission-action-btn">View details</a>
             </td>
         </tr>`;
-
-    return {
-        removed: false,
-        row,
-        actualVolunteers,
-        status,
-        completedOn,
-    };
 }
 
-function renderHistoryFromPayload(payload) {
+function processHistoryMissionLocal(docSnap, userId) {
+    const mission = docSnap.data() || {};
+    const missionId = docSnap.id;
+    const status = (mission.status || "").toLowerCase();
+    const totalNeeded = parseInt(mission.volunteers, 10) || 0;
+    const storedCount = readStoredVolunteerCount(mission);
+    const actualVolunteers = status === "rejected" ? 0 : storedCount ?? 0;
+    const completedOn = getMissionCompletionDate(mission);
+    const periodBucket = getPeriodBucket(completedOn);
+    const missionName = mission.missionName || mission.name || "Untitled";
+    const { datePart, timePart } = getHistoryDateParts(mission);
+    const searchText = [
+        missionName,
+        datePart,
+        timePart,
+        mission.location || "",
+    ].join(" ");
+
+    const item = {
+        missionId,
+        orgId: mission.orgId || mission.organizationId || userId,
+        mission,
+        status,
+        actualVolunteers,
+        needsCountFetch: status !== "rejected" && storedCount == null,
+        completedOn,
+        completedOnMs: completedOn?.getTime?.() || 0,
+        totalNeeded,
+        periodBucket,
+        searchText,
+    };
+    item.row = buildHistoryRow(item);
+    return item;
+}
+
+/** Non-blocking cleanup: drop history rows whose global mission was hard-deleted. */
+async function cleanupOrphanHistoryEntries(userId, missionIds = []) {
+    if (!userId || !missionIds.length) return 0;
+    const checks = await Promise.all(
+        missionIds.map(async (missionId) => {
+            try {
+                const snap = await getDoc(doc(db, "missions", missionId));
+                return { missionId, exists: snap.exists() };
+            } catch (err) {
+                console.warn("[WARN] history orphan check:", missionId, err);
+                return { missionId, exists: true };
+            }
+        })
+    );
+
+    let removed = 0;
+    await Promise.all(
+        checks
+            .filter((item) => !item.exists)
+            .map(async ({ missionId }) => {
+                try {
+                    await deleteDoc(
+                        doc(db, "organizations", userId, "history", missionId)
+                    );
+                    removed += 1;
+                } catch (deleteError) {
+                    console.error(
+                        `[ERROR] Error removing mission ${missionId} from history:`,
+                        deleteError
+                    );
+                }
+            })
+    );
+    return removed;
+}
+
+async function refineHistoryVolunteerCounts(items = []) {
+    const pending = items.filter((item) => item.needsCountFetch);
+    if (!pending.length) {
+        return {
+            items,
+            totalVolunteers: items.reduce(
+                (sum, item) =>
+                    item.status === "rejected" ? sum : sum + (item.actualVolunteers || 0),
+                0
+            ),
+        };
+    }
+
+    const counts = await Promise.all(
+        pending.map(async (item) => {
+            const count = await getActualVolunteerCount(item.missionId, item.orgId);
+            return { missionId: item.missionId, count };
+        })
+    );
+
+    const countById = new Map(counts.map((c) => [c.missionId, c.count]));
+    let totalVolunteers = 0;
+
+    const refined = items.map((item) => {
+        if (item.status === "rejected") return item;
+        const nextCount = countById.has(item.missionId)
+            ? countById.get(item.missionId)
+            : item.actualVolunteers;
+        totalVolunteers += nextCount;
+        if (nextCount === item.actualVolunteers && !item.needsCountFetch) {
+            return item;
+        }
+
+        const progress = document.querySelector(
+            `tr.history-mission-row[data-mission-id="${CSS.escape(item.missionId)}"] .volunteer-progress`
+        );
+        if (progress) {
+            progress.textContent = `${nextCount}/${item.totalNeeded} volunteers`;
+        }
+
+        const next = {
+            ...item,
+            actualVolunteers: nextCount,
+            needsCountFetch: false,
+        };
+        next.row = buildHistoryRow(next);
+        return next;
+    });
+
+    return { items: refined, totalVolunteers };
+}
+
+function paintFilteredHistoryTable({ keepPage = false } = {}) {
     const historyTableBody = document.getElementById("historyMissionsBody");
     if (!historyTableBody) return;
 
-    const { rowsHtml, stats, empty } = payload;
-
-    if (empty || !rowsHtml) {
+    if (!historyItems.length) {
         historyTableBody.innerHTML = `
             <tr>
                 <td colspan="6">
@@ -451,28 +573,120 @@ function renderHistoryFromPayload(payload) {
                 </td>
             </tr>
         `;
-        updateStats(0, 0, 0);
         updateHistoryMissionFooter(0);
+        updateHistoryPaginationUi(0);
         return;
     }
 
-    historyTableBody.innerHTML = rowsHtml;
-    updateStats(stats.totalCompleted, stats.thisMonth, stats.totalVolunteers);
+    const filtered = getFilteredHistoryItems();
+    if (!keepPage) historyCurrentPage = 1;
+    const { start, end } = updateHistoryPaginationUi(filtered.length);
+    const pageItems = filtered.slice(start, end);
+
+    if (!filtered.length) {
+        historyTableBody.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="missions-empty">
+                        <i class="bi bi-clipboard"></i>
+                        <h4>No missions in this period</h4>
+                        <p>Try another period filter or search term</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Only matching rows are inserted — no all-missions flash.
+    historyTableBody.innerHTML = pageItems.map((item) => item.row).join("");
+}
+
+function setHistoryItems(items = [], stats = null) {
+    historyItems = Array.isArray(items) ? items : [];
+    if (stats) {
+        updateStats(stats.totalCompleted, stats.thisMonth, stats.totalVolunteers);
+    }
     ensureHistorySearchListener();
     initHistoryPaginationControls();
-    historyCurrentPage = 1;
-    applyHistoryPagination();
+    paintFilteredHistoryTable();
+}
+
+function renderHistoryFromPayload(payload) {
+    if (!payload || payload.empty || !Array.isArray(payload.items) || !payload.items.length) {
+        historyItems = [];
+        const historyTableBody = document.getElementById("historyMissionsBody");
+        if (historyTableBody) {
+            historyTableBody.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="missions-empty">
+                        <i class="bi bi-clipboard"></i>
+                        <h4>No completed missions found</h4>
+                        <p>Missions will appear here once they are completed</p>
+                    </div>
+                </td>
+            </tr>`;
+        }
+        updateStats(0, 0, 0);
+        updateHistoryMissionFooter(0);
+        updateHistoryPaginationUi(0);
+        return;
+    }
+
+    // Rehydrate dates after cache deserialize.
+    const items = payload.items.map((item) => {
+        const completedOn =
+            item.completedOn instanceof Date
+                ? item.completedOn
+                : toJsDate(item.completedOn) ||
+                  (item.completedOnMs ? new Date(item.completedOnMs) : null);
+        const next = {
+            ...item,
+            completedOn,
+            completedOnMs: completedOn?.getTime?.() || item.completedOnMs || 0,
+            periodBucket:
+                item.periodBucket || getPeriodBucket(completedOn) || "older",
+        };
+        next.row = buildHistoryRow(next);
+        return next;
+    });
+
+    setHistoryItems(items, payload.stats);
 }
 
 // Function to fetch and render completed missions
+function buildHistoryCachePayload(items, stats) {
+    return {
+        empty: !items.length,
+        // Persist data (not prebuilt all-rows HTML) so first paint can filter correctly.
+        items: items.map((item) => ({
+            missionId: item.missionId,
+            orgId: item.orgId,
+            mission: item.mission,
+            status: item.status,
+            actualVolunteers: item.actualVolunteers,
+            needsCountFetch: false,
+            completedOnMs: item.completedOnMs || item.completedOn?.getTime?.() || 0,
+            totalNeeded: item.totalNeeded,
+            periodBucket: item.periodBucket,
+            searchText: item.searchText,
+        })),
+        stats,
+    };
+}
+
 async function loadHistoryMissions(user, { silent = false, refresh = true } = {}) {
     const historyTableBody = document.getElementById("historyMissionsBody");
     if (!historyTableBody) return;
 
     const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
-    const hasCache = cached !== null;
+    // Ignore legacy HTML-only cache (that caused the all-missions flash).
+    const hasUsableCache =
+        cached?.payload &&
+        (cached.payload.empty === true || Array.isArray(cached.payload.items));
 
-    if (hasCache) {
+    if (hasUsableCache) {
         renderHistoryFromPayload(cached.payload);
     } else if (!silent) {
         console.log("[INFO] Loading history missions...");
@@ -488,19 +702,18 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
         `;
     }
 
-    if (hasCache && !refresh) {
+    if (hasUsableCache && !refresh) {
         return;
     }
-    
 
     try {
         const historyRef = collection(db, "organizations", user.uid, "history");
-        const historySnapshot = await getDocs(query(historyRef));
+        const historySnapshot = await getDocs(historyRef);
 
         if (historySnapshot.empty) {
             const emptyPayload = {
                 empty: true,
-                rowsHtml: "",
+                items: [],
                 stats: { totalCompleted: 0, thisMonth: 0, totalVolunteers: 0 },
             };
             writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, emptyPayload);
@@ -509,82 +722,79 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
             return;
         }
 
-        console.log(`[INFO] Found ${historySnapshot.docs.length} missions in history collection`);
-
-        const results = await Promise.all(
-            historySnapshot.docs.map((docSnap) =>
-                processHistoryMission(docSnap, user.uid).catch((checkError) => {
-                    console.error(
-                        `[ERROR] Error checking mission ${docSnap.id}:`,
-                        checkError
-                    );
-                    return null;
-                })
-            )
+        console.log(
+            `[INFO] Found ${historySnapshot.docs.length} missions in history collection`
         );
 
-        let validMissionsCount = 0;
-        let removedMissionsCount = 0;
-        let totalVolunteersHelped = 0;
+        let validResults = historySnapshot.docs.map((docSnap) =>
+            processHistoryMissionLocal(docSnap, user.uid)
+        );
+
+        validResults.sort(
+            (a, b) => (b.completedOnMs || 0) - (a.completedOnMs || 0)
+        );
+
+        const validMissionsCount = validResults.length;
         let thisMonthCount = 0;
-        const validResults = [];
-
-        for (const result of results) {
-            if (!result) continue;
-            if (result.removed) {
-                removedMissionsCount++;
-                continue;
-            }
-
-            validMissionsCount++;
-            validResults.push(result);
-
-            if (result.status !== "rejected") {
-                totalVolunteersHelped += result.actualVolunteers;
-                if (isInCurrentMonth(result.completedOn)) {
-                    thisMonthCount++;
-                }
-            }
+        let totalVolunteersHelped = 0;
+        for (const result of validResults) {
+            if (result.status === "rejected") continue;
+            totalVolunteersHelped += result.actualVolunteers;
+            if (isInCurrentMonth(result.completedOn)) thisMonthCount += 1;
         }
 
-        validResults.sort((a, b) => {
-            const aTime = a.completedOn?.getTime() ?? 0;
-            const bTime = b.completedOn?.getTime() ?? 0;
-            return bTime - aTime;
-        });
-
-        const rows = validResults.map((result) => result.row);
         const stats = {
             totalCompleted: validMissionsCount,
             thisMonth: thisMonthCount,
             totalVolunteers: totalVolunteersHelped,
         };
 
-        if (validMissionsCount === 0) {
-            const emptyPayload = { empty: true, rowsHtml: "", stats };
-            writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, emptyPayload);
-            renderHistoryFromPayload(emptyPayload);
-        } else {
-            const payload = {
-                empty: false,
-                rowsHtml: rows.join(""),
-                stats,
-            };
-            writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, payload);
-            renderHistoryFromPayload(payload);
-        }
+        const payload = buildHistoryCachePayload(validResults, stats);
+        writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, payload);
+        setHistoryItems(validResults, stats);
 
-        console.log(`[SUCCESS] History cleanup complete:`);
-        console.log(`   - Valid missions shown: ${validMissionsCount}`);
-        console.log(`   - Removed missions: ${removedMissionsCount}`);
-        console.log(`   - Total volunteers helped: ${totalVolunteersHelped}`);
+        void refineHistoryVolunteerCounts(validResults)
+            .then(({ items, totalVolunteers }) => {
+                validResults = items;
+                const nextStats = {
+                    totalCompleted: validMissionsCount,
+                    thisMonth: thisMonthCount,
+                    totalVolunteers,
+                };
+                historyItems = validResults;
+                updateStats(
+                    nextStats.totalCompleted,
+                    nextStats.thisMonth,
+                    nextStats.totalVolunteers
+                );
+                writeOrgCache(
+                    user.uid,
+                    ORG_CACHE_KEYS.HISTORY,
+                    buildHistoryCachePayload(validResults, nextStats)
+                );
+                paintFilteredHistoryTable({ keepPage: true });
+            })
+            .catch((err) => {
+                console.warn("[WARN] history volunteer count refine:", err);
+            });
 
-        if (removedMissionsCount > 0) {
-            console.log(`[INFO] Cleaned up ${removedMissionsCount} deleted missions from history`);
-        }
+        void cleanupOrphanHistoryEntries(
+            user.uid,
+            validResults
+                .filter((item) => item.status !== "rejected")
+                .map((item) => item.missionId)
+        ).then((removed) => {
+            if (removed > 0) {
+                console.log(
+                    `[INFO] Cleaned up ${removed} deleted missions from history`
+                );
+            }
+        });
+
+        console.log(`[SUCCESS] History loaded: ${validMissionsCount} missions`);
     } catch (error) {
         console.error("[ERROR] Error fetching history missions:", error);
-        if (!hasCache) {
+        if (!hasUsableCache) {
             historyTableBody.innerHTML = `
             <tr>
                 <td colspan="6">
@@ -601,40 +811,60 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
     }
 }
 
-// Function to get actual volunteer count from mission applications
-// (subcollection + root "applications", same sources as volunteer.js / mission-details.js)
+// Prefer aggregation counts; fall back to reading applications only when needed.
 async function getActualVolunteerCount(missionId, orgId = null) {
     if (orgId) {
         try {
-            const rosterSnap = await getDocs(
-                collection(db, "organizations", orgId, "missions", missionId, "volunteers")
+            const rosterCount = await getCountFromServer(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "volunteers"
+                )
             );
-            if (!rosterSnap.empty) {
-                return rosterSnap.size;
-            }
+            const size = rosterCount.data().count || 0;
+            if (size > 0) return size;
         } catch (err) {
             console.warn("[WARN] volunteers subcollection count:", err);
         }
-    }
 
-    const approvedKeys = new Set();
-    const addIfApproved = (data, docId) => {
-        const st = (data.status || "").toLowerCase();
-        if (st !== "approved" && st !== "accepted") return;
-        const u = data.userId;
-        approvedKeys.add(u ? `u:${u}` : `d:${docId}`);
-    };
+        // Completed missions often keep roster under history/.
+        try {
+            const historyRosterCount = await getCountFromServer(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "history",
+                    missionId,
+                    "volunteers"
+                )
+            );
+            const size = historyRosterCount.data().count || 0;
+            if (size > 0) return size;
+        } catch (err) {
+            console.warn("[WARN] history volunteers count:", err);
+        }
+    }
 
     try {
         const applicationsSnapshot = await getDocs(
             collection(db, "missions", missionId, "applications")
         );
+        let approved = 0;
         applicationsSnapshot.forEach((docSnap) => {
-            addIfApproved(docSnap.data(), docSnap.id);
+            const st = String(docSnap.data()?.status || "").toLowerCase();
+            if (st === "approved" || st === "accepted") approved += 1;
         });
-        return approvedKeys.size;
+        return approved;
     } catch (error) {
-        console.error(`[ERROR] Error getting volunteer count for mission ${missionId}:`, error);
+        console.error(
+            `[ERROR] Error getting volunteer count for mission ${missionId}:`,
+            error
+        );
         return 0;
     }
 }

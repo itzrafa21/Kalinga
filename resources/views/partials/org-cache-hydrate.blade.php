@@ -52,24 +52,22 @@
     if (pVol && profile.stats.volunteers != null) pVol.textContent = String(profile.stats.volunteers);
   }
 
-  var hist = readPayload("history");
-  if (hist) {
-    var historyBody = document.getElementById("historyMissionsBody");
-    if (historyBody) {
-      if (hist.empty || !hist.rowsHtml) {
-        historyBody.innerHTML =
-          '<tr><td colspan="6"><div class="missions-empty"><i class="bi bi-clipboard"></i><h4>No completed missions found</h4><p>Missions will appear here once they are completed</p></div></td></tr>';
-      } else {
-        historyBody.innerHTML = hist.rowsHtml;
-      }
+  // History table must NOT be hydrated from full rowsHtml — that flashes every
+  // mission before the default "This month" filter is applied by history-missions.js.
+  // Only restore stats here; the module paints the filtered rows.
+  var hist = readPayload("history-v2") || readPayload("history");
+  if (hist && hist.stats) {
+    var completedEl = document.getElementById("totalCompletedMissions");
+    var monthEl = document.getElementById("thisMonthMissions");
+    var helpedEl = document.getElementById("totalVolunteersHelped");
+    if (completedEl && hist.stats.totalCompleted != null) {
+      completedEl.textContent = String(hist.stats.totalCompleted);
     }
-    if (hist.stats) {
-      var completedEl = document.getElementById("totalCompletedMissions");
-      var monthEl = document.getElementById("thisMonthMissions");
-      var helpedEl = document.getElementById("totalVolunteersHelped");
-      if (completedEl && hist.stats.totalCompleted != null) completedEl.textContent = String(hist.stats.totalCompleted);
-      if (monthEl && hist.stats.thisMonth != null) monthEl.textContent = String(hist.stats.thisMonth);
-      if (helpedEl && hist.stats.totalVolunteers != null) helpedEl.textContent = String(hist.stats.totalVolunteers);
+    if (monthEl && hist.stats.thisMonth != null) {
+      monthEl.textContent = String(hist.stats.thisMonth);
+    }
+    if (helpedEl && hist.stats.totalVolunteers != null) {
+      helpedEl.textContent = String(hist.stats.totalVolunteers);
     }
   }
 

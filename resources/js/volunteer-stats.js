@@ -5,6 +5,8 @@ import {
     doc,
     getDoc,
     getDocs,
+    query,
+    where,
 } from "firebase/firestore";
 import {
     applicationDedupeKey,
@@ -48,25 +50,32 @@ function normalizeMissionDoc(data, fallbackOrgId = "") {
 
 async function fetchMissionDoc(orgId, missionId) {
     const oid = String(orgId || "").trim();
-    const refs = [
-        doc(db, "mission_submissions", missionId),
-        doc(db, "missions", missionId),
-    ];
+    const refs = [];
     if (oid) {
-        refs.unshift(
+        refs.push(
             doc(db, "organizations", oid, "missions", missionId),
             doc(db, "organizations", oid, "history", missionId)
         );
     }
-    for (const ref of refs) {
-        try {
-            const snap = await getDoc(ref);
-            if (snap.exists()) {
-                return normalizeMissionDoc(snap.data(), oid || orgId);
+    refs.push(
+        doc(db, "mission_submissions", missionId),
+        doc(db, "missions", missionId)
+    );
+
+    const results = await Promise.all(
+        refs.map(async (ref) => {
+            try {
+                const snap = await getDoc(ref);
+                return snap.exists() ? snap : null;
+            } catch (err) {
+                console.warn("[WARN] volunteer-stats fetch:", ref.path, err);
+                return null;
             }
-        } catch (err) {
-            console.warn("[WARN] volunteer-stats fetch:", ref.path, err);
-        }
+        })
+    );
+
+    for (const snap of results) {
+        if (snap) return normalizeMissionDoc(snap.data(), oid || orgId);
     }
     return null;
 }
@@ -80,34 +89,30 @@ async function fetchMissionDocExpanded(missionId, primaryOrgId, orgHints = []) {
     addHint(primaryOrgId);
     for (const h of orgHints) addHint(h);
 
+    let globalData = null;
     try {
         const globalSnap = await getDoc(doc(db, "missions", missionId));
         if (globalSnap.exists()) {
-            const data = globalSnap.data();
-            addHint(data.orgId || data.organizationId);
-            if (isMissionDataCompleted(data)) {
-                return normalizeMissionDoc(data);
+            globalData = globalSnap.data();
+            addHint(globalData.orgId || globalData.organizationId);
+            if (isMissionDataCompleted(globalData)) {
+                return normalizeMissionDoc(globalData);
             }
         }
     } catch (err) {
         console.warn("[WARN] volunteer-stats global:", missionId, err);
     }
 
-    for (const oid of hints) {
-        const mission = await fetchMissionDoc(oid, missionId);
+    const hintList = [...hints];
+    if (hintList.length) {
+        const found = await Promise.all(
+            hintList.map((oid) => fetchMissionDoc(oid, missionId))
+        );
+        const mission = found.find(Boolean);
         if (mission) return mission;
     }
 
-    try {
-        const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (globalSnap.exists()) {
-            return normalizeMissionDoc(globalSnap.data());
-        }
-    } catch {
-        /* ignore */
-    }
-
-    return null;
+    return globalData ? normalizeMissionDoc(globalData) : null;
 }
 
 function userIdFromApplicationPath(refPath = "") {
@@ -214,103 +219,158 @@ export async function collectOrgIdHints(userId, coordinatorOrgId = null) {
     return hints;
 }
 
+function directHoursFromRecord(data) {
+    const fromApp = Number(
+        data?.durationHours ?? data?.missionDurationHours ?? data?.hours
+    );
+    return Number.isFinite(fromApp) && fromApp > 0 ? fromApp : 0;
+}
+
+async function loadUserScopedApplicationDocs(userId) {
+    const docs = [];
+    const seen = new Set();
+
+    const pushUnique = (snap) => {
+        if (!snap?.docs) return;
+        snap.docs.forEach((docSnap) => {
+            const key = docSnap.ref?.path || docSnap.id;
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            docs.push(docSnap);
+        });
+    };
+
+    try {
+        const appsSnap = await getDocs(
+            collection(db, "users", userId, "applications")
+        );
+        pushUnique(appsSnap);
+    } catch (err) {
+        console.warn("[WARN] users applications stats:", err);
+    }
+
+    // Prefer indexed userId query over scanning every applications subcollection.
+    try {
+        const scopedSnap = await getDocs(
+            query(
+                collectionGroup(db, "applications"),
+                where("userId", "==", userId)
+            )
+        );
+        pushUnique(scopedSnap);
+    } catch (err) {
+        console.warn("[WARN] scoped collectionGroup applications stats:", err);
+    }
+
+    return docs;
+}
+
 /** Global completed missions + hours (all orgs), aligned with mobile profile. */
 export async function computeGlobalVolunteerStats(
     userId,
     coordinatorOrgId = null
 ) {
     const hoursByMission = new Map();
-    const orgHints = await collectOrgIdHints(userId, coordinatorOrgId);
-    const hintList = [...orgHints];
+    const orgHints = new Set();
+    if (coordinatorOrgId) orgHints.add(coordinatorOrgId);
 
-    const recordMission = async (missionId, orgId, data, mission) => {
+    const pending = [];
+
+    const queueHours = (missionId, hours) => {
         if (!missionId || hoursByMission.has(missionId)) return;
-        const hours = mission
-            ? hoursFromApplicationOrMission(data, mission)
-            : await resolveMissionDurationHours(
-                  missionId,
-                  orgId || mission?.orgId || "",
-                  hintList
-              );
-        hoursByMission.set(missionId, hours);
+        hoursByMission.set(missionId, Number(hours) || 0);
     };
 
-    try {
-        const ledgerSnap = await getDocs(
-            collection(db, "users", userId, "pointsLedger")
+    const queueOrQueue = (missionId, orgId, data) => {
+        if (!missionId || hoursByMission.has(missionId)) return;
+        if (orgId) orgHints.add(orgId);
+        const direct = directHoursFromRecord(data);
+        if (direct > 0) {
+            queueHours(missionId, direct);
+            return;
+        }
+        pending.push({ missionId, orgId: orgId || "", data });
+    };
+
+    const [ledgerSnap, applicationDocs] = await Promise.all([
+        getDocs(collection(db, "users", userId, "pointsLedger")).catch(
+            (err) => {
+                console.warn("[WARN] pointsLedger stats:", err);
+                return { docs: [] };
+            }
+        ),
+        loadUserScopedApplicationDocs(userId),
+    ]);
+
+    for (const ledgerDoc of ledgerSnap.docs || []) {
+        const data = ledgerDoc.data() || {};
+        queueOrQueue(
+            ledgerDoc.id,
+            data.orgId || data.organizationId || "",
+            data
         );
-        for (const ledgerDoc of ledgerSnap.docs) {
-            const data = ledgerDoc.data();
-            const missionId = ledgerDoc.id;
+    }
+
+    await Promise.all(
+        applicationDocs.map(async (docSnap) => {
+            const data = docSnap.data() || {};
+            const pathUserId =
+                data.userId || userIdFromApplicationPath(docSnap.ref.path);
+            if (pathUserId && pathUserId !== userId) return;
+            if (!isParticipationStatus(data.status)) return;
+
+            let missionId = resolveMissionIdFromApplication(
+                data,
+                docSnap.ref.path
+            );
+            if (!missionId && docSnap.id) missionId = docSnap.id;
+            if (!missionId || hoursByMission.has(missionId)) return;
+
             const orgId = data.orgId || data.organizationId || "";
+            const direct = directHoursFromRecord(data);
+            const completedLocally =
+                (data?.status || "").toLowerCase() === "completed" ||
+                data?.missionCompleted === true ||
+                data?.attended === true;
+
+            if (completedLocally) {
+                if (orgId) orgHints.add(orgId);
+                if (direct > 0) {
+                    queueHours(missionId, direct);
+                    return;
+                }
+                queueOrQueue(missionId, orgId, data);
+                return;
+            }
+
+            // Approved/accepted: confirm the mission is completed before counting.
             const mission = await fetchMissionDocExpanded(
+                missionId,
+                orgId,
+                [...orgHints]
+            );
+            if (!applicationCountsAsCompleted(data, mission)) return;
+            if (orgId) orgHints.add(orgId);
+            const hours = hoursFromApplicationOrMission(data, mission);
+            if (hours > 0) queueHours(missionId, hours);
+            else queueOrQueue(missionId, orgId, data);
+        })
+    );
+
+    const hintList = [...orgHints];
+    await Promise.all(
+        pending.map(async ({ missionId, orgId, data }) => {
+            if (hoursByMission.has(missionId)) return;
+            const hours = await resolveMissionDurationHours(
                 missionId,
                 orgId,
                 hintList
             );
-            await recordMission(missionId, orgId, data, mission);
-        }
-    } catch (err) {
-        console.warn("[WARN] pointsLedger stats:", err);
-    }
+            queueHours(missionId, hours || directHoursFromRecord(data));
+        })
+    );
 
-    const processApplicationDoc = async (docSnap) => {
-        const data = docSnap.data();
-        const pathUserId =
-            data.userId || userIdFromApplicationPath(docSnap.ref.path);
-        if (pathUserId !== userId) return;
-        if (!isParticipationStatus(data.status)) return;
-
-        let missionId = resolveMissionIdFromApplication(
-            data,
-            docSnap.ref.path
-        );
-        if (!missionId && docSnap.id) {
-            missionId = docSnap.id;
-        }
-        if (!missionId || hoursByMission.has(missionId)) return;
-
-        const orgId = data.orgId || data.organizationId || "";
-        const mission = await fetchMissionDocExpanded(
-            missionId,
-            orgId,
-            hintList
-        );
-
-        if (!applicationCountsAsCompleted(data, mission)) return;
-
-        await recordMission(missionId, orgId, data, mission);
-    };
-
-    try {
-        const cgSnap = await getDocs(collectionGroup(db, "applications"));
-        await Promise.all(
-            cgSnap.docs.map((docSnap) => processApplicationDoc(docSnap))
-        );
-    } catch (err) {
-        console.warn("[WARN] collectionGroup applications stats:", err);
-    }
-
-    try {
-        const appsSnap = await getDocs(
-            collection(db, "users", userId, "applications")
-        );
-        await Promise.all(
-            appsSnap.docs.map((docSnap) => processApplicationDoc(docSnap))
-        );
-    } catch (err) {
-        console.warn("[WARN] users applications stats:", err);
-    }
-
-    let totalHours = 0;
-    for (const hours of hoursByMission.values()) {
-        totalHours += hours;
-    }
-
-    return {
-        missionsCompleted: hoursByMission.size,
-        totalHours: Math.round(totalHours * 10) / 10,
-    };
+    return finalizeHoursMap(hoursByMission);
 }
 
 function finalizeHoursMap(hoursByMission) {

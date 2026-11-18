@@ -450,19 +450,24 @@ async function mergeGlobalCompletedMissionsForTable(userId, orgId) {
     };
 
     try {
-        const cgSnap = await getDocs(collectionGroup(db, "applications"));
-        await Promise.all(cgSnap.docs.map((docSnap) => processApp(docSnap)));
-    } catch (err) {
-        console.warn("[WARN] global cg table merge:", err);
-    }
-
-    try {
         const appsSnap = await getDocs(
             collection(db, "users", userId, "applications")
         );
         await Promise.all(appsSnap.docs.map((docSnap) => processApp(docSnap)));
     } catch (err) {
         console.warn("[WARN] global user apps table merge:", err);
+    }
+
+    try {
+        const cgSnap = await getDocs(
+            query(
+                collectionGroup(db, "applications"),
+                where("userId", "==", userId)
+            )
+        );
+        await Promise.all(cgSnap.docs.map((docSnap) => processApp(docSnap)));
+    } catch (err) {
+        console.warn("[WARN] scoped collectionGroup table merge:", err);
     }
 
     applicantApplications = Array.from(byMission.values());

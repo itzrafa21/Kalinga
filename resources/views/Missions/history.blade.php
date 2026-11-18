@@ -492,7 +492,16 @@
               <th class="col-actions">Actions</th>
             </tr>
           </thead>
-          <tbody id="historyMissionsBody"></tbody>
+          <tbody id="historyMissionsBody">
+            <tr class="missions-loading-row">
+              <td colspan="6">
+                <div class="missions-loading">
+                  <div class="missions-loading-spinner" aria-hidden="true"></div>
+                  <span>Loading missions…</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
         </table>
       </div>
       @include('partials.org-cache-hydrate')

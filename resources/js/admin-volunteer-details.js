@@ -112,23 +112,24 @@ function setStatus(message, isError = false) {
   status.classList.toggle("is-error", isError);
 }
 
-async function buildVolunteer(userId, data) {
+function buildVolunteerFromDoc(userId, data, global = null) {
   const name = data.name || data.displayName || data.fullName || "Volunteer";
   const email = data.email || "—";
   const totalPoints = Number(data.totalPoints) || 0;
   const stored = readStoredProfileStats(data);
-  const global = await computeGlobalVolunteerStats(userId);
+  const globalMissions = Number(global?.missionsCompleted) || 0;
+  const globalHours = Number(global?.totalHours) || 0;
 
   const missionsJoined = Math.max(
     Number(data.missionsCompleted) || 0,
     stored.missionsCompleted,
-    global.missionsCompleted,
+    globalMissions,
     Number(data.applicationCount) || 0
   );
   const hoursVolunteered = Math.max(
     Number(data.totalVolunteerHours ?? data.hoursVolunteered) || 0,
     stored.totalHours,
-    global.totalHours
+    globalHours
   );
 
   return {
@@ -194,6 +195,25 @@ function renderVolunteer(volunteer) {
     </section>`;
 }
 
+function paintVolunteer(volunteer, { preserveTab = true } = {}) {
+  const body = document.getElementById("volunteerPageBody");
+  const status = document.getElementById("volunteerPageStatus");
+  const footer = document.getElementById("volunteerPageFooter");
+  const activeTab =
+    preserveTab && body
+      ? body.querySelector(".org-detail-tab.active")?.getAttribute("data-org-tab") ||
+        "profile"
+      : "profile";
+
+  if (body) {
+    body.innerHTML = renderVolunteer(volunteer);
+    body.hidden = false;
+    wireDetailTabs(body, activeTab);
+  }
+  if (status) status.hidden = true;
+  if (footer) footer.hidden = false;
+}
+
 async function loadVolunteer() {
   if (!volunteerId) {
     setStatus("Missing volunteer ID.", true);
@@ -203,25 +223,33 @@ async function loadVolunteer() {
   setStatus("Loading volunteer…");
 
   try {
-    await loadPlatformConfig();
-    const snap = await getDoc(doc(db, "users", volunteerId));
+    const [, snap] = await Promise.all([
+      loadPlatformConfig(),
+      getDoc(doc(db, "users", volunteerId)),
+    ]);
     if (!snap.exists()) {
       setStatus("Volunteer not found.", true);
       return;
     }
 
-    const volunteer = await buildVolunteer(volunteerId, snap.data() || {});
-    const body = document.getElementById("volunteerPageBody");
-    const status = document.getElementById("volunteerPageStatus");
-    const footer = document.getElementById("volunteerPageFooter");
+    const data = snap.data() || {};
+    // Paint immediately from the user profile so the page is usable.
+    let volunteer = buildVolunteerFromDoc(volunteerId, data);
+    paintVolunteer(volunteer, { preserveTab: false });
 
-    if (body) {
-      body.innerHTML = renderVolunteer(volunteer);
-      body.hidden = false;
-      wireDetailTabs(body, "profile");
+    // Refine activity totals in the background (user-scoped reads only).
+    try {
+      const global = await computeGlobalVolunteerStats(volunteerId);
+      const refined = buildVolunteerFromDoc(volunteerId, data, global);
+      if (
+        refined.missionsJoined !== volunteer.missionsJoined ||
+        refined.hoursVolunteered !== volunteer.hoursVolunteered
+      ) {
+        paintVolunteer(refined);
+      }
+    } catch (statsErr) {
+      console.warn("[WARN] volunteer stats refine:", statsErr);
     }
-    if (status) status.hidden = true;
-    if (footer) footer.hidden = false;
   } catch (error) {
     console.error("[ERROR] loadVolunteer:", error);
     setStatus("Could not load volunteer details.", true);

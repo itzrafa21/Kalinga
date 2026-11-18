@@ -7,7 +7,7 @@ export const NAV_FRESH_MS = 5 * 60 * 1000;
 
 export const ORG_CACHE_KEYS = {
     DASHBOARD: "dashboard",
-    HISTORY: "history",
+    HISTORY: "history-v2",
     VOLUNTEERS: "volunteers",
     PROFILE: "profile",
     SIDEBAR: "sidebar",
