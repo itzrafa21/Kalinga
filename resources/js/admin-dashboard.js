@@ -1279,7 +1279,11 @@ async function loadDashboardData() {
 
 function paintDashboardStats(stats) {
     if (!stats) return;
-    document.getElementById("totalUsers").textContent = String(stats.users ?? "—");
+    const organizations = Number(stats.organizations) || 0;
+    const volunteers = Number(stats.volunteers) || 0;
+    document.getElementById("totalUsers").textContent = String(
+        organizations + volunteers
+    );
     document.getElementById("totalOrganizations").textContent = String(
         stats.organizations ?? "—"
     );
@@ -1311,19 +1315,21 @@ async function loadDashboardStats() {
             ADMIN_CACHE_KEYS.DASHBOARD_STATS,
             async () => {
                 // Use server aggregation counts — never .size on a limited query.
-                const [usersCountSnap, orgsCountSnap, missionsCountSnap, volunteerEntries] =
+                const [orgsCountSnap, missionsCountSnap, volunteerEntries] =
                     await Promise.all([
-                        getCountFromServer(collection(db, "users")),
                         getCountFromServer(collection(db, "organizations")),
                         getCountFromServer(collection(db, "mission_submissions")),
                         loadVolunteerUserEntries(),
                     ]);
 
+                const organizations = orgsCountSnap.data().count || 0;
+                const volunteers = volunteerEntries.length;
+
                 return {
-                    users: usersCountSnap.data().count || 0,
-                    organizations: orgsCountSnap.data().count || 0,
+                    users: organizations + volunteers,
+                    organizations,
                     missions: missionsCountSnap.data().count || 0,
-                    volunteers: volunteerEntries.length,
+                    volunteers,
                 };
             },
             { maxAgeMs: ADMIN_FRESH_MS }
