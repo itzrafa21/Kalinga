@@ -622,10 +622,10 @@
             <div class="card-header d-flex justify-content-between align-items-center">
               <h5 class="mb-0"><i class="fas fa-download"></i> Export Reports</h5>
               <div class="d-flex gap-2">
-                <button class="btn btn-admin" onclick="exportReport('csv')">
+                <button type="button" class="btn btn-admin" data-export-format="csv">
                   <i class="fas fa-file-csv"></i> Export CSV
                 </button>
-                <button class="btn btn-admin" onclick="exportReport('pdf')">
+                <button type="button" class="btn btn-admin" data-export-format="pdf">
                   <i class="fas fa-file-pdf"></i> Export PDF
                 </button>
               </div>
@@ -940,5 +940,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>

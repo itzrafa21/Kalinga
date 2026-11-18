@@ -62,6 +62,7 @@ import {
     isAdminTabLoaded,
     clearAdminTabLoaded,
 } from "./admin-data-cache.js";
+import { bindAdminReportExports } from "./admin-reports.js";
 
 let allAdminMissions = [];
 let allAdminVolunteers = [];
@@ -89,6 +90,7 @@ const MISSION_TYPE_CHART_COLORS = [
 document.addEventListener("DOMContentLoaded", () => {
     console.log("[INFO] DOM Content Loaded - Initializing admin dashboard...");
     checkAdminAuth();
+    bindAdminReportExports();
 
     const logoutBtn = document.getElementById("adminLogoutBtn");
     if (logoutBtn) {
