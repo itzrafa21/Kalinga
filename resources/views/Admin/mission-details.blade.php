@@ -379,6 +379,7 @@
       <a class="nav-item" href="/admin/dashboard#organizations"><i class="ti ti-building"></i> Organizations</a>
       <a class="nav-item active" href="/admin/dashboard#missions"><i class="ti ti-target"></i> Missions</a>
       <a class="nav-item" href="/admin/dashboard#volunteers"><i class="ti ti-users"></i> Volunteers</a>
+      <a class="nav-item" href="/admin/dashboard#campaigns"><i class="ti ti-heart-handshake"></i> Campaigns</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config"><i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards</a>
       <a class="nav-item" href="/admin/hotlines"><i class="ti ti-phone"></i> Hotlines</a>
