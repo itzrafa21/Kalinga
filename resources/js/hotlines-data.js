@@ -3,8 +3,12 @@ import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
-/** @typedef {{ id: string, label: string, number: string, active?: boolean, sortOrder?: number }} HotlineNumber */
+/** @typedef {{ id: string, label: string, number: string, email: string, active?: boolean, sortOrder?: number }} HotlineNumber */
 /** @typedef {{ id: string, name: string, location?: string, active?: boolean, sortOrder?: number, numbers: HotlineNumber[] }} HotlineCategory */
+
+export function hotlineContactHasValue(entry) {
+    return Boolean(String(entry?.number || "").trim() || String(entry?.email || "").trim());
+}
 
 /**
  * Migrate legacy flat `items[]` (one number per row) into grouped categories.
@@ -25,10 +29,11 @@ export function migrateFlatItemsToCategories(items) {
                 id: `line-${i}`,
                 label: String(item.category || "Main line"),
                 number: String(item.number || ""),
+                email: String(item.email || "").trim(),
                 active: item.active !== false,
                 sortOrder: 0,
             },
-        ],
+        ].filter(hotlineContactHasValue),
     }));
 }
 
@@ -49,7 +54,9 @@ export async function loadHotlineCategories(db) {
                 .filter((c) => c.active !== false)
                 .map((c) => ({
                     ...c,
-                    numbers: (c.numbers || []).filter((n) => n.active !== false),
+                    numbers: (c.numbers || []).filter(
+                        (n) => n.active !== false && hotlineContactHasValue(n)
+                    ),
                 }))
                 .filter((c) => c.numbers.length > 0);
         }

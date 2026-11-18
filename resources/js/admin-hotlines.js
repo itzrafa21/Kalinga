@@ -2,7 +2,10 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { buildInitialHotlinesSeed } from "./hotlines-seed.js";
-import { migrateFlatItemsToCategories } from "./hotlines-data.js";
+import {
+    hotlineContactHasValue,
+    migrateFlatItemsToCategories,
+} from "./hotlines-data.js";
 
 const HOTLINES_DOC = ["platform_config", "hotlines"];
 
@@ -90,6 +93,35 @@ function telHref(number) {
     return `tel:${String(number).replace(/[^\d+]/g, "")}`;
 }
 
+function mailtoHref(email) {
+    return `mailto:${String(email).trim()}`;
+}
+
+function isValidEmail(email) {
+    const value = String(email || "").trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function contactValueHtml(num) {
+    const parts = [];
+    const number = String(num.number || "").trim();
+    const email = String(num.email || "").trim();
+    if (number) {
+        parts.push(
+            `<a href="${telHref(number)}" class="number-value">${escapeHtml(number)}</a>`
+        );
+    }
+    if (email) {
+        parts.push(
+            `<a href="${mailtoHref(email)}" class="number-value number-email">${escapeHtml(email)}</a>`
+        );
+    }
+    if (!parts.length) {
+        parts.push(`<span class="number-value number-missing">No contact yet</span>`);
+    }
+    return parts.join("");
+}
+
 function sortCategories(categories) {
     return [...categories]
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
@@ -107,13 +139,13 @@ function createNumberRowHtml(categoryId, num) {
       <div class="number-row" data-category-id="${escapeHtml(categoryId)}" data-number-id="${escapeHtml(num.id)}">
         <div class="number-main">
           <span class="number-label">${escapeHtml(num.label)}</span>
-          <a href="${telHref(num.number)}" class="number-value">${escapeHtml(num.number)}</a>
+          <div class="number-contacts">${contactValueHtml(num)}</div>
         </div>
         <div class="cfg-right">
           <span class="badge-pill ${isActive ? "bp-green" : "bp-gray"} num-status-pill">${isActive ? "Shown" : "Hidden"}</span>
           <div class="toggle num-toggle ${isActive ? "on" : ""}" role="switch" aria-checked="${isActive}" tabindex="0"></div>
-          <button type="button" class="btn btn-edit btn-sm" data-edit-number aria-label="Edit number"><i class="ti ti-pencil" style="font-size:12px"></i></button>
-          <button type="button" class="btn btn-r btn-sm" data-remove-number aria-label="Remove number"><i class="ti ti-trash" style="font-size:12px"></i></button>
+          <button type="button" class="btn btn-edit btn-sm" data-edit-number aria-label="Edit contact"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+          <button type="button" class="btn btn-r btn-sm" data-remove-number aria-label="Remove contact"><i class="ti ti-trash" style="font-size:12px"></i></button>
         </div>
       </div>`;
 }
@@ -129,7 +161,7 @@ function createCategoryCardElement(cat) {
     const numbersHtml =
         numbers.length > 0
             ? numbers.map((n) => createNumberRowHtml(cat.id, n)).join("")
-            : `<p class="numbers-empty">No numbers yet. Add a line for this organization.</p>`;
+            : `<p class="numbers-empty">No contacts yet. Add a phone number and email for this organization.</p>`;
 
     card.innerHTML = `
     <header class="category-head">
@@ -146,16 +178,17 @@ function createCategoryCardElement(cat) {
     </header>
     <div class="numbers-block">
       <div class="numbers-head">
-        <span class="numbers-title">Numbers to call</span>
+        <span class="numbers-title">Contacts</span>
         <button type="button" class="btn btn-g btn-sm" data-add-number>
-          <i class="ti ti-plus" style="font-size:12px"></i> Add number
+          <i class="ti ti-plus" style="font-size:12px"></i> Add contact
         </button>
       </div>
       <div class="numbers-list">${numbersHtml}</div>
       <div class="add-number-form" data-add-number-form hidden>
         <div class="add-row">
-          <input type="text" class="an-label" placeholder="Label (e.g. Operations Center)" aria-label="Number label" />
+          <input type="text" class="an-label" placeholder="Label (e.g. Operations Center)" aria-label="Contact label" />
           <input type="text" class="an-number" placeholder="Phone number" aria-label="Phone number" />
+          <input type="email" class="an-email" placeholder="Email" aria-label="Email" required />
           <button type="button" class="btn btn-g btn-sm" data-confirm-add-number>Add</button>
           <button type="button" class="btn btn-sm" data-cancel-add-number>Cancel</button>
         </div>
@@ -302,7 +335,7 @@ function removeCategory(categoryId) {
     const cat = getCategoryById(categoryId);
     if (
         !confirm(
-            `Remove "${cat?.name || "this organization"}" and all of its phone numbers?`
+            `Remove "${cat?.name || "this organization"}" and all of its contacts?`
         )
     ) {
         return;
@@ -375,14 +408,29 @@ function hideAddNumberForm(card) {
     form.hidden = true;
     form.querySelector(".an-label").value = "";
     form.querySelector(".an-number").value = "";
+    const emailIn = form.querySelector(".an-email");
+    if (emailIn) emailIn.value = "";
 }
 
 function confirmAddNumber(card, categoryId) {
     const form = card.querySelector("[data-add-number-form]");
     const label = form?.querySelector(".an-label")?.value.trim();
-    const number = form?.querySelector(".an-number")?.value.trim();
-    if (!label || !number) {
-        alert("Label and phone number are required.");
+    const number = form?.querySelector(".an-number")?.value.trim() || "";
+    const email = form?.querySelector(".an-email")?.value.trim() || "";
+    if (!label) {
+        alert("Label is required.");
+        return;
+    }
+    if (!number) {
+        alert("Phone number is required.");
+        return;
+    }
+    if (!email) {
+        alert("Email is required.");
+        return;
+    }
+    if (!isValidEmail(email)) {
+        alert("Enter a valid email address.");
         return;
     }
     const cat = getCategoryById(categoryId);
@@ -392,6 +440,7 @@ function confirmAddNumber(card, categoryId) {
         id: uniqueNumberId(cat, slugId(label)),
         label,
         number,
+        email,
         active: true,
         sortOrder: cat.numbers.length,
     });
@@ -402,7 +451,7 @@ function confirmAddNumber(card, categoryId) {
 }
 
 function removeNumber(categoryId, numberId) {
-    if (!confirm("Remove this phone number?")) return;
+    if (!confirm("Remove this contact?")) return;
     const cat = getCategoryById(categoryId);
     if (!cat?.numbers) return;
     cat.numbers = cat.numbers.filter((n) => n.id !== numberId);
@@ -420,7 +469,8 @@ function startNumberEdit(categoryId, numberId) {
 
     row.querySelector(".number-main").innerHTML = `
       <input type="text" class="num-label-in" value="${escapeHtml(num.label)}" aria-label="Label" />
-      <input type="text" class="num-value-in" value="${escapeHtml(num.number)}" aria-label="Phone number" />`;
+      <input type="text" class="num-value-in" value="${escapeHtml(num.number || "")}" aria-label="Phone number" placeholder="Phone number" />
+      <input type="email" class="num-email-in" value="${escapeHtml(num.email || "")}" aria-label="Email" placeholder="Email" required />`;
     row.classList.add("is-editing-num");
     const btn = row.querySelector("[data-edit-number]");
     if (btn) btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i>';
@@ -436,13 +486,27 @@ function saveNumberEdit(categoryId, numberId) {
     if (!row || !num) return;
 
     const label = row.querySelector(".num-label-in")?.value.trim();
-    const number = row.querySelector(".num-value-in")?.value.trim();
-    if (!label || !number) {
-        alert("Label and phone number are required.");
+    const number = row.querySelector(".num-value-in")?.value.trim() || "";
+    const email = row.querySelector(".num-email-in")?.value.trim() || "";
+    if (!label) {
+        alert("Label is required.");
+        return;
+    }
+    if (!number) {
+        alert("Phone number is required.");
+        return;
+    }
+    if (!email) {
+        alert("Email is required.");
+        return;
+    }
+    if (!isValidEmail(email)) {
+        alert("Enter a valid email address.");
         return;
     }
     num.label = label;
     num.number = number;
+    num.email = email;
     renderHotlineCategories(hotlineCategories);
     persistHotlines();
     flashSaved();
@@ -463,10 +527,14 @@ function normalizeCategory(cat, i) {
         ...rest,
         location: String(cat.location || description || "").trim(),
         sortOrder: i,
-        numbers: (cat.numbers || []).map((num, j) => ({
-            ...num,
-            sortOrder: j,
-        })),
+        numbers: (cat.numbers || [])
+            .map((num, j) => ({
+                ...num,
+                number: String(num.number || "").trim(),
+                email: String(num.email || "").trim(),
+                sortOrder: j,
+            }))
+            .filter(hotlineContactHasValue),
     };
 }
 

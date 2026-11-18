@@ -143,13 +143,19 @@
       display: block; font-size: 12px; font-weight: 600; color: #374151;
       margin-bottom: 2px;
     }
+    .number-contacts {
+      display: flex; flex-direction: column; gap: 2px;
+    }
     a.number-value {
       font-size: 14px; font-weight: 700; color: #15803d;
       text-decoration: none;
       display: inline-block;
     }
     a.number-value:hover { text-decoration: underline; color: #166534; }
-    .num-label-in, .num-value-in {
+    a.number-email { font-size: 12px; font-weight: 600; color: #2563eb; }
+    a.number-email:hover { color: #1d4ed8; }
+    .number-missing { font-size: 12px; font-weight: 500; color: var(--color-muted); }
+    .num-label-in, .num-value-in, .num-email-in {
       display: block; width: 100%; max-width: 280px;
       height: 30px; padding: 0 10px; margin-bottom: 6px;
       font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px;
@@ -254,7 +260,7 @@
             <div class="section-title" id="hotlines-heading">
               <i class="ti ti-phone-call" aria-hidden="true"></i> Hotline directory
             </div>
-            <p class="section-desc">Group numbers by organization — e.g. all NDRRMC lines under NDRRMC, Red Cross under Philippine Red Cross</p>
+            <p class="section-desc">Group phone numbers and emails by organization — each contact needs both a number and an email</p>
           </div>
           <button type="button" class="btn btn-g btn-sm" id="categoryAddBtn">
             <i class="ti ti-plus" style="font-size:12px"></i> Add Emergency Hotline
@@ -270,12 +276,12 @@
             </div>
           </div>
           <div id="hotline-empty" class="hotline-empty" hidden>
-            No organizations yet. Add one (e.g. NDRRMC) then add phone numbers inside it.
+            No organizations yet. Add one (e.g. NDRRMC) then add contacts (phone + email) inside it.
           </div>
           <div id="hotline-categories"></div>
           <p class="info-hint">
             <i class="ti ti-info-circle" aria-hidden="true"></i>
-            Each card is one agency or organization. Use <strong>Add number</strong> inside a card for multiple lines (operations center, trunk line, etc.). Hidden organizations or numbers are not shown to volunteers.
+            Each card is one agency or organization. Use <strong>Add contact</strong> inside a card for a phone number and email (operations center, trunk line, etc.). Hidden organizations or contacts are not shown to volunteers.
           </p>
         </div>
       </section>
