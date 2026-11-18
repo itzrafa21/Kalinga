@@ -334,13 +334,11 @@
                   <tr>
                     <th>Donor</th>
                     <th>Amount</th>
-                    <th>Status</th>
                     <th>When</th>
-                    <th>ID</th>
                   </tr>
                 </thead>
                 <tbody id="donationsTableBody">
-                  <tr><td colspan="5" class="text-center">Loading…</td></tr>
+                  <tr><td colspan="3" class="text-center">Loading…</td></tr>
                 </tbody>
               </table>
             </div>

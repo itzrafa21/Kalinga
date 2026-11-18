@@ -68,7 +68,23 @@ service cloud.firestore {
           resource.data.orgId == request.auth.uid &&
           resource.data.status in ['draft', 'rejected']);
 
-      // Per-campaign receipts so org can always list who donated.
+      // Actual donor list used by the org campaign details page.
+      match /donors/{donorId} {
+        allow read: if signedIn() && (
+          isAdmin() ||
+          resource.data.userId == request.auth.uid ||
+          ownsCampaign(campaignId) ||
+          isOrgTeamOf(get(/databases/$(database)/documents/donation_campaigns/$(campaignId)).data.orgId)
+        );
+        allow create, update: if signedIn() && (
+          request.resource.data.userId == request.auth.uid ||
+          ownsCampaign(campaignId) ||
+          isAdmin()
+        );
+        allow delete: if false;
+      }
+
+      // Legacy / alternate receipt path.
       match /transactions/{donationId} {
         allow read: if signedIn() && (
           isAdmin() ||

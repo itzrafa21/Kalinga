@@ -63,13 +63,77 @@ function donorLabel(donation) {
     return "Anonymous donor";
 }
 
+const MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+function formatCampaignDate(value) {
+    if (!value) return "—";
+    const raw = String(value).trim();
+    const date =
+        typeof value?.toDate === "function"
+            ? value.toDate()
+            : new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw);
+    if (Number.isNaN(date.getTime())) return raw || "—";
+    return `${MONTH_NAMES[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
+}
+
+function donationDate(donation) {
+    const raw =
+        donation.donatedAt ||
+        donation.paidAt ||
+        donation.createdAt ||
+        "";
+    if (!raw) return null;
+    if (typeof raw?.toDate === "function") return raw.toDate();
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function donationWhen(donation) {
-    const raw = donation.paidAt || donation.createdAt || "";
-    if (!raw) return "—";
-    if (typeof raw?.toDate === "function") {
-        return raw.toDate().toISOString().slice(0, 19).replace("T", " ");
-    }
-    return String(raw).slice(0, 19).replace("T", " ");
+    const date = donationDate(donation);
+    if (!date) return "—";
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    const hh = String(hours).padStart(2, "0");
+    return `${mm}/${dd}/${yyyy} ${hh}:${minutes} ${ampm}`;
+}
+
+function normalizeDonorDoc(id, data = {}) {
+    const amountCentavos =
+        Number(data.amountCentavos) ||
+        (Number(data.amount) ? Math.round(Number(data.amount) * 100) : 0);
+    return {
+        id,
+        volunteerName: data.name || data.volunteerName || data.donorName || "",
+        volunteerEmail: data.email || data.volunteerEmail || data.donorEmail || "",
+        volunteerId: data.userId || data.volunteerId || "",
+        amountCentavos,
+        status: data.status || "paid",
+        donatedAt: data.donatedAt || "",
+        paidAt: data.paidAt || data.donatedAt || "",
+        createdAt: data.createdAt || data.donatedAt || "",
+        anonymous: Boolean(data.anonymous),
+        ...data,
+        amountCentavos,
+    };
 }
 
 function mergeDonationRows(...lists) {
@@ -88,18 +152,32 @@ async function loadFirestoreDonations() {
     const rows = [];
     const errors = [];
 
-    // Prefer per-campaign receipts (works even without Admin SDK).
+    // Actual donor receipts live under donation_campaigns/{id}/donors.
+    try {
+        const snap = await getDocs(
+            collection(db, "donation_campaigns", campaignId, "donors")
+        );
+        snap.docs.forEach((d) =>
+            rows.push(normalizeDonorDoc(d.id, d.data() || {}))
+        );
+    } catch (error) {
+        console.warn("[WARN] campaign donors:", error);
+        errors.push(error);
+    }
+
+    // Legacy / alternate receipt paths.
     try {
         const snap = await getDocs(
             collection(db, "donation_campaigns", campaignId, "transactions")
         );
-        snap.docs.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+        snap.docs.forEach((d) =>
+            rows.push(normalizeDonorDoc(d.id, d.data() || {}))
+        );
     } catch (error) {
         console.warn("[WARN] campaign transactions:", error);
         errors.push(error);
     }
 
-    // Security rules require orgId == auth.uid for top-level list queries.
     if (orgId) {
         try {
             const snap = await getDocs(
@@ -110,43 +188,11 @@ async function loadFirestoreDonations() {
                     limit(100)
                 )
             );
-            snap.docs.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+            snap.docs.forEach((d) =>
+                rows.push(normalizeDonorDoc(d.id, d.data() || {}))
+            );
         } catch (error) {
             console.warn("[WARN] donations orgId+campaignId:", error);
-            errors.push(error);
-            try {
-                const snap = await getDocs(
-                    query(
-                        collection(db, "donations"),
-                        where("orgId", "==", orgId),
-                        limit(200)
-                    )
-                );
-                snap.docs.forEach((d) => {
-                    const data = d.data() || {};
-                    if (String(data.campaignId || "") === String(campaignId)) {
-                        rows.push({ id: d.id, ...data });
-                    }
-                });
-            } catch (fallbackError) {
-                console.warn("[WARN] donations by orgId:", fallbackError);
-                errors.push(fallbackError);
-            }
-        }
-    }
-
-    if (!rows.length) {
-        try {
-            const snap = await getDocs(
-                query(
-                    collection(db, "donations"),
-                    where("campaignId", "==", campaignId),
-                    limit(100)
-                )
-            );
-            snap.docs.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-        } catch (error) {
-            console.warn("[WARN] donations by campaignId:", error);
             errors.push(error);
         }
     }
@@ -231,11 +277,11 @@ function renderDonationRows(rows) {
     if (!rows.length) {
         const counted = Number(currentCampaign?.donorCount) || 0;
         tbody.innerHTML = counted
-            ? `<tr><td colspan="5" class="text-center text-muted">
+            ? `<tr><td colspan="3" class="text-center text-muted">
                 Totals show ${counted} donor(s), but no donor names were saved for those payments.
                 New donations will list the donor name and email here after checkout succeeds.
               </td></tr>`
-            : `<tr><td colspan="5" class="text-center text-muted">No donations yet.</td></tr>`;
+            : `<tr><td colspan="3" class="text-center text-muted">No donations yet.</td></tr>`;
         return;
     }
 
@@ -256,29 +302,35 @@ function renderDonationRows(rows) {
             const email = String(
                 d.volunteerEmail || d.donorEmail || d.email || ""
             ).trim();
-            const donorHtml =
-                name || email
-                    ? `<strong>${escapeHtml(name || "Donor")}</strong>${
-                          email
-                              ? `<div class="small text-muted">${escapeHtml(email)}</div>`
-                              : ""
-                      }`
-                    : `<strong>${escapeHtml(donorLabel(d))}</strong>`;
+            const displayName =
+                d.anonymous && !name ? "Anonymous donor" : name || donorLabel(d);
+            const donorHtml = email
+                ? `<strong>${escapeHtml(displayName)}</strong><div class="small text-muted">${escapeHtml(email)}</div>`
+                : `<strong>${escapeHtml(displayName)}</strong>`;
             return `<tr>
         <td>${donorHtml}</td>
         <td>${escapeHtml(amountLabel)}</td>
-        <td>${escapeHtml(String(d.status || "").toUpperCase())}</td>
         <td>${escapeHtml(donationWhen(d))}</td>
-        <td class="small text-muted">${escapeHtml(d.id)}</td>
       </tr>`;
         })
         .join("");
 }
 
+function isSuccessfulDonation(row) {
+    const status = String(row?.status || "paid").toLowerCase();
+    return (
+        status === "" ||
+        status === "paid" ||
+        status === "success" ||
+        status === "successful" ||
+        status === "payment_success"
+    );
+}
+
 async function loadTransactions() {
     const tbody = document.getElementById("donationsTableBody");
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Loading…</td></tr>';
 
     let apiRows = [];
     let firestoreRows = [];
@@ -298,9 +350,13 @@ async function loadTransactions() {
     }
 
     const recentRows = campaignRecentDonations();
-    const rows = mergeDonationRows(firestoreRows, apiRows, recentRows).sort((a, b) =>
-        donationWhen(b).localeCompare(donationWhen(a))
-    );
+    const rows = mergeDonationRows(firestoreRows, apiRows, recentRows)
+        .filter(isSuccessfulDonation)
+        .sort((a, b) => {
+            const aTime = donationDate(a)?.getTime() || 0;
+            const bTime = donationDate(b)?.getTime() || 0;
+            return bTime - aTime;
+        });
 
     if (rows.length) {
         paintRaisedFromRows(rows);
@@ -333,7 +389,7 @@ async function loadCampaign() {
     document.getElementById("campaignStatus").className = `status-pill status-${c.status}`;
     const modeEl = document.getElementById("campaignMode");
     if (modeEl) modeEl.textContent = donationModeLabel(resolveDonationMode(c));
-    document.getElementById("campaignDates").textContent = `${c.startDate || "—"} → ${c.endDate || "—"}`;
+    document.getElementById("campaignDates").textContent = `${formatCampaignDate(c.startDate)} → ${formatCampaignDate(c.endDate)}`;
     document.getElementById("campaignMission").textContent =
         c.relatedMissionName || "—";
 
