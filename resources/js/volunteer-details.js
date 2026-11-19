@@ -28,9 +28,20 @@ import {
     readStoredProfileStats,
     collectOrgIdHints,
 } from "./volunteer-stats.js";
+import {
+    readOrgCache,
+    writeOrgCache,
+    isOrgCacheFresh,
+    volunteerDetailCacheKey,
+    tableHtmlForCache,
+    NAV_FRESH_MS,
+    LAST_ORG_UID_KEY,
+    ORG_CACHE_KEYS,
+} from "./org-data-cache.js";
 
 let applicantUserId = null;
 let coordinatorOrgId = null;
+let cachedVolunteerProfile = null;
 let orgMissionById = new Map();
 let historyMissionIds = new Set();
 let applicantApplications = [];
@@ -926,74 +937,263 @@ async function loadApplicantProfile(userId) {
     }
 }
 
-function setDetailLoadingVisible(visible, message = "Loading volunteer…") {
-    const loading = document.getElementById("detailLoading");
+function showDetailContent() {
     const content = document.getElementById("detailContent");
-    if (loading) {
-        if (visible) {
-            loading.hidden = false;
-            loading.removeAttribute("hidden");
-            loading.innerHTML = `
-                <div class="detail-loading-inner">
-                    <div class="detail-loading-spinner" aria-hidden="true"></div>
-                    <span>${escapeHtml(message)}</span>
-                </div>`;
-        } else {
-            loading.hidden = true;
-            loading.setAttribute("hidden", "");
-            loading.innerHTML = "";
-        }
-    }
+    const loading = document.getElementById("detailLoading");
     if (content) {
-        if (visible) {
-            content.hidden = true;
-            content.setAttribute("hidden", "");
-        } else {
-            content.hidden = false;
-            content.removeAttribute("hidden");
-        }
+        content.hidden = false;
+        content.removeAttribute("hidden");
+    }
+    if (loading) {
+        loading.hidden = true;
+        loading.setAttribute("hidden", "");
+        loading.innerHTML = "";
     }
 }
 
-async function initPage(user) {
+function showDetailError(message) {
+    const loading = document.getElementById("detailLoading");
+    if (!loading) return;
+    loading.hidden = false;
+    loading.removeAttribute("hidden");
+    loading.innerHTML = `<p class="detail-loading-error">${escapeHtml(
+        message
+    )}</p>`;
+}
+
+function slimAttendedForCache() {
+    return getAttendedMissions().map((row) => ({
+        missionId: row.missionId || "",
+        missionName: row.missionName || "Mission",
+        missionDate: row.missionDate || "—",
+        missionDescription: row.missionDescription || "",
+        status: row.status || "approved",
+    }));
+}
+
+function saveVolunteerDetailCache(orgId, userId) {
+    if (!orgId || !userId) return;
+    const tbody = document.getElementById("applicantMissionsBody");
+    // Keep payload small — full mission maps blow past sessionStorage.
+    writeOrgCache(orgId, volunteerDetailCacheKey(userId), {
+        userId,
+        profile: cachedVolunteerProfile,
+        volunteerStats,
+        attended: slimAttendedForCache(),
+        tableHtml: tableHtmlForCache(tbody?.innerHTML || ""),
+        ready: true,
+    });
+}
+
+function isReadyVolunteerDetailCache(payload) {
+    return Boolean(
+        payload?.userId &&
+            payload.ready === true &&
+            (payload.tableHtml || Array.isArray(payload.attended))
+    );
+}
+
+function restoreOrgMissionMapFromCache(orgId) {
+    const cachedMap = readOrgCache(orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+    if (!cachedMap?.payload?.entries?.length) return false;
+    const map = new Map();
+    const historyIds = new Set();
+    cachedMap.payload.entries.forEach(([id, data]) => {
+        map.set(id, {
+            ...data,
+            missionName:
+                data.missionName || data.name || data.title || "Mission",
+            orgId: data.orgId || data.organizationId || orgId,
+        });
+        const st = String(data?.status || "").toLowerCase();
+        if (st === "completed" || data?.movedToHistoryAt != null) {
+            historyIds.add(id);
+        }
+    });
+    orgMissionById = map;
+    historyMissionIds = historyIds;
+    return true;
+}
+
+function renderAttendedFromCachedRows(attended) {
+    const tbody = document.getElementById("applicantMissionsBody");
+    if (!tbody) return;
+    renderVolunteerStats();
+    const rows = Array.isArray(attended) ? attended : [];
+    if (!rows.length) {
+        tbody.innerHTML = `
+            <tr>
+              <td colspan="4" class="vd-empty-cell">
+                <i class="bi bi-calendar-x" aria-hidden="true"></i>
+                No completed missions attended yet
+              </td>
+            </tr>`;
+        return;
+    }
+    tbody.innerHTML = rows
+        .map((v) => {
+            const missionLink = `/missions/details?id=${encodeURIComponent(
+                v.missionId || ""
+            )}`;
+            const desc = truncateDescription(v.missionDescription, 120);
+            const fullDesc = (v.missionDescription || "").trim();
+            return `
+                <tr>
+                    <td class="col-mission">
+                        <a href="${missionLink}" class="mission-name-link">${escapeHtml(
+                            v.missionName || "Mission"
+                        )}</a>
+                    </td>
+                    <td class="col-date"><span class="mission-date-main">${escapeHtml(
+                        v.missionDate || "—"
+                    )}</span></td>
+                    <td class="col-desc mission-desc-cell" ${
+                        fullDesc ? `title="${escapeHtml(fullDesc)}"` : ""
+                    }>${escapeHtml(desc)}</td>
+                    <td class="col-action">
+                        <a href="${missionLink}" class="mission-action-btn">View details</a>
+                    </td>
+                </tr>`;
+        })
+        .join("");
+}
+
+function applyVolunteerDetailCache(payload) {
+    if (!payload || !payload.userId) return false;
+
+    cachedVolunteerProfile = payload.profile || null;
+    volunteerStats = {
+        missionsCompleted: Number(payload.volunteerStats?.missionsCompleted) || 0,
+        totalHours: Number(payload.volunteerStats?.totalHours) || 0,
+        volunteerLevel: payload.volunteerStats?.volunteerLevel || "",
+        totalPoints: Number(payload.volunteerStats?.totalPoints) || 0,
+    };
+
+    // Prefer slim attended rows; fall back to legacy applications/missionMap caches.
+    if (Array.isArray(payload.applications)) {
+        applicantApplications = payload.applications;
+    }
+    if (payload.missionMap && typeof payload.missionMap === "object") {
+        orgMissionById = new Map(
+            Object.entries(payload.missionMap).map(([id, data]) => [id, data])
+        );
+    }
+    if (Array.isArray(payload.historyMissionIds)) {
+        historyMissionIds = new Set(payload.historyMissionIds);
+    }
+
+    const nameEl = document.getElementById("applicantName");
+    if (nameEl && cachedVolunteerProfile?.name) {
+        nameEl.dataset.fallback = cachedVolunteerProfile.name;
+    }
+
+    renderProfile(cachedVolunteerProfile);
+
+    const tbody = document.getElementById("applicantMissionsBody");
+    const cachedHtml = payload.tableHtml || "";
+    if (tbody && cachedHtml && !/loading/i.test(cachedHtml)) {
+        tbody.innerHTML = cachedHtml;
+        renderVolunteerStats();
+    } else if (Array.isArray(payload.attended)) {
+        renderAttendedFromCachedRows(payload.attended);
+    } else {
+        renderAttendedMissionsTable();
+    }
+
+    showDetailContent();
+    return true;
+}
+
+function tryEarlyVolunteerDetailPaint() {
+    const userId = getUserIdFromUrl();
+    if (!userId) return false;
+    const content = document.getElementById("detailContent");
+    if (!content) return false;
+    if (content.querySelector(".mission-name-link, .vd-empty-cell")) {
+        showDetailContent();
+        return true;
+    }
+    let uid = "";
+    try {
+        uid = sessionStorage.getItem(LAST_ORG_UID_KEY) || "";
+    } catch {
+        uid = "";
+    }
+    if (!uid) return false;
+    const cached = readOrgCache(uid, volunteerDetailCacheKey(userId));
+    if (!cached?.payload?.userId) return false;
+    applicantUserId = userId;
+    coordinatorOrgId = uid;
+    return applyVolunteerDetailCache(cached.payload);
+}
+
+async function refreshVolunteerDetails(
+    user,
+    { refresh = true, background = false } = {}
+) {
     applicantUserId = getUserIdFromUrl();
     if (!applicantUserId) {
         window.location.href = "/organization/volunteers";
         return;
     }
 
-    setDetailLoadingVisible(true);
+    const orgId = user?.uid || null;
+    const cacheKey = volunteerDetailCacheKey(applicantUserId);
+    const cached = orgId ? readOrgCache(orgId, cacheKey) : null;
+    const hasCache = Boolean(cached?.payload?.userId);
+    const hasReadyCache = isReadyVolunteerDetailCache(cached?.payload);
+
+    // Never show a loading spinner — paint cache/seed immediately.
+    if (hasCache && !background) {
+        applyVolunteerDetailCache(cached.payload);
+    } else if (!hasCache && !background) {
+        showDetailContent();
+    }
+
+    // Ready cache + soft nav: keep painted content, skip network.
+    if (hasReadyCache && !refresh && !background) {
+        return;
+    }
+    if (
+        hasReadyCache &&
+        background &&
+        orgId &&
+        isOrgCacheFresh(orgId, cacheKey, NAV_FRESH_MS) &&
+        !refresh
+    ) {
+        return;
+    }
 
     try {
-        const [profile, missionMap] = await Promise.all([
-            loadApplicantProfile(applicantUserId),
-            buildOrgMissionMap(user.uid),
-        ]);
-
-        orgMissionById = missionMap;
+        coordinatorOrgId = user.uid;
         missionHoursCache.clear();
 
-        applicantApplications = await loadApplicantApplications(
-            user.uid,
-            applicantUserId
-        );
-        coordinatorOrgId = user.uid;
-        await mergeApplicantFromOrgRosters(user.uid, applicantUserId);
-        await mergeLedgerCompletedMissions(user.uid, applicantUserId);
-        await mergeGlobalCompletedMissionsForTable(
-            applicantUserId,
-            user.uid
-        );
-
-        volunteerStats = await loadVolunteerStats(
-            applicantUserId,
-            user.uid
-        );
-
+        // 1) Profile first — paint as soon as it arrives.
+        const profile = await loadApplicantProfile(applicantUserId);
+        cachedVolunteerProfile = profile;
         const nameEl = document.getElementById("applicantName");
         if (nameEl && profile?.name) {
             nameEl.dataset.fallback = profile.name;
         }
+        renderProfile(profile);
+        showDetailContent();
+
+        // 2) Mission map from session cache when possible (avoids full org scan).
+        if (!restoreOrgMissionMapFromCache(user.uid)) {
+            orgMissionById = await buildOrgMissionMap(user.uid);
+        }
+
+        // 3) Org-scoped applications + roster/ledger + stats in parallel.
+        applicantApplications = await loadApplicantApplications(
+            user.uid,
+            applicantUserId
+        );
+        const [, , stats] = await Promise.all([
+            mergeApplicantFromOrgRosters(user.uid, applicantUserId),
+            mergeLedgerCompletedMissions(user.uid, applicantUserId),
+            loadVolunteerStats(applicantUserId, user.uid),
+        ]);
+        volunteerStats = stats;
 
         if (profile && applicantApplications.length > 0) {
             applicantApplications[0].name =
@@ -1008,27 +1208,32 @@ async function initPage(user) {
 
         renderProfile(profile);
         renderAttendedMissionsTable();
-    } catch (err) {
-        console.error("[ERROR] initPage:", err);
-        const loading = document.getElementById("detailLoading");
-        if (loading) {
-            loading.hidden = false;
-            loading.removeAttribute("hidden");
-            loading.innerHTML =
-                '<p class="detail-loading-error">Could not load volunteer details. Please refresh the page.</p>';
-        }
-        const content = document.getElementById("detailContent");
-        if (content) {
-            content.hidden = true;
-            content.setAttribute("hidden", "");
-        }
-        return;
-    }
+        showDetailContent();
+        saveVolunteerDetailCache(user.uid, applicantUserId);
 
-    setDetailLoadingVisible(false);
+        // 4) Heavier cross-org table enrichment after first paint.
+        void mergeGlobalCompletedMissionsForTable(applicantUserId, user.uid)
+            .then(() => {
+                renderAttendedMissionsTable();
+                saveVolunteerDetailCache(user.uid, applicantUserId);
+            })
+            .catch((err) => {
+                console.warn("[WARN] global missions merge:", err);
+            });
+    } catch (err) {
+        console.error("[ERROR] refreshVolunteerDetails:", err);
+        if (!hasCache) {
+            showDetailError(
+                "Could not load volunteer details. Please refresh the page."
+            );
+        }
+    }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootVolunteerDetailsPage() {
+    // Paint immediately if hydrate already ran or cache is available.
+    tryEarlyVolunteerDetailPaint();
+
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
             window.location.href = "/organization/login";
@@ -1043,6 +1248,41 @@ document.addEventListener("DOMContentLoaded", () => {
             );
             return;
         }
-        await initPage(access.actor);
+
+        const actor = access.actor;
+        const orgId = actor?.uid;
+        const userId = getUserIdFromUrl();
+        const cached = orgId && userId
+            ? readOrgCache(orgId, volunteerDetailCacheKey(userId))
+            : null;
+        const ready = isReadyVolunteerDetailCache(cached?.payload);
+        const fresh =
+            ready &&
+            orgId &&
+            userId &&
+            isOrgCacheFresh(
+                orgId,
+                volunteerDetailCacheKey(userId),
+                NAV_FRESH_MS
+            );
+
+        // Soft nav: reuse ready cache. Otherwise load now (seed stubs still refresh).
+        void refreshVolunteerDetails(actor, {
+            refresh: !ready,
+            background: Boolean(ready),
+        }).then(() => {
+            if (ready && !fresh) {
+                void refreshVolunteerDetails(actor, {
+                    refresh: true,
+                    background: true,
+                });
+            }
+        });
     });
-});
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootVolunteerDetailsPage);
+} else {
+    bootVolunteerDetailsPage();
+}

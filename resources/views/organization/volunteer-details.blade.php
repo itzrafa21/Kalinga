@@ -50,40 +50,18 @@
     }
     .vd-page-title i { color: #386b57; }
 
-    #detailLoading {
-      margin: 0 0 1rem;
-      color: #64748b;
-      font-size: 0.9rem;
-    }
     #detailLoading[hidden],
     #detailContent[hidden] {
       display: none !important;
     }
-    .detail-loading-inner {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 1rem;
-      background: #fff;
-      border: 1px solid #d8e8df;
-      border-radius: 12px;
-    }
-    .detail-loading-spinner {
-      width: 1.25rem;
-      height: 1.25rem;
-      border: 2px solid #e2e8f0;
-      border-top-color: #386b57;
-      border-radius: 50%;
-      animation: detail-spin 1s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes detail-spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
     .detail-loading-error {
-      margin: 0;
+      margin: 0 0 1rem;
+      padding: 0.85rem 1rem;
       color: #b91c1c;
+      background: #fff;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      font-size: 0.9rem;
     }
 
     .vd-top-grid {
@@ -394,9 +372,9 @@
       </a>
     </header>
 
-    <div id="detailLoading" aria-live="polite"></div>
+    <div id="detailLoading" aria-live="polite" hidden></div>
 
-    <div id="detailContent" hidden>
+    <div id="detailContent">
       <div class="vd-top-grid">
         <section class="vd-profile-card" aria-label="Volunteer profile">
           <div class="vd-profile-inner">
@@ -459,6 +437,117 @@
         </div>
       </section>
     </div>
+    {{-- Instant paint from sessionStorage before module JS (same idea as mission/history hydrate) --}}
+    <script>
+    (function () {
+      var P = "kalinga-org:";
+      var uid = "";
+      try { uid = sessionStorage.getItem(P + "lastUid") || ""; } catch (e) { return; }
+      if (!uid) return;
+      var params = new URLSearchParams(window.location.search || "");
+      var userId = params.get("userId") || "";
+      if (!userId) return;
+      var raw = null;
+      try { raw = sessionStorage.getItem(P + uid + ":volunteer-detail-" + userId); } catch (e) { return; }
+      if (!raw) return;
+      var entry = null;
+      try { entry = JSON.parse(raw); } catch (e) { return; }
+      var payload = entry && entry.payload !== undefined ? entry.payload : null;
+      if (!payload) return;
+
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      function initials(name) {
+        var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return "?";
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+
+      var profile = payload.profile || {};
+      var name = profile.name || "Volunteer";
+      var nameEl = document.getElementById("applicantName");
+      var emailEl = document.getElementById("applicantEmail");
+      var phoneEl = document.getElementById("applicantPhone");
+      var occEl = document.getElementById("applicantOccupation");
+      var levelEl = document.getElementById("applicantLevel");
+      var avatarWrap = document.getElementById("applicantAvatarWrap");
+      var avatarImg = document.getElementById("applicantAvatarImg");
+      var avatarInitial = document.getElementById("applicantAvatarInitial");
+      if (nameEl) {
+        nameEl.textContent = name;
+        nameEl.dataset.fallback = name;
+      }
+      if (emailEl) emailEl.textContent = profile.email || "—";
+      if (phoneEl) phoneEl.textContent = profile.phone || "—";
+      if (occEl) {
+        var occ = String(profile.occupation || "").trim();
+        if (occ) {
+          occEl.textContent = occ;
+          occEl.hidden = false;
+          occEl.removeAttribute("hidden");
+        }
+      }
+      if (levelEl) {
+        var level = (payload.volunteerStats && payload.volunteerStats.volunteerLevel) || "";
+        if (level) {
+          levelEl.textContent = level;
+          levelEl.hidden = false;
+          levelEl.removeAttribute("hidden");
+        }
+      }
+      if (avatarInitial) avatarInitial.textContent = initials(name);
+      if (avatarWrap && avatarImg && profile.photoUrl) {
+        avatarImg.alt = name;
+        avatarImg.src = profile.photoUrl;
+        avatarImg.removeAttribute("hidden");
+        avatarWrap.classList.add("has-photo");
+      }
+
+      var stats = payload.volunteerStats || {};
+      var missionsEl = document.getElementById("vdMissionsCount");
+      var hoursEl = document.getElementById("vdHoursCount");
+      if (missionsEl && stats.missionsCompleted != null) {
+        missionsEl.textContent = String(stats.missionsCompleted);
+      }
+      if (hoursEl && stats.totalHours != null) {
+        hoursEl.textContent = String(stats.totalHours);
+      }
+
+      var tbody = document.getElementById("applicantMissionsBody");
+      if (!tbody) return;
+      var html = payload.tableHtml || "";
+      if (html && html.toLowerCase().indexOf("loading") === -1) {
+        tbody.innerHTML = html;
+        return;
+      }
+      var attended = Array.isArray(payload.attended) ? payload.attended : [];
+      if (!attended.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="vd-empty-cell"><i class="bi bi-calendar-x" aria-hidden="true"></i> No completed missions attended yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = attended.map(function (v) {
+        var id = v.missionId || "";
+        var href = "/missions/details?id=" + encodeURIComponent(id);
+        var desc = String(v.missionDescription || "").trim();
+        if (desc.length > 120) desc = desc.slice(0, 120) + "…";
+        return (
+          "<tr>" +
+          '<td class="col-mission"><a href="' + href + '" class="mission-name-link">' + esc(v.missionName || "Mission") + "</a></td>" +
+          '<td class="col-date"><span class="mission-date-main">' + esc(v.missionDate || "—") + "</span></td>" +
+          '<td class="col-desc mission-desc-cell">' + esc(desc || "—") + "</td>" +
+          '<td class="col-action"><a href="' + href + '" class="mission-action-btn">View details</a></td>' +
+          "</tr>"
+        );
+      }).join("");
+    })();
+    </script>
   </main>
 </body>
 </html>

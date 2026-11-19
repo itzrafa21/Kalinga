@@ -26,6 +26,11 @@ export function missionDetailCacheKey(missionId) {
     return `detail-${missionId}`;
 }
 
+/** Per-volunteer details page cache key (scoped under org uid). */
+export function volunteerDetailCacheKey(userId) {
+    return `volunteer-detail-${userId}`;
+}
+
 /** True when cached table HTML is a loading placeholder (must not persist or restore). */
 export function isLoadingTableHtml(html) {
     if (!html || typeof html !== "string") return true;

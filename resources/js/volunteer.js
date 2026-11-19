@@ -29,6 +29,7 @@ import {
     isOrgCacheFresh,
     invalidateOrgCache,
     missionDetailCacheKey,
+    volunteerDetailCacheKey,
     isLoadingTableHtml,
     tableHtmlForCache,
 } from "./org-data-cache.js";
@@ -943,6 +944,39 @@ async function saveVolunteersCache(orgId) {
             totalHours,
         },
     });
+
+    // Seed / refresh slim volunteer-detail caches so View details paints instantly.
+    const applicants = Array.isArray(allApplicants) ? allApplicants : [];
+    for (const a of applicants) {
+        const userId = a?.userId;
+        if (!userId) continue;
+        const key = volunteerDetailCacheKey(userId);
+        const existing = readOrgCache(orgId, key)?.payload || {};
+        const profile = {
+            name: a.name || existing.profile?.name || "Volunteer",
+            email: a.email || existing.profile?.email || "",
+            phone: a.phone || existing.profile?.phone || "",
+            occupation: existing.profile?.occupation || "",
+            photoUrl: existing.profile?.photoUrl || "",
+        };
+        const hasReadyDetails =
+            existing.ready === true &&
+            (Boolean(existing.tableHtml) || Array.isArray(existing.attended));
+        writeOrgCache(orgId, key, {
+            userId,
+            profile,
+            volunteerStats: existing.volunteerStats || {
+                missionsCompleted: 0,
+                totalHours: 0,
+                volunteerLevel: "",
+                totalPoints: 0,
+            },
+            attended: Array.isArray(existing.attended) ? existing.attended : [],
+            tableHtml: existing.tableHtml || "",
+            // Keep full detail caches; mark list-seeded stubs so details still refresh.
+            ready: hasReadyDetails,
+        });
+    }
 }
 
 async function loadVolunteers({
