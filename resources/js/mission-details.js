@@ -172,18 +172,6 @@ function pointsBreakdown(mission) {
   return "";
 }
 
-function missionDonationBadge(mission) {
-  const details = mission && mission.donationDetails;
-  const hasDetails = !!(
-    details &&
-    (details.accountName || details.gcashNumber || details.qrImage)
-  );
-  const isSet = mission && mission.makeDonations === true && hasDetails;
-  return isSet
-    ? { cls: "md-b-green", label: "Donation set" }
-    : { cls: "md-b-gray", label: "No donation set" };
-}
-
 function resolveHostName(mission, user) {
   const fromMission =
     mission?.orgName ||
@@ -1552,7 +1540,6 @@ function renderMissionFrame(
     ["open", "ongoing", "approved"].includes(statusLower);
 
   const badge = missionStatusBadge(status);
-  const donationBadge = missionDonationBadge(mission);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
   const hostName = resolveHostName(mission, user);
@@ -1592,7 +1579,6 @@ function renderMissionFrame(
           <p class="md-host">Hosted by ${escapeHtml(hostName)}</p>
           <div class="md-chip-row">
             <span class="md-type-badge">${escapeHtml(mission.type || "General")}</span>
-            <span class="md-donation-badge ${donationBadge.cls}">${escapeHtml(donationBadge.label)}</span>
           </div>
           <div class="md-info-grid">
             <div class="md-cell">
@@ -1846,7 +1832,6 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
     (mission.rejectionReason || "").trim() ||
     "No reason was provided by the administrator.";
   const badge = missionStatusBadge("rejected");
-  const donationBadge = missionDonationBadge(mission);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
   const hostName = resolveHostName(mission, user);
@@ -1875,7 +1860,6 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
           <p class="md-host">Hosted by ${escapeHtml(hostName)}</p>
           <div class="md-chip-row">
             <span class="md-type-badge">${escapeHtml(mission.type || "General")}</span>
-            <span class="md-donation-badge ${donationBadge.cls}">${escapeHtml(donationBadge.label)}</span>
           </div>
           <div class="md-info-grid">
             <div class="md-cell">

@@ -278,8 +278,7 @@
       gap: 0.45rem;
       margin-bottom: 1.15rem;
     }
-    .md-type-badge,
-    .md-donation-badge {
+    .md-type-badge {
       display: inline-flex;
       align-items: center;
       padding: 0.28rem 0.7rem;
@@ -287,18 +286,8 @@
       font-size: 0.78rem;
       font-weight: 650;
       border: none;
-    }
-    .md-type-badge {
       background: rgba(255, 255, 255, 0.16);
       color: #fff;
-    }
-    .md-donation-badge.md-b-green {
-      background: rgba(34, 197, 94, 0.22);
-      color: #bbf7d0;
-    }
-    .md-donation-badge.md-b-gray {
-      background: rgba(255, 255, 255, 0.12);
-      color: rgba(255, 255, 255, 0.82);
     }
     .md-info-grid {
       display: grid;
