@@ -40,12 +40,6 @@ html[data-theme="dark"] body.admin-app .nav-item:focus-visible {
   outline: none !important;
   box-shadow: none !important;
 }
-@media (hover: hover) {
-  html[data-theme="dark"] body.admin-app .nav-item:hover {
-    background: rgba(148, 163, 184, 0.12) !important;
-    color: #f8fafc !important;
-  }
-}
 html[data-theme="dark"] body.admin-app .nav-item.active {
   background: #166534 !important;
   color: #ecfdf5 !important;
@@ -54,11 +48,12 @@ html[data-theme="dark"] body.admin-app .nav-item.active i {
   color: #ecfdf5 !important;
 }
 
-/* Keep only the current admin tab highlighted (clears sticky hover on others) */
+/* Dashboard hash tabs: only the current data-admin-tab item stays active */
 html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab],
 html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab].active,
 html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab]:hover,
-html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab]:focus {
+html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab]:focus,
+html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab].is-hover {
   background: transparent !important;
   color: #e2e8f0 !important;
   font-weight: 400 !important;
@@ -66,27 +61,20 @@ html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab]:focus
 html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab] i {
   color: #cbd5e1 !important;
 }
-@media (hover: hover) {
-  html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab]:hover {
-    background: rgba(148, 163, 184, 0.12) !important;
-    color: #f8fafc !important;
-  }
+html[data-theme="dark"][data-admin-tab] body.admin-app .nav-item[data-tab].is-hover:not(.active) {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #f8fafc !important;
 }
 html[data-theme="dark"][data-admin-tab="dashboard"] body.admin-app .nav-item[data-tab="dashboard"],
-html[data-theme="dark"][data-admin-tab="dashboard"] body.admin-app .nav-item[data-tab="dashboard"]:hover,
-html[data-theme="dark"][data-admin-tab="dashboard"] body.admin-app .nav-item[data-tab="dashboard"]:focus,
+html[data-theme="dark"][data-admin-tab="dashboard"] body.admin-app .nav-item[data-tab="dashboard"].is-hover,
 html[data-theme="dark"][data-admin-tab="organizations"] body.admin-app .nav-item[data-tab="organizations"],
-html[data-theme="dark"][data-admin-tab="organizations"] body.admin-app .nav-item[data-tab="organizations"]:hover,
-html[data-theme="dark"][data-admin-tab="organizations"] body.admin-app .nav-item[data-tab="organizations"]:focus,
+html[data-theme="dark"][data-admin-tab="organizations"] body.admin-app .nav-item[data-tab="organizations"].is-hover,
 html[data-theme="dark"][data-admin-tab="missions"] body.admin-app .nav-item[data-tab="missions"],
-html[data-theme="dark"][data-admin-tab="missions"] body.admin-app .nav-item[data-tab="missions"]:hover,
-html[data-theme="dark"][data-admin-tab="missions"] body.admin-app .nav-item[data-tab="missions"]:focus,
+html[data-theme="dark"][data-admin-tab="missions"] body.admin-app .nav-item[data-tab="missions"].is-hover,
 html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"],
-html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"]:hover,
-html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"]:focus,
+html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"].is-hover,
 html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"],
-html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"]:hover,
-html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"]:focus {
+html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"].is-hover {
   background: #166534 !important;
   color: #ecfdf5 !important;
   font-weight: 500 !important;

@@ -1,8 +1,9 @@
 import "../css/admin-dark-theme.css";
+import "../css/admin-sidebar.css";
 
 const THEME_KEY = "kalinga-org-theme";
 const SKIP_SURFACE =
-    "img, svg, canvas, video, path, .mapboxgl-map, .mapboxgl-canvas, .mapboxgl-marker, .mapboxgl-ctrl, .mapboxgl-ctrl-group, .map-wrap, .hotline-map, .hotline-map-block";
+    "img, svg, canvas, video, path, .mapboxgl-map, .mapboxgl-canvas, .mapboxgl-marker, .mapboxgl-ctrl, .mapboxgl-ctrl-group, .map-wrap, .hotline-map, .hotline-map-block, .sidebar, .sb-nav, .sb-header, .sb-footer, .sb-section, .sb-brand, .sb-user, .nav-item, .logout-btn, .sidebar-logo-mark, .sidebar-logo-title, .sidebar-logo-visual, .sidebar-logo-img, .kalinga-logo";
 
 function syncThemeToggleIcons(theme) {
     const btn = document.getElementById("orgThemeToggleBtn");
@@ -102,10 +103,74 @@ function shouldSkipSurface(el) {
         el.matches(SKIP_SURFACE) ||
         Boolean(
             el.closest(
-                ".mapboxgl-map, .mapboxgl-canvas, .mapboxgl-marker, .mapboxgl-ctrl-group, .map-wrap, .hotline-map, .hotline-map-block"
+                ".mapboxgl-map, .mapboxgl-canvas, .mapboxgl-marker, .mapboxgl-ctrl-group, .map-wrap, .hotline-map, .hotline-map-block, .sidebar"
             )
         )
     );
+}
+
+function clearSidebarDarkPatches() {
+    document
+        .querySelectorAll(".sidebar[data-dark-patched], .sidebar [data-dark-patched]")
+        .forEach((el) => {
+            el.style.removeProperty("background-color");
+            el.style.removeProperty("color");
+            el.style.removeProperty("border-color");
+            delete el.dataset.darkPatched;
+        });
+}
+
+/** Class-based hover so CSS :hover / dark-patch inline styles cannot stick. */
+function wireAdminSidebarHover() {
+    const sidebar = document.querySelector("body.admin-app .sidebar");
+    if (!sidebar || sidebar.dataset.hoverWired === "1") return;
+    sidebar.dataset.hoverWired = "1";
+
+    const clearHover = () => {
+        sidebar.querySelectorAll(".nav-item.is-hover").forEach((el) => {
+            el.classList.remove("is-hover");
+        });
+    };
+
+    const nudgePointerEvents = () => {
+        sidebar.classList.add("is-nav-clearing");
+        window.requestAnimationFrame(() => {
+            sidebar.classList.remove("is-nav-clearing");
+        });
+    };
+
+    sidebar.addEventListener("pointerover", (event) => {
+        const item = event.target.closest?.(".nav-item");
+        if (!item || !sidebar.contains(item)) return;
+        sidebar.querySelectorAll(".nav-item.is-hover").forEach((el) => {
+            if (el !== item) el.classList.remove("is-hover");
+        });
+        item.classList.add("is-hover");
+    });
+
+    sidebar.addEventListener("pointerout", (event) => {
+        const item = event.target.closest?.(".nav-item");
+        if (!item || !sidebar.contains(item)) return;
+        const related = event.relatedTarget;
+        if (related instanceof Node && item.contains(related)) return;
+        item.classList.remove("is-hover");
+    });
+
+    sidebar.addEventListener(
+        "click",
+        (event) => {
+            const item = event.target.closest?.(".nav-item");
+            clearHover();
+            if (item && typeof item.blur === "function") item.blur();
+            nudgePointerEvents();
+        },
+        true
+    );
+
+    window.addEventListener("pageshow", clearHover);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") clearHover();
+    });
 }
 
 function clearDarkPatches() {
@@ -158,6 +223,8 @@ function hardenDarkSurfaces() {
     if (!root) return;
     patchDarkElement(root);
     root.querySelectorAll("*").forEach(patchDarkElement);
+    // Sidebar is styled by CSS only — never leave sticky inline patches there.
+    clearSidebarDarkPatches();
 }
 
 let hardenTimer = 0;
@@ -181,7 +248,9 @@ new MutationObserver(() => scheduleHarden()).observe(document.documentElement, {
 
 function bootAdminTheme() {
     wireAdminThemeToggle();
+    wireAdminSidebarHover();
     syncAdminThemeFromStorage();
+    clearSidebarDarkPatches();
     hardenDarkSurfaces();
     setTimeout(hardenDarkSurfaces, 400);
     setTimeout(hardenDarkSurfaces, 1200);

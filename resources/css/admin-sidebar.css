@@ -1,0 +1,54 @@
+/* Shared admin sidebar nav — JS drives .is-hover so CSS :hover cannot stick */
+
+body.admin-app .sidebar.is-nav-clearing .nav-item {
+  pointer-events: none !important;
+}
+
+body.admin-app .sidebar .nav-item:hover,
+body.admin-app .sidebar .nav-item:focus,
+body.admin-app .sidebar .nav-item:focus-visible {
+  background: transparent !important;
+  color: #666 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+body.admin-app .sidebar .nav-item.is-hover:not(.active) {
+  background: #f4f5f7 !important;
+  color: #222 !important;
+}
+
+body.admin-app .sidebar .nav-item.active,
+body.admin-app .sidebar .nav-item.active:hover,
+body.admin-app .sidebar .nav-item.active:focus,
+body.admin-app .sidebar .nav-item.active.is-hover {
+  background: #aaf0ba !important;
+  color: #000 !important;
+  font-weight: 500 !important;
+}
+
+html[data-theme="dark"] body.admin-app .sidebar .nav-item:hover,
+html[data-theme="dark"] body.admin-app .sidebar .nav-item:focus,
+html[data-theme="dark"] body.admin-app .sidebar .nav-item:focus-visible {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.is-hover:not(.active) {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.active,
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.active:hover,
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.active:focus,
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.active.is-hover {
+  background: #166534 !important;
+  color: #ecfdf5 !important;
+  font-weight: 500 !important;
+}
+
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.active i,
+html[data-theme="dark"] body.admin-app .sidebar .nav-item.active.is-hover i {
+  color: #ecfdf5 !important;
+}
