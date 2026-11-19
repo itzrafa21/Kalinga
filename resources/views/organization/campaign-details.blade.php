@@ -50,21 +50,35 @@
       margin-bottom: 0.85rem;
     }
     .back-link:hover { text-decoration: underline; }
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.1rem;
+    }
     .page-title {
       margin: 0 0 0.45rem;
       font-size: 1.85rem;
       font-weight: 800;
       color: #111827;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
     }
     .meta {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 0.45rem 0.55rem;
-      color: #64748b;
-      margin-bottom: 1.15rem;
+      gap: 0.4rem 0.55rem;
+      color: #6b7280;
+      margin: 0;
       font-size: 0.92rem;
+    }
+    #campaignCategory:empty { display: none; }
+    #campaignCategory:not(:empty) {
+      color: #374151;
+      font-weight: 500;
+      margin-right: 0.15rem;
     }
     .status-msg {
       margin-bottom: 1rem;
@@ -76,43 +90,44 @@
     .status-msg.is-error { background: #fef2f2; color: #991b1b; }
     .details-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
       gap: 1.15rem;
       align-items: start;
     }
     .panel {
       background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
+      border: 1px solid #e7ebe9;
+      border-radius: 16px;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-      padding: 1.25rem 1.35rem;
-      margin-bottom: 1rem;
+      padding: 1.35rem 1.4rem 1.2rem;
+      margin-bottom: 0;
     }
     .panel h2 {
-      margin: 0 0 1rem;
-      font-size: 1.05rem;
+      margin: 0;
+      font-size: 1.02rem;
       font-weight: 750;
       color: #111827;
     }
     .status-pill {
       display: inline-block;
-      padding: 0.2rem 0.55rem;
+      padding: 0.18rem 0.6rem;
       border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
+      font-size: 0.78rem;
+      font-weight: 650;
       background: #e2e8f0;
       color: #334155;
     }
     .status-pending_approval { background: #fef3c7; color: #92400e; }
     .status-published { background: #dcfce7; color: #166534; }
     .status-rejected, .status-closed { background: #fee2e2; color: #991b1b; }
+    .status-draft { background: #f3f4f6; color: #4b5563; }
     .mode-chip {
       display: inline-block;
-      padding: 0.15rem 0.5rem;
+      padding: 0.18rem 0.6rem;
       border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      background: #ecfdf5;
+      font-size: 0.78rem;
+      font-weight: 650;
+      background: #ecfdf3;
       color: #166534;
     }
     .cover-wrap {
@@ -133,55 +148,88 @@
     .cover-wrap:has(#campaignCover[hidden]) { display: none; }
     .description {
       white-space: pre-wrap;
-      line-height: 1.55;
+      line-height: 1.5;
       margin: 0;
       color: #374151;
-      font-size: 0.98rem;
+      font-size: 0.95rem;
     }
     .mission-line {
-      margin: 1rem 0 0;
-      color: #64748b;
+      margin: 0.85rem 0 0;
+      color: #6b7280;
       font-size: 0.92rem;
+    }
+    .raised-kicker {
+      margin: 0 0 0.35rem;
+      color: #6b7280;
+      font-size: 0.92rem;
+    }
+    .raised-line {
+      margin: 0 0 0.8rem;
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.45rem;
+    }
+    .raised-line strong {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #111827;
+      line-height: 1;
+    }
+    .raised-line > span {
+      color: #6b7280;
+      font-size: 0.98rem;
     }
     .stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0.85rem;
-      margin: 1.15rem 0;
+      gap: 0.35rem;
+      margin: 1rem 0 0;
+      background: #f4f6f5;
+      border-radius: 12px;
+      padding: 0.95rem 0.4rem;
     }
     .stat {
-      background: #f8faf9;
-      border: 1px solid #eef2f0;
-      border-radius: 12px;
-      padding: 1rem;
       text-align: center;
+      padding: 0.1rem 0.25rem;
     }
     .stat strong {
       display: block;
-      font-size: 1.25rem;
-      color: #166534;
-      margin-bottom: 0.2rem;
+      font-size: 1.02rem;
+      font-weight: 750;
+      color: #111827;
+      margin-bottom: 0.12rem;
     }
     .stat span {
-      color: #64748b;
-      font-size: 0.85rem;
+      color: #6b7280;
+      font-size: 0.84rem;
     }
     .progress-track {
-      height: 10px;
-      background: #e2e8f0;
+      height: 8px;
+      background: #e5e7eb;
       border-radius: 999px;
       overflow: hidden;
     }
     .progress-track span {
       display: block;
       height: 100%;
-      background: #16a34a;
+      background: #166534;
       width: 0;
+      border-radius: 999px;
     }
-    .progress-label {
-      margin: 0.5rem 0 0;
-      color: #64748b;
-      font-size: 0.9rem;
+    .about-block {
+      margin-top: 1.15rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid #eceeed;
+    }
+    .about-block h2 {
+      margin: 0 0 0.45rem;
+    }
+    .summary-panel:not(:has(#moneyBlock:not([hidden]))):not(:has(#goodsPanel:not([hidden]))) .about-block {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 0;
     }
     .goods-panel { margin-top: 1.15rem; }
     .goods-panel h3 {
@@ -240,9 +288,88 @@
       background: #166534;
       border: none;
       color: #fff;
+      border-radius: 12px;
+      padding: 0.72rem 1.15rem;
+      font-size: 0.95rem;
+      font-weight: 650;
+      flex-shrink: 0;
     }
     .btn-add-update:hover {
       background: #14532d;
+      color: #fff;
+    }
+    .btn-add-update[hidden],
+    .actions[hidden],
+    #moneyBlock[hidden] { display: none !important; }
+    .panel-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+    }
+    .donation-total {
+      color: #6b7280;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    .donation-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .donation-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid #eef1ef;
+    }
+    .donation-row:last-child { border-bottom: none; }
+    .donor-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: #e7f6ec;
+      color: #166534;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .donor-avatar.is-anon {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+    .donor-copy {
+      flex: 1;
+      min-width: 0;
+    }
+    .donor-copy strong {
+      display: block;
+      color: #111827;
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .donor-copy span {
+      display: block;
+      color: #6b7280;
+      font-size: 0.82rem;
+      margin-top: 0.1rem;
+    }
+    .donation-amount {
+      font-weight: 700;
+      color: #111827;
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+    .donation-empty {
+      color: #6b7280;
+      font-size: 0.92rem;
+      padding: 0.85rem 0 0.35rem;
     }
     .updates-panel {
       margin-top: 1rem;
@@ -399,33 +526,16 @@
       position: sticky;
       top: 0;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.92rem;
-    }
-    th, td {
-      padding: 0.8rem 0.55rem;
-      border-bottom: 1px solid #eef2f0;
-      text-align: left;
-    }
-    th {
-      color: #64748b;
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      font-weight: 700;
-    }
-    .money-progress-wrap[hidden],
-    .goods-panel[hidden],
-    #moneyStats[hidden] { display: none !important; }
+    .cover-wrap[hidden],
+    .goods-panel[hidden] { display: none !important; }
     @media (max-width: 1100px) {
       .details-layout { grid-template-columns: 1fr; }
       .side-stack { position: static; }
     }
     @media (max-width: 700px) {
-      .stats { grid-template-columns: 1fr; }
       .campaign-scroll { padding: 1rem; }
+      .page-head { flex-direction: column; }
+      .btn-add-update { width: 100%; justify-content: center; margin-top: 0; }
     }
     @media (max-width: 900px) {
       .org-main-content.main-content.campaign-details-page {
@@ -441,63 +551,74 @@
 
   <main class="org-main-content main-content campaign-details-page" id="mainContent">
     <div class="campaign-scroll">
-      <a class="back-link" href="/donation">← Donation Center</a>
+      <a class="back-link" href="/donation">← Back to donations</a>
       <div id="campaignDetailsStatus" class="status-msg" hidden></div>
 
-      <h2 class="page-title" id="campaignTitle">Campaign</h2>
-      <div class="meta">
-        <span id="campaignCategory"></span>
-        <span id="campaignStatus" class="status-pill"></span>
-        <span id="campaignMode" class="mode-chip">Money</span>
-        <span id="campaignDates"></span>
+      <div class="page-head">
+        <div>
+          <h2 class="page-title" id="campaignTitle">Campaign</h2>
+          <div class="meta">
+            <span id="campaignCategory"></span>
+            <span id="campaignStatus" class="status-pill"></span>
+            <span id="campaignMode" class="mode-chip">Money</span>
+            <span id="campaignDates"></span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-add-update" id="addCampaignUpdateBtn" hidden>Add update</button>
       </div>
 
       <div class="details-layout">
-        <div>
-          <section class="panel">
-            <div class="cover-wrap">
-              <img id="campaignCover" alt="Campaign cover" hidden>
-            </div>
-            <p class="description" id="campaignDescription"></p>
-            <p class="mission-line">Related mission: <strong id="campaignMission">—</strong></p>
+        <section class="panel summary-panel">
+          <div class="cover-wrap" hidden>
+            <img id="campaignCover" alt="Campaign cover" hidden>
+          </div>
 
+          <div id="moneyBlock">
+            <p class="raised-kicker">Raised so far</p>
+            <p class="raised-line">
+              <strong id="raisedAmount">₱0</strong>
+              <span>of <span id="targetAmount">₱0</span> goal</span>
+            </p>
+            <div class="progress-track"><span id="progressFill"></span></div>
             <div class="stats" id="moneyStats">
-              <div class="stat"><strong id="raisedAmount">₱0.00</strong><span>Raised</span></div>
-              <div class="stat"><strong id="targetAmount">₱0.00</strong><span>Target</span></div>
-              <div class="stat"><strong id="donorCount">0</strong><span>Donors</span></div>
+              <div class="stat">
+                <strong id="fundedPercent">0%</strong>
+                <span>funded</span>
+              </div>
+              <div class="stat">
+                <strong id="stillNeeded">₱0</strong>
+                <span>still needed</span>
+              </div>
+              <div class="stat">
+                <strong id="donorCount">0</strong>
+                <span id="donorLabel">donors</span>
+              </div>
             </div>
+          </div>
 
-            <div class="money-progress-wrap" id="moneyProgressWrap">
-              <div class="progress-track"><span id="progressFill"></span></div>
-              <p class="progress-label" id="progressLabel">0% funded</p>
-            </div>
+          <div class="goods-panel" id="goodsPanel" hidden>
+            <h3>Goods needed</h3>
+            <ul class="goods-list" id="goodsList"></ul>
+          </div>
 
-            <div class="goods-panel" id="goodsPanel" hidden>
-              <h3>Goods needed</h3>
-              <ul class="goods-list" id="goodsList"></ul>
-            </div>
+          <div class="about-block">
+            <h2>About this campaign</h2>
+            <p class="description" id="campaignDescription"></p>
+            <p class="mission-line">Related mission: <span id="campaignMission">none</span></p>
+          </div>
 
-            <div class="actions" id="campaignActions"></div>
-          </section>
-        </div>
+          <div class="actions" id="campaignActions" hidden></div>
+        </section>
 
         <aside class="side-stack">
-          <section class="panel">
-            <h2>Donation transactions</h2>
-            <div style="overflow-x:auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Donor</th>
-                    <th>Amount</th>
-                    <th>When</th>
-                  </tr>
-                </thead>
-                <tbody id="donationsTableBody">
-                  <tr><td colspan="3" class="text-center">Loading…</td></tr>
-                </tbody>
-              </table>
+          <section class="panel donations-panel">
+            <div class="panel-head">
+              <h2>Recent donations</h2>
+              <span class="donation-total" id="donationTotal"></span>
             </div>
+            <ul class="donation-list" id="donationsList">
+              <li class="donation-empty">Loading…</li>
+            </ul>
           </section>
         </aside>
       </div>

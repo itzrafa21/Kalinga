@@ -22,7 +22,6 @@ import {
     CAMPAIGN_STATUS,
     campaignAcceptsGoods,
     campaignAcceptsMoney,
-    campaignProgressPercent,
     campaignStatusLabel,
     donationModeLabel,
     escapeHtml,
@@ -55,46 +54,53 @@ function setMessage(message, isError = false) {
     el.classList.toggle("is-error", isError);
 }
 
-function donorLabel(donation) {
-    const name = String(
-        donation.volunteerName ||
-            donation.donorName ||
-            donation.name ||
-            ""
-    ).trim();
-    const email = String(
-        donation.volunteerEmail || donation.donorEmail || donation.email || ""
-    ).trim();
-    if (name && email) return `${name} (${email})`;
-    if (name) return name;
-    if (email) return email;
-    return "Anonymous donor";
-}
-
-const MONTH_NAMES = [
-    "January",
-    "February",
-    "March",
-    "April",
+const SHORT_MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
     "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 ];
 
-function formatCampaignDate(value) {
-    if (!value) return "—";
+function parseCampaignDate(value) {
+    if (!value) return null;
     const raw = String(value).trim();
     const date =
         typeof value?.toDate === "function"
             ? value.toDate()
             : new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw);
-    if (Number.isNaN(date.getTime())) return raw || "—";
-    return `${MONTH_NAMES[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+}
+
+function formatShortDate(value) {
+    const date = parseCampaignDate(value);
+    if (!date) return "";
+    return `${SHORT_MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function formatCampaignDateRange(start, end) {
+    const startDate = parseCampaignDate(start);
+    const endDate = parseCampaignDate(end);
+    if (!startDate && !endDate) return "";
+    if (!startDate) return formatShortDate(end);
+    if (!endDate) return formatShortDate(start);
+    const sameDay =
+        startDate.getFullYear() === endDate.getFullYear() &&
+        startDate.getMonth() === endDate.getMonth() &&
+        startDate.getDate() === endDate.getDate();
+    if (sameDay) return formatShortDate(end);
+    if (startDate.getFullYear() === endDate.getFullYear()) {
+        return `${SHORT_MONTHS[startDate.getMonth()]} ${startDate.getDate()} – ${SHORT_MONTHS[endDate.getMonth()]} ${endDate.getDate()}, ${endDate.getFullYear()}`;
+    }
+    return `${formatShortDate(start)} – ${formatShortDate(end)}`;
 }
 
 function donationDate(donation) {
@@ -112,16 +118,12 @@ function donationDate(donation) {
 function donationWhen(donation) {
     const date = donationDate(donation);
     if (!date) return "—";
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const yyyy = date.getFullYear();
     let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, "0");
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12;
     if (hours === 0) hours = 12;
-    const hh = String(hours).padStart(2, "0");
-    return `${mm}/${dd}/${yyyy} ${hh}:${minutes} ${ampm}`;
+    return `${SHORT_MONTHS[date.getMonth()]} ${date.getDate()}, ${hours}:${minutes} ${ampm}`;
 }
 
 function normalizeDonorDoc(id, data = {}) {
@@ -233,33 +235,52 @@ async function loadApiDonations() {
     };
 }
 
-function paintRaisedFromRows(rows) {
-    const paid = rows.filter(
-        (d) => String(d.status || "").toLowerCase() === "paid"
-    );
-    if (!paid.length) return;
+function formatCompactCentavos(centavos) {
+    const cents = Math.round(Number(centavos) || 0);
+    const whole = cents % 100 === 0;
+    const amount = cents / 100;
+    return `₱${amount.toLocaleString("en-US", {
+        minimumFractionDigits: whole ? 0 : 2,
+        maximumFractionDigits: whole ? 0 : 2,
+    })}`;
+}
 
-    const raised = paid.reduce(
+function paintMoneySummary(raisedCentavos, donorCount) {
+    const target = Number(currentCampaign?.targetAmountCentavos) || 0;
+    const raised = Math.max(0, Math.round(Number(raisedCentavos) || 0));
+    const donors = Math.max(0, Number(donorCount) || 0);
+    const still = Math.max(0, target - raised);
+    const pct =
+        target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
+
+    const set = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    set("raisedAmount", formatCompactCentavos(raised));
+    set("targetAmount", formatCompactCentavos(target));
+    set("stillNeeded", formatCompactCentavos(still));
+    set("fundedPercent", `${pct}%`);
+    set("donorCount", String(donors));
+    set("donorLabel", donors === 1 ? "donor" : "donors");
+
+    const fill = document.getElementById("progressFill");
+    if (fill) fill.style.width = `${pct}%`;
+}
+
+function paintRaisedFromRows(rows) {
+    if (!rows.length) return;
+
+    const raised = rows.reduce(
         (sum, d) => sum + (Number(d.amountCentavos) || 0),
         0
     );
     const donors = new Set(
-        paid
+        rows
             .map((d) => d.volunteerId || d.volunteerEmail || d.id)
             .filter(Boolean)
     );
-
-    const raisedEl = document.getElementById("raisedAmount");
-    const donorsEl = document.getElementById("donorCount");
-    if (raisedEl) raisedEl.textContent = formatCentavos(raised);
-    if (donorsEl) donorsEl.textContent = String(donors.size);
-
-    const target = Number(currentCampaign?.targetAmountCentavos) || 0;
-    const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
-    const fill = document.getElementById("progressFill");
-    const label = document.getElementById("progressLabel");
-    if (fill) fill.style.width = `${pct}%`;
-    if (label) label.textContent = `${pct}% funded`;
+    paintMoneySummary(raised, donors.size);
 }
 
 function campaignRecentDonations() {
@@ -279,21 +300,20 @@ function campaignRecentDonations() {
 }
 
 function renderDonationRows(rows) {
-    const tbody = document.getElementById("donationsTableBody");
-    if (!tbody) return;
+    const list = document.getElementById("donationsList");
+    const total = document.getElementById("donationTotal");
+    if (total) total.textContent = `${rows.length} total`;
+    if (!list) return;
 
     if (!rows.length) {
         const counted = Number(currentCampaign?.donorCount) || 0;
-        tbody.innerHTML = counted
-            ? `<tr><td colspan="3" class="text-center text-muted">
-                Totals show ${counted} donor(s), but no donor names were saved for those payments.
-                New donations will list the donor name and email here after checkout succeeds.
-              </td></tr>`
-            : `<tr><td colspan="3" class="text-center text-muted">No donations yet.</td></tr>`;
+        list.innerHTML = counted
+            ? `<li class="donation-empty">Totals show ${counted} donor(s), but no donor names were saved for those payments.</li>`
+            : `<li class="donation-empty">No donations yet.</li>`;
         return;
     }
 
-    tbody.innerHTML = rows
+    list.innerHTML = rows
         .map((d) => {
             const goods = normalizeInKindItems(d.inKindItems || []);
             const amountLabel = goods.length
@@ -310,16 +330,19 @@ function renderDonationRows(rows) {
             const email = String(
                 d.volunteerEmail || d.donorEmail || d.email || ""
             ).trim();
-            const displayName =
-                d.anonymous && !name ? "Anonymous donor" : name || donorLabel(d);
-            const donorHtml = email
-                ? `<strong>${escapeHtml(displayName)}</strong><div class="small text-muted">${escapeHtml(email)}</div>`
-                : `<strong>${escapeHtml(displayName)}</strong>`;
-            return `<tr>
-        <td>${donorHtml}</td>
-        <td>${escapeHtml(amountLabel)}</td>
-        <td>${escapeHtml(donationWhen(d))}</td>
-      </tr>`;
+            const displayName = name || (email ? email : "Anonymous");
+            const anonymous = displayName === "Anonymous";
+            const initial = anonymous
+                ? "?"
+                : displayName.charAt(0).toUpperCase();
+            return `<li class="donation-row">
+        <span class="donor-avatar${anonymous ? " is-anon" : ""}" aria-hidden="true">${escapeHtml(initial)}</span>
+        <div class="donor-copy">
+          <strong>${escapeHtml(displayName)}</strong>
+          <span>${escapeHtml(donationWhen(d))}</span>
+        </div>
+        <span class="donation-amount">${escapeHtml(amountLabel)}</span>
+      </li>`;
         })
         .join("");
 }
@@ -336,9 +359,9 @@ function isSuccessfulDonation(row) {
 }
 
 async function loadTransactions() {
-    const tbody = document.getElementById("donationsTableBody");
-    if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Loading…</td></tr>';
+    const list = document.getElementById("donationsList");
+    if (!list) return;
+    list.innerHTML = '<li class="donation-empty">Loading…</li>';
 
     let apiRows = [];
     let firestoreRows = [];
@@ -397,27 +420,17 @@ async function loadCampaign() {
     document.getElementById("campaignStatus").className = `status-pill status-${c.status}`;
     const modeEl = document.getElementById("campaignMode");
     if (modeEl) modeEl.textContent = donationModeLabel(resolveDonationMode(c));
-    document.getElementById("campaignDates").textContent = `${formatCampaignDate(c.startDate)} → ${formatCampaignDate(c.endDate)}`;
+    document.getElementById("campaignDates").textContent = formatCampaignDateRange(
+        c.startDate,
+        c.endDate
+    );
     document.getElementById("campaignMission").textContent =
-        c.relatedMissionName || "—";
+        c.relatedMissionName || "none";
 
-    const moneyStats = document.getElementById("moneyStats");
-    const moneyProgressWrap = document.getElementById("moneyProgressWrap");
-    if (moneyStats) moneyStats.hidden = !acceptsMoney;
-    if (moneyProgressWrap) moneyProgressWrap.hidden = !acceptsMoney;
-
+    const moneyBlock = document.getElementById("moneyBlock");
+    if (moneyBlock) moneyBlock.hidden = !acceptsMoney;
     if (acceptsMoney) {
-        document.getElementById("raisedAmount").textContent = formatCentavos(
-            c.raisedAmountCentavos
-        );
-        document.getElementById("targetAmount").textContent = formatCentavos(
-            c.targetAmountCentavos
-        );
-        document.getElementById("donorCount").textContent = String(c.donorCount || 0);
-        const pct = campaignProgressPercent(c.raisedAmountCentavos, c.targetAmountCentavos);
-        const bar = document.getElementById("progressFill");
-        if (bar) bar.style.width = `${pct}%`;
-        document.getElementById("progressLabel").textContent = `${pct}% funded`;
+        paintMoneySummary(c.raisedAmountCentavos, Number(c.donorCount) || 0);
     }
 
     const goodsPanel = document.getElementById("goodsPanel");
@@ -472,17 +485,15 @@ async function loadCampaign() {
                 `<button type="button" class="btn btn-primary" id="submitForApprovalBtn">Submit for approval</button>`
             );
         }
-        bits.push(
-            `<button type="button" class="btn btn-add-update" id="addCampaignUpdateBtn">Add Update</button>`
-        );
+        actions.hidden = bits.length === 0;
         actions.innerHTML = bits.join(" ");
         document
             .getElementById("submitForApprovalBtn")
             ?.addEventListener("click", submitForApproval);
-        document
-            .getElementById("addCampaignUpdateBtn")
-            ?.addEventListener("click", onAddCampaignUpdate);
     }
+
+    const addBtn = document.getElementById("addCampaignUpdateBtn");
+    if (addBtn) addBtn.hidden = false;
 
     if (c.status === CAMPAIGN_STATUS.REJECTED && c.rejectionReason) {
         setMessage(`Rejected: ${c.rejectionReason}`, true);
@@ -607,6 +618,9 @@ function wireUpdateModal() {
     if (updateModalWired) return;
     updateModalWired = true;
 
+    document
+        .getElementById("addCampaignUpdateBtn")
+        ?.addEventListener("click", onAddCampaignUpdate);
     document
         .getElementById("campaignUpdateCancel")
         ?.addEventListener("click", closeUpdateModal);
