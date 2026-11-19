@@ -358,22 +358,48 @@ function initMissionEditSuccessModal() {
   const overlay = document.getElementById("missionEditSuccessModal");
   if (!overlay) return;
 
-  const goToDashboard = () => {
+  const finishEdit = () => {
     closeMissionEditSuccessModal();
-    window.location.href = "/organization/dashboard";
+    const missionId = document.getElementById("missionId")?.value;
+    window.location.href = missionId
+      ? `/missions/details?id=${encodeURIComponent(missionId)}`
+      : "/organization/dashboard";
   };
 
-  document.getElementById("missionEditSuccessModalOk")?.addEventListener("click", goToDashboard);
+  document.getElementById("missionEditSuccessModalOk")?.addEventListener("click", finishEdit);
 
   overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) goToDashboard();
+    if (e.target === overlay) finishEdit();
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && overlay.classList.contains("is-open")) {
-      goToDashboard();
+      finishEdit();
     }
   });
+}
+
+function wireEditPageChrome(missionId, missionName = "") {
+  const detailsUrl = `/missions/details?id=${encodeURIComponent(missionId)}`;
+  const back = document.getElementById("editMissionBack");
+  if (back) {
+    back.href = detailsUrl;
+    back.innerHTML = `<i class="ti ti-arrow-left" aria-hidden="true"></i> Mission details`;
+  }
+  const viewLink = document.getElementById("editMissionViewLink");
+  if (viewLink) viewLink.href = detailsUrl;
+
+  const heroTitle = document.getElementById("editMissionHeroTitle");
+  if (heroTitle && missionName) {
+    heroTitle.textContent = missionName;
+  }
+
+  const cancelBtn = document.getElementById("editMissionCancelBtn");
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      window.location.href = detailsUrl;
+    };
+  }
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -406,6 +432,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   document.getElementById("missionId").value = missionId;
+  wireEditPageChrome(missionId);
 
   const activeDocRef = doc(db, "organizations", user.uid, "missions", missionId);
   const historyDocRef = doc(db, "organizations", user.uid, "history", missionId);
@@ -421,11 +448,24 @@ onAuthStateChanged(auth, async (user) => {
     const mission = docSnap.data();
     console.log("[INFO] Mission data loaded:", mission);
 
+    const missionName = mission.missionName || mission.name || "";
+    wireEditPageChrome(missionId, missionName);
+
     populateMissionTypeSelect(document.getElementById("type"), {
       selectedValue: mission.type || "",
     });
 
-    document.getElementById("name").value = mission.missionName || mission.name || "";
+    const nameInput = document.getElementById("name");
+    if (nameInput) {
+      nameInput.value = missionName;
+      nameInput.addEventListener("input", () => {
+        const heroTitle = document.getElementById("editMissionHeroTitle");
+        if (heroTitle) {
+          heroTitle.textContent =
+            String(nameInput.value || "").trim() || "Edit mission";
+        }
+      });
+    }
     document.getElementById("description").value = mission.description || "";
     setUsDateInputValue(document.getElementById("date"), mission.date || "");
     document.getElementById("startTime").value = mission.startTime || "";
