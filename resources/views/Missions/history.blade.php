@@ -465,10 +465,10 @@
           aria-label="Search history missions"
         >
         <select id="historyPeriodFilter" class="toolbar-filter" aria-label="Filter by period">
-          <option value="this_month" selected>This month</option>
+          <option value="all" selected>All time</option>
+          <option value="this_month">This month</option>
           <option value="last_month">Last month</option>
           <option value="older">Older</option>
-          <option value="all">All time</option>
         </select>
       </div>
 
@@ -492,16 +492,7 @@
               <th class="col-actions">Actions</th>
             </tr>
           </thead>
-          <tbody id="historyMissionsBody">
-            <tr class="missions-loading-row">
-              <td colspan="6">
-                <div class="missions-loading">
-                  <div class="missions-loading-spinner" aria-hidden="true"></div>
-                  <span>Loading missions…</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
+          <tbody id="historyMissionsBody"></tbody>
         </table>
       </div>
       @include('partials.org-cache-hydrate')

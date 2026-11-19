@@ -3,6 +3,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { assertOrgVerified } from "./org-verification.js";
 import {
     clearOrgSessionCache,
+    readCachedOrgSession,
     requireOrgPageAccess,
     revealOrgPageContent,
     writeCachedOrgSession,
@@ -16,6 +17,13 @@ document.addEventListener("DOMContentLoaded", () => {
             clearOrgSessionCache();
             window.location.href = "/organization/login";
             return;
+        }
+
+        // Reveal ASAP from cached session while verification / access resolve.
+        const cached = readCachedOrgSession(user.uid);
+        if (cached && cached.status !== "disabled") {
+            writeCachedOrgSession(cached);
+            revealOrgPageContent();
         }
 
         if (!(await assertOrgVerified(user))) return;

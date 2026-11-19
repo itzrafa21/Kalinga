@@ -5,6 +5,7 @@ import {
     readCachedOrgSession,
     resolveOrgSession,
     sessionCan,
+    softRefreshOrgSession,
     writeCachedOrgSession,
 } from "./org-session.js";
 import {
@@ -254,11 +255,28 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     try {
-        // Apply cached rights instantly, then refresh from Firestore.
+        // Cache-first: paint sidebar from last session, do not block on Firestore.
         const cached = readCachedOrgSession(user.uid);
-        if (cached) applyModuleNavAccess(cached);
+        if (cached) {
+            applyModuleNavAccess(cached);
+            setUsersNavVisible(Boolean(cached.isOwner));
+            document.documentElement.setAttribute(
+                "data-org-owner",
+                cached.isOwner ? "1" : "0"
+            );
+            const cachedSidebar = readOrgCache(
+                cached.orgId,
+                ORG_CACHE_KEYS.SIDEBAR
+            );
+            if (cachedSidebar?.payload?.displayName) {
+                setOrgWelcomeName(cachedSidebar.payload.displayName);
+            }
+        }
 
-        const session = await resolveOrgSession(user, { force: true });
+        let session = await resolveOrgSession(user, { force: false });
+        if (!session) {
+            session = await resolveOrgSession(user, { force: true });
+        }
         setUsersNavVisible(Boolean(session?.isOwner));
         document.documentElement.setAttribute(
             "data-org-owner",
@@ -270,8 +288,17 @@ onAuthStateChanged(auth, async (user) => {
             return;
         }
 
+        const sessionAge = Date.now() - (Number(session.cachedAt) || 0);
+        const shouldSoftRefresh =
+            Boolean(session.fromCache) && sessionAge >= 5 * 60 * 1000;
+
         writeCachedOrgSession(session);
         applyModuleNavAccess(session);
+        if (shouldSoftRefresh) {
+            softRefreshOrgSession(user, window.location.pathname, {
+                force: true,
+            });
+        }
 
         const profileUid = session.orgId;
         const sidebarCache = readOrgCache(profileUid, ORG_CACHE_KEYS.SIDEBAR);

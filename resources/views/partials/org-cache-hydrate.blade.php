@@ -52,22 +52,85 @@
     if (pVol && profile.stats.volunteers != null) pVol.textContent = String(profile.stats.volunteers);
   }
 
-  // History table must NOT be hydrated from full rowsHtml — that flashes every
-  // mission before the default "This month" filter is applied by history-missions.js.
-  // Only restore stats here; the module paints the filtered rows.
+  // History: same as missions/volunteers — restore list before module JS runs.
   var hist = readPayload("history-v2") || readPayload("history");
-  if (hist && hist.stats) {
-    var completedEl = document.getElementById("totalCompletedMissions");
-    var monthEl = document.getElementById("thisMonthMissions");
-    var helpedEl = document.getElementById("totalVolunteersHelped");
-    if (completedEl && hist.stats.totalCompleted != null) {
-      completedEl.textContent = String(hist.stats.totalCompleted);
+  if (hist) {
+    if (hist.stats) {
+      var completedEl = document.getElementById("totalCompletedMissions");
+      var monthEl = document.getElementById("thisMonthMissions");
+      var helpedEl = document.getElementById("totalVolunteersHelped");
+      if (completedEl && hist.stats.totalCompleted != null) {
+        completedEl.textContent = String(hist.stats.totalCompleted);
+      }
+      if (monthEl && hist.stats.thisMonth != null) {
+        monthEl.textContent = String(hist.stats.thisMonth);
+      }
+      if (helpedEl && hist.stats.totalVolunteers != null) {
+        helpedEl.textContent = String(hist.stats.totalVolunteers);
+      }
     }
-    if (monthEl && hist.stats.thisMonth != null) {
-      monthEl.textContent = String(hist.stats.thisMonth);
-    }
-    if (helpedEl && hist.stats.totalVolunteers != null) {
-      helpedEl.textContent = String(hist.stats.totalVolunteers);
+    var histBody = document.getElementById("historyMissionsBody");
+    if (histBody) {
+      var histHtml = hist.tableHtml || hist.previewTableHtml || "";
+      if (histHtml && !isLoadingHtml(histHtml)) {
+        histBody.innerHTML = histHtml;
+      } else if (hist.empty || (Array.isArray(hist.items) && !hist.items.length)) {
+        histBody.innerHTML =
+          '<tr><td colspan="6"><div class="missions-empty"><i class="bi bi-clipboard"></i><h4>No completed missions found</h4><p>Missions will appear here once they are completed</p></div></td></tr>';
+      } else if (Array.isArray(hist.items) && hist.items.length) {
+        // Older caches without tableHtml: build rows from items so list shows immediately.
+        function esc(s) {
+          return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
+        histBody.innerHTML = hist.items
+          .slice(0, 10)
+          .map(function (item) {
+            var mission = item.mission || {};
+            var name = mission.missionName || mission.name || "Untitled";
+            var loc = mission.location || "N/A";
+            var status =
+              String(item.status || "").toLowerCase() === "rejected"
+                ? "Rejected"
+                : "Completed";
+            var id = item.missionId || "";
+            var href = "/missions/details?id=" + encodeURIComponent(id);
+            var dateLabel = item.completedOnMs
+              ? new Date(item.completedOnMs).toLocaleDateString()
+              : "—";
+            return (
+              '<tr class="history-mission-row">' +
+              "<td>" +
+              esc(dateLabel) +
+              "</td>" +
+              '<td><a href="' +
+              href +
+              '" class="mission-name-link">' +
+              esc(name) +
+              "</a></td>" +
+              "<td>" +
+              esc(loc) +
+              "</td>" +
+              "<td>" +
+              (status === "Rejected"
+                ? "—"
+                : String(item.actualVolunteers || 0) +
+                  " / " +
+                  String(item.totalNeeded || 0)) +
+              "</td>" +
+              "<td>" +
+              status +
+              "</td>" +
+              '<td><a href="' +
+              href +
+              '" class="btn-table solid">View</a></td>' +
+              "</tr>"
+            );
+          })
+          .join("");
+      }
     }
   }
 

@@ -9,8 +9,12 @@ import {
 } from "./org-team.js";
 
 const memory = new Map();
+const liveInflight = new Map();
+const softRefreshStarted = new Set();
 const SESSION_CACHE_PREFIX = "kalinga-org-session:";
 const LAST_AUTH_UID_KEY = "kalinga-org-session:lastAuthUid";
+/** Soft-refresh live rights only after this window — nav uses cache. */
+const SESSION_SOFT_REFRESH_MS = 5 * 60 * 1000;
 
 function identityUid(user) {
     if (!user) return "";
@@ -134,15 +138,14 @@ export function revealOrgPageContent() {
  * Resolve the organization context for the signed-in user.
  * Owners: orgId === auth uid, full access.
  * Team users: orgId === owner uid, accessRights from their team record.
+ * Cache-first by default. Pass force:true only when rights must be revalidated.
  */
 export async function resolveOrgSession(user, { force = false } = {}) {
     const uid = identityUid(user);
     if (!uid) return null;
 
-    if (!force && memory.has(uid)) return memory.get(uid);
-
-    // Serve localStorage cache immediately (nav/boot), then refresh live below when force.
     if (!force) {
+        if (memory.has(uid)) return memory.get(uid);
         const cached = readCachedOrgSession(uid);
         if (cached && cached.authUid === uid) {
             memory.set(uid, cached);
@@ -150,47 +153,113 @@ export async function resolveOrgSession(user, { force = false } = {}) {
         }
     }
 
-    const ownSnap = await getDoc(doc(db, "organizations", uid));
-    if (ownSnap.exists()) {
+    if (liveInflight.has(uid)) {
+        return liveInflight.get(uid);
+    }
+
+    const promise = (async () => {
+        const ownSnap = await getDoc(doc(db, "organizations", uid));
+        if (ownSnap.exists()) {
+            const session = {
+                authUid: uid,
+                orgId: uid,
+                isOwner: true,
+                member: null,
+                accessRights: null,
+                status: "active",
+            };
+            memory.set(uid, session);
+            writeCachedOrgSession(session);
+            return session;
+        }
+
+        const membership = await findTeamMembership(user);
+        if (!membership?.orgId) {
+            memory.set(uid, null);
+            clearOrgSessionCache(uid);
+            return null;
+        }
+
+        const member = membership.member || {};
+        const hasSavedRights =
+            member.accessRights &&
+            typeof member.accessRights === "object" &&
+            Object.keys(member.accessRights).length > 0;
+
         const session = {
             authUid: uid,
-            orgId: uid,
-            isOwner: true,
-            member: null,
-            accessRights: null,
-            status: "active",
+            orgId: membership.orgId,
+            isOwner: false,
+            member,
+            accessRights: hasSavedRights
+                ? normalizeAccessRights(member.accessRights)
+                : accessRightsForRole(member.role || "staff"),
+            status: member.status || "active",
         };
         memory.set(uid, session);
         writeCachedOrgSession(session);
         return session;
+    })().finally(() => {
+        liveInflight.delete(uid);
+    });
+
+    liveInflight.set(uid, promise);
+    return promise;
+}
+
+/**
+ * Non-blocking revalidation when cache is stale. Deduped across page scripts.
+ */
+export function softRefreshOrgSession(
+    user,
+    pathname = window.location.pathname,
+    { force = false } = {}
+) {
+    const uid = identityUid(user);
+    if (!uid) return;
+
+    if (!force) {
+        const cached = readCachedOrgSession(uid) || memory.get(uid);
+        const age = Date.now() - (Number(cached?.cachedAt) || 0);
+        if (cached && age < SESSION_SOFT_REFRESH_MS) return;
     }
+    if (softRefreshStarted.has(uid)) return;
+    softRefreshStarted.add(uid);
 
-    const membership = await findTeamMembership(user);
-    if (!membership?.orgId) {
-        memory.set(uid, null);
-        clearOrgSessionCache(uid);
-        return null;
-    }
+    void resolveOrgSession(user, { force: true })
+        .then((live) => {
+            if (!live) {
+                clearOrgSessionCache(uid);
+                window.location.href = "/organization/login";
+                return;
+            }
+            if (live.status === "disabled") {
+                clearOrgSessionCache(live.authUid);
+                window.location.href = "/organization/login";
+                return;
+            }
+            writeCachedOrgSession(live);
+            applyCachedDenyAttributes(live);
 
-    const member = membership.member || {};
-    const hasSavedRights =
-        member.accessRights &&
-        typeof member.accessRights === "object" &&
-        Object.keys(member.accessRights).length > 0;
-
-    const session = {
-        authUid: uid,
-        orgId: membership.orgId,
-        isOwner: false,
-        member,
-        accessRights: hasSavedRights
-            ? normalizeAccessRights(member.accessRights)
-            : accessRightsForRole(member.role || "staff"),
-        status: member.status || "active",
-    };
-    memory.set(uid, session);
-    writeCachedOrgSession(session);
-    return session;
+            const moduleId = moduleIdForPath(pathname);
+            if (
+                (moduleId === "users" ||
+                    pathname.startsWith("/organization/users")) &&
+                !live.isOwner
+            ) {
+                blockPageContent();
+                return;
+            }
+            if (moduleId && !sessionCan(live, moduleId)) {
+                blockPageContent();
+            }
+        })
+        .catch((err) => {
+            console.warn("[WARN] softRefreshOrgSession:", err);
+        })
+        .finally(() => {
+            softRefreshStarted.delete(uid);
+        });
 }
 
 export function clearOrgSession(uid) {
@@ -246,6 +315,7 @@ export function asOrgActor(user, session) {
 /**
  * Verify auth + org access for the current path.
  * Returns { user, session, actor } on success, or null after login redirect / Access Denied.
+ * Uses cached session first so navigation paints immediately; soft-refreshes in background.
  */
 export async function requireOrgPageAccess(user, pathname = window.location.pathname) {
     if (!user) {
@@ -253,8 +323,10 @@ export async function requireOrgPageAccess(user, pathname = window.location.path
         return null;
     }
 
-    // Prefer live rights; force refresh so disabled rights apply after owner changes them.
-    const session = await resolveOrgSession(user, { force: true });
+    let session = await resolveOrgSession(user, { force: false });
+    if (!session) {
+        session = await resolveOrgSession(user, { force: true });
+    }
     if (!session) {
         clearOrgSessionCache(identityUid(user));
         window.location.href = "/organization/login";
@@ -267,8 +339,15 @@ export async function requireOrgPageAccess(user, pathname = window.location.path
         return null;
     }
 
+    const sessionAge = Date.now() - (Number(session.cachedAt) || 0);
+    const shouldSoftRefresh =
+        Boolean(session.fromCache) && sessionAge >= SESSION_SOFT_REFRESH_MS;
+
     writeCachedOrgSession(session);
     applyCachedDenyAttributes(session);
+    if (shouldSoftRefresh) {
+        softRefreshOrgSession(user, pathname, { force: true });
+    }
 
     const moduleId = moduleIdForPath(pathname);
     const deny = () => {

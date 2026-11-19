@@ -22,8 +22,9 @@ import {
     NAV_FRESH_MS,
     readOrgCache,
     writeOrgCache,
-    isOrgCacheStale,
     isOrgCacheFresh,
+    isLoadingTableHtml,
+    tableHtmlForCache,
 } from "./org-data-cache.js";
 
 let CURRENT_USER = null;
@@ -32,8 +33,10 @@ let historyPageSize = 10;
 let historyCurrentPage = 1;
 /** Full history list kept in memory; only the active filter is painted into the DOM. */
 let historyItems = [];
-/** Source of truth for period filter — defaults to This month, updated only by user changes. */
-let activeHistoryPeriod = "this_month";
+/** Stats snapshot for cache writes. */
+let historyStats = { totalCompleted: 0, thisMonth: 0, totalVolunteers: 0 };
+/** Same as mission page: show full list by default; period filter is optional. */
+let activeHistoryPeriod = "all";
 
 async function populateSidebarUser(user) {
     try {
@@ -96,10 +99,21 @@ onAuthStateChanged(auth, async (user) => {
     console.log("[SUCCESS] User logged in:", access.session.authUid, "org:", actor.uid);
     CURRENT_USER = actor;
 
-    await populateSidebarUser(actor);
+    // Same as missions/volunteers: paint cache immediately, sidebar is non-blocking.
+    const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.HISTORY);
+    if (cached?.payload) {
+        applyCachedHistory(cached.payload);
+    }
+
+    void populateSidebarUser(actor);
 
     const fresh = isOrgCacheFresh(actor.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
-    await loadHistoryMissions(actor, { refresh: !fresh });
+    if (!fresh) {
+        void loadHistoryMissions(actor, {
+            refresh: true,
+            silent: Boolean(cached?.payload),
+        });
+    }
 });
 
 function updateHistoryMissionFooter(visibleCount) {
@@ -110,7 +124,7 @@ function updateHistoryMissionFooter(visibleCount) {
 }
 
 function getActiveHistoryPeriod() {
-    return activeHistoryPeriod || "this_month";
+    return activeHistoryPeriod || "all";
 }
 
 function syncHistoryPeriodSelect() {
@@ -241,7 +255,7 @@ function filterHistoryMissionsTable() {
         if (periodSelect && !periodSelect.dataset.bound) {
             periodSelect.dataset.bound = "1";
             periodSelect.addEventListener("change", () => {
-                activeHistoryPeriod = periodSelect.value || "this_month";
+                activeHistoryPeriod = periodSelect.value || "all";
                 filterHistoryMissionsTable();
             });
         }
@@ -557,12 +571,8 @@ async function refineHistoryVolunteerCounts(items = []) {
     return { items: refined, totalVolunteers };
 }
 
-function paintFilteredHistoryTable({ keepPage = false } = {}) {
-    const historyTableBody = document.getElementById("historyMissionsBody");
-    if (!historyTableBody) return;
-
-    if (!historyItems.length) {
-        historyTableBody.innerHTML = `
+function historyEmptyHtml() {
+    return `
             <tr>
                 <td colspan="6">
                     <div class="missions-empty">
@@ -571,10 +581,65 @@ function paintFilteredHistoryTable({ keepPage = false } = {}) {
                         <p>Missions will appear here once they are completed</p>
                     </div>
                 </td>
-            </tr>
-        `;
+            </tr>`;
+}
+
+function serializeHistoryItems(items = []) {
+    return items.map((item) => ({
+        missionId: item.missionId,
+        orgId: item.orgId,
+        mission: item.mission,
+        status: item.status,
+        actualVolunteers: item.actualVolunteers,
+        needsCountFetch: false,
+        completedOnMs: item.completedOnMs || item.completedOn?.getTime?.() || 0,
+        totalNeeded: item.totalNeeded,
+        periodBucket: item.periodBucket,
+        searchText: item.searchText,
+    }));
+}
+
+function rehydrateHistoryItems(items = []) {
+    return items.map((item) => {
+        const completedOn =
+            item.completedOn instanceof Date
+                ? item.completedOn
+                : toJsDate(item.completedOn) ||
+                  (item.completedOnMs ? new Date(item.completedOnMs) : null);
+        const next = {
+            ...item,
+            completedOn,
+            completedOnMs: completedOn?.getTime?.() || item.completedOnMs || 0,
+            periodBucket:
+                item.periodBucket || getPeriodBucket(completedOn) || "older",
+        };
+        next.row = buildHistoryRow(next);
+        return next;
+    });
+}
+
+/** Same pattern as mission dashboard: persist painted table HTML for instant hydrate. */
+function saveHistoryCache(orgId) {
+    if (!orgId) return;
+    const tbody = document.getElementById("historyMissionsBody");
+    writeOrgCache(orgId, ORG_CACHE_KEYS.HISTORY, {
+        empty: !historyItems.length,
+        items: serializeHistoryItems(historyItems),
+        stats: historyStats,
+        period: activeHistoryPeriod || "all",
+        tableHtml: tableHtmlForCache(tbody?.innerHTML || historyEmptyHtml()),
+    });
+}
+
+function paintFilteredHistoryTable({ keepPage = false, persist = true } = {}) {
+    const historyTableBody = document.getElementById("historyMissionsBody");
+    if (!historyTableBody) return;
+
+    if (!historyItems.length) {
+        historyTableBody.innerHTML = historyEmptyHtml();
         updateHistoryMissionFooter(0);
         updateHistoryPaginationUi(0);
+        if (persist && CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
         return;
     }
 
@@ -595,85 +660,84 @@ function paintFilteredHistoryTable({ keepPage = false } = {}) {
                 </td>
             </tr>
         `;
+        if (persist && CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
         return;
     }
 
-    // Only matching rows are inserted — no all-missions flash.
     historyTableBody.innerHTML = pageItems.map((item) => item.row).join("");
+    if (persist && CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
 }
 
 function setHistoryItems(items = [], stats = null) {
     historyItems = Array.isArray(items) ? items : [];
     if (stats) {
-        updateStats(stats.totalCompleted, stats.thisMonth, stats.totalVolunteers);
+        historyStats = {
+            totalCompleted: Number(stats.totalCompleted) || 0,
+            thisMonth: Number(stats.thisMonth) || 0,
+            totalVolunteers: Number(stats.totalVolunteers) || 0,
+        };
+        updateStats(
+            historyStats.totalCompleted,
+            historyStats.thisMonth,
+            historyStats.totalVolunteers
+        );
     }
     ensureHistorySearchListener();
     initHistoryPaginationControls();
     paintFilteredHistoryTable();
 }
 
-function renderHistoryFromPayload(payload) {
-    if (!payload || payload.empty || !Array.isArray(payload.items) || !payload.items.length) {
+/** Apply cache like mission dashboard: paint tableHtml immediately when present. */
+function applyCachedHistory(payload) {
+    if (!payload) return;
+
+    // Prefer saved period; older caches without period default to full list.
+    activeHistoryPeriod = payload.period || "all";
+    syncHistoryPeriodSelect();
+    ensureHistorySearchListener();
+    initHistoryPaginationControls();
+
+    if (payload.stats) {
+        historyStats = {
+            totalCompleted: Number(payload.stats.totalCompleted) || 0,
+            thisMonth: Number(payload.stats.thisMonth) || 0,
+            totalVolunteers: Number(payload.stats.totalVolunteers) || 0,
+        };
+        updateStats(
+            historyStats.totalCompleted,
+            historyStats.thisMonth,
+            historyStats.totalVolunteers
+        );
+    }
+
+    const historyTableBody = document.getElementById("historyMissionsBody");
+    const cachedHtml = payload.tableHtml || "";
+
+    if (payload.empty || !Array.isArray(payload.items) || !payload.items.length) {
         historyItems = [];
-        const historyTableBody = document.getElementById("historyMissionsBody");
-        if (historyTableBody) {
-            historyTableBody.innerHTML = `
-            <tr>
-                <td colspan="6">
-                    <div class="missions-empty">
-                        <i class="bi bi-clipboard"></i>
-                        <h4>No completed missions found</h4>
-                        <p>Missions will appear here once they are completed</p>
-                    </div>
-                </td>
-            </tr>`;
-        }
-        updateStats(0, 0, 0);
+        if (historyTableBody) historyTableBody.innerHTML = historyEmptyHtml();
         updateHistoryMissionFooter(0);
         updateHistoryPaginationUi(0);
+        if (CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
         return;
     }
 
-    // Rehydrate dates after cache deserialize.
-    const items = payload.items.map((item) => {
-        const completedOn =
-            item.completedOn instanceof Date
-                ? item.completedOn
-                : toJsDate(item.completedOn) ||
-                  (item.completedOnMs ? new Date(item.completedOnMs) : null);
-        const next = {
-            ...item,
-            completedOn,
-            completedOnMs: completedOn?.getTime?.() || item.completedOnMs || 0,
-            periodBucket:
-                item.periodBucket || getPeriodBucket(completedOn) || "older",
-        };
-        next.row = buildHistoryRow(next);
-        return next;
-    });
+    historyItems = rehydrateHistoryItems(payload.items);
 
-    setHistoryItems(items, payload.stats);
-}
+    // Prefer cached table HTML for instant paint (same as mission dashboard).
+    if (historyTableBody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
+        historyTableBody.innerHTML = cachedHtml;
+        const filteredCount = getFilteredHistoryItems().length;
+        updateHistoryPaginationUi(filteredCount);
+        // Persist period/tableHtml in the new format when upgrading old caches.
+        if (!payload.period && CURRENT_USER?.uid) {
+            saveHistoryCache(CURRENT_USER.uid);
+        }
+        return;
+    }
 
-// Function to fetch and render completed missions
-function buildHistoryCachePayload(items, stats) {
-    return {
-        empty: !items.length,
-        // Persist data (not prebuilt all-rows HTML) so first paint can filter correctly.
-        items: items.map((item) => ({
-            missionId: item.missionId,
-            orgId: item.orgId,
-            mission: item.mission,
-            status: item.status,
-            actualVolunteers: item.actualVolunteers,
-            needsCountFetch: false,
-            completedOnMs: item.completedOnMs || item.completedOn?.getTime?.() || 0,
-            totalNeeded: item.totalNeeded,
-            periodBucket: item.periodBucket,
-            searchText: item.searchText,
-        })),
-        stats,
-    };
+    // Rebuild list (defaults to All time) and persist fresh tableHtml.
+    paintFilteredHistoryTable({ persist: true });
 }
 
 async function loadHistoryMissions(user, { silent = false, refresh = true } = {}) {
@@ -681,25 +745,14 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
     if (!historyTableBody) return;
 
     const cached = readOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
-    // Ignore legacy HTML-only cache (that caused the all-missions flash).
     const hasUsableCache =
         cached?.payload &&
-        (cached.payload.empty === true || Array.isArray(cached.payload.items));
+        (cached.payload.empty === true ||
+            Array.isArray(cached.payload.items) ||
+            Boolean(cached.payload.tableHtml));
 
     if (hasUsableCache) {
-        renderHistoryFromPayload(cached.payload);
-    } else if (!silent) {
-        console.log("[INFO] Loading history missions...");
-        historyTableBody.innerHTML = `
-            <tr class="missions-loading-row">
-                <td colspan="6">
-                    <div class="missions-loading">
-                        <div class="missions-loading-spinner" aria-hidden="true"></div>
-                        <span>Loading missions…</span>
-                    </div>
-                </td>
-            </tr>
-        `;
+        applyCachedHistory(cached.payload);
     }
 
     if (hasUsableCache && !refresh) {
@@ -711,13 +764,11 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
         const historySnapshot = await getDocs(historyRef);
 
         if (historySnapshot.empty) {
-            const emptyPayload = {
-                empty: true,
-                items: [],
-                stats: { totalCompleted: 0, thisMonth: 0, totalVolunteers: 0 },
-            };
-            writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, emptyPayload);
-            renderHistoryFromPayload(emptyPayload);
+            setHistoryItems([], {
+                totalCompleted: 0,
+                thisMonth: 0,
+                totalVolunteers: 0,
+            });
             console.log("[INFO] No missions in history collection");
             return;
         }
@@ -749,8 +800,6 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
             totalVolunteers: totalVolunteersHelped,
         };
 
-        const payload = buildHistoryCachePayload(validResults, stats);
-        writeOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY, payload);
         setHistoryItems(validResults, stats);
 
         void refineHistoryVolunteerCounts(validResults)
@@ -762,15 +811,11 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
                     totalVolunteers,
                 };
                 historyItems = validResults;
+                historyStats = nextStats;
                 updateStats(
                     nextStats.totalCompleted,
                     nextStats.thisMonth,
                     nextStats.totalVolunteers
-                );
-                writeOrgCache(
-                    user.uid,
-                    ORG_CACHE_KEYS.HISTORY,
-                    buildHistoryCachePayload(validResults, nextStats)
                 );
                 paintFilteredHistoryTable({ keepPage: true });
             })
@@ -872,9 +917,15 @@ async function getActualVolunteerCount(missionId, orgId = null) {
 
 // Function to update stats cards
 function updateStats(totalCompleted, thisMonth, totalVolunteers) {
-    document.getElementById("totalCompletedMissions").textContent = totalCompleted;
-    document.getElementById("thisMonthMissions").textContent = thisMonth;
-    document.getElementById("totalVolunteersHelped").textContent = totalVolunteers;
-    
-    console.log(`[INFO] Stats updated - Completed: ${totalCompleted}, This Month: ${thisMonth}, Volunteers: ${totalVolunteers}`);
+    historyStats = {
+        totalCompleted: Number(totalCompleted) || 0,
+        thisMonth: Number(thisMonth) || 0,
+        totalVolunteers: Number(totalVolunteers) || 0,
+    };
+    const completedEl = document.getElementById("totalCompletedMissions");
+    const monthEl = document.getElementById("thisMonthMissions");
+    const helpedEl = document.getElementById("totalVolunteersHelped");
+    if (completedEl) completedEl.textContent = String(historyStats.totalCompleted);
+    if (monthEl) monthEl.textContent = String(historyStats.thisMonth);
+    if (helpedEl) helpedEl.textContent = String(historyStats.totalVolunteers);
 }
