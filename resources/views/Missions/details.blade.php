@@ -266,12 +266,6 @@
       color: #fff;
       letter-spacing: -0.03em;
     }
-    .md-host {
-      margin: 0 0 0.85rem;
-      font-size: 0.95rem;
-      color: rgba(255, 255, 255, 0.78);
-      font-weight: 500;
-    }
     .md-chip-row {
       display: flex;
       flex-wrap: wrap;
@@ -380,12 +374,16 @@
       display: flex;
       align-items: center;
       gap: 0.7rem;
+      width: 100%;
       padding: 0.75rem 0.85rem;
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       background: #f8faf9;
       text-decoration: none;
       color: inherit;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
       transition: background 0.15s ease, border-color 0.15s ease;
     }
     .md-doc-link:hover {
@@ -543,29 +541,64 @@
       background: #f8faf9;
     }
     .md-announce-item h3 {
-      margin: 0 0 0.25rem;
+      margin: 0 0 0.3rem;
       color: #14532d;
       font-size: 0.98rem;
       font-weight: 700;
       line-height: 1.3;
     }
     .md-announce-desc {
-      margin: 0 0 0.45rem;
-      color: #64748b;
-      font-size: 0.84rem;
-      line-height: 1.4;
+      margin: 0;
+      color: #334155;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
       white-space: pre-wrap;
     }
-    .md-announce-item p {
-      margin: 0;
-      color: #1e293b;
-      font-size: 0.92rem;
-      line-height: 1.45;
-      white-space: pre-wrap;
+    .md-announce-item-foot {
+      margin-top: 0.65rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      flex-wrap: wrap;
     }
     .md-announce-meta {
-      margin-top: 0.4rem;
+      margin: 0;
       font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .md-announce-view-btn {
+      border: 1px solid #86efac;
+      background: #fff;
+      color: #15803d;
+      border-radius: 8px;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .md-announce-view-btn:hover {
+      background: #ecfdf3;
+    }
+    .md-announce-view-modal {
+      width: min(560px, 100%);
+      max-height: min(82vh, 720px);
+      overflow: auto;
+    }
+    .md-announce-view-body {
+      margin: 0.35rem 0 0;
+      color: #1e293b;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .md-announce-view-meta {
+      margin-top: 0.75rem;
+      font-size: 0.78rem;
       color: #6b7280;
     }
     .md-announce-attach-block {
@@ -877,6 +910,23 @@
   </main>
 
   <div
+    id="missionAnnounceViewModal"
+    class="reject-modal-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="missionAnnounceViewTitle"
+  >
+    <div class="reject-modal reject-modal--announce md-announce-view-modal" role="document">
+      <h2 id="missionAnnounceViewTitle">Announcement</h2>
+      <div id="missionAnnounceViewContent"></div>
+      <div class="reject-modal-actions">
+        <button type="button" class="reject-modal-cancel" id="missionAnnounceViewClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div
     id="missionAnnounceModal"
     class="reject-modal-overlay"
     hidden
@@ -899,18 +949,9 @@
         </div>
         <div>
           <label for="missionAnnounceDescInput">Description</label>
-          <input
-            type="text"
-            id="missionAnnounceDescInput"
-            placeholder="Short summary of this update"
-            maxlength="240"
-          >
-        </div>
-        <div>
-          <label for="missionAnnounceInput">Text</label>
           <textarea
-            id="missionAnnounceInput"
-            placeholder="Write the full announcement…"
+            id="missionAnnounceDescInput"
+            placeholder="write the full announcement"
             maxlength="2000"
           ></textarea>
         </div>

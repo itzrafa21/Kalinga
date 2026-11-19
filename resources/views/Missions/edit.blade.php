@@ -684,7 +684,7 @@
 
             <div class="mission-docs-inline" aria-labelledby="section-documents">
               <h3 class="form-section-docs-title" id="section-documents">
-                <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Documents
+                <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Attachments
               </h3>
               <div class="mission-docs-box">
                 <p class="mission-docs-hint">Upload PDF, DOCX, or Excel files. Maximum 50MB per file.</p>

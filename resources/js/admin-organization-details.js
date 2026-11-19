@@ -18,6 +18,9 @@ import {
     cloudinaryUrlWithTransform,
     sanitizeCloudinaryDocumentUrl,
     candidateCloudinaryDocumentUrls,
+    preferredDocumentViewUrl,
+    buildDocumentViewHref,
+    openDocumentForView,
 } from "./cloudinary-upload.js";
 
 const orgId = document.body.dataset.orgId || "";
@@ -224,9 +227,9 @@ function logoHtml(data) {
     if (previewSrc) {
         return `
         <span class="org-doc-meta org-doc-meta--logo">
-            <a class="org-doc-view org-doc-view--image" href="${escapeHtml(viewSrc || previewSrc)}" data-view-name="${escapeHtml(fileName || "Organization logo")}" target="_blank" rel="noopener noreferrer">
+            <button type="button" class="org-doc-view org-doc-view--image" data-doc-url="${escapeHtml(viewSrc || previewSrc)}" data-doc-name="${escapeHtml(fileName || "Organization logo")}" data-view-name="${escapeHtml(fileName || "Organization logo")}">
               <img class="org-logo-preview" src="${escapeHtml(previewSrc)}" alt="${escapeHtml(fileName || "Organization logo")}" loading="lazy">
-            </a>
+            </button>
             ${sub ? `<span class="org-doc-meta__sub">${escapeHtml(sub)}</span>` : `<span class="org-doc-meta__sub">Tap to view</span>`}
         </span>`;
     }
@@ -254,21 +257,19 @@ function documentMetaHtml(docItem) {
                 : url;
         return `
         <span class="org-doc-meta org-doc-meta--logo">
-            <a class="org-doc-view org-doc-view--image" href="${escapeHtml(url)}" data-view-name="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">
+            <button type="button" class="org-doc-view org-doc-view--image" data-doc-url="${escapeHtml(url)}" data-doc-name="${escapeHtml(title)}" data-view-name="${escapeHtml(title)}">
               <img class="org-logo-preview org-doc-image-preview" src="${escapeHtml(previewSrc)}" alt="${escapeHtml(title)}" loading="lazy">
-            </a>
+            </button>
             <span class="org-doc-meta__name">${escapeHtml(title)}</span>
             <span class="org-doc-meta__sub">${escapeHtml([...(subParts.length ? subParts : []), "Tap to view"].join(" · "))}</span>
         </span>`;
     }
 
-    let href = url;
-    if (url && (isOfficeDoc(title) || isOfficeDoc(url))) {
-        href = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
-    }
+    const sourceUrl = url ? preferredDocumentViewUrl(url) : "";
+    const href = sourceUrl ? buildDocumentViewHref(sourceUrl, title) : "";
 
     const titleHtml = href
-        ? `<a class="org-doc-view" href="${escapeHtml(href)}" data-view-name="${escapeHtml(title)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+        ? `<button type="button" class="org-doc-view" data-doc-url="${escapeHtml(sourceUrl)}" data-doc-name="${escapeHtml(title)}" data-doc-href="${escapeHtml(href)}" data-view-name="${escapeHtml(title)}">${escapeHtml(title)}</button>`
         : `<span class="org-doc-meta__name">${escapeHtml(title)}</span>`;
     if (href) subParts.push("Tap to view");
 
@@ -291,6 +292,39 @@ function fieldsPanel(title, rowsHtml) {
             <h3 class="org-detail-panel__title">${escapeHtml(title)}</h3>
             ${rowsHtml}
         </div>`;
+}
+
+function wireOrganizationDocumentViews(root) {
+    if (!root || root.dataset.docViewWired === "1") return;
+    root.dataset.docViewWired = "1";
+    root.addEventListener("click", (event) => {
+        const link = event.target.closest("a.org-doc-view, button.org-doc-view");
+        if (!link || !root.contains(link)) return;
+        if (link.classList.contains("org-doc-view--image")) {
+            const imageUrl = String(
+                link.getAttribute("data-doc-url") || link.getAttribute("href") || ""
+            ).trim();
+            if (!imageUrl) return;
+            event.preventDefault();
+            const name = String(
+                link.getAttribute("data-doc-name") ||
+                    link.getAttribute("data-view-name") ||
+                    "Image"
+            ).trim();
+            openDocumentForView(imageUrl, name);
+            return;
+        }
+        const sourceUrl = String(link.getAttribute("data-doc-url") || "").trim();
+        if (!sourceUrl) return;
+        event.preventDefault();
+        const name = String(
+            link.getAttribute("data-doc-name") ||
+                link.getAttribute("data-view-name") ||
+                link.textContent ||
+                "document"
+        ).trim();
+        openDocumentForView(sourceUrl, name);
+    });
 }
 
 function wireOrganizationTabs(root, initialTab = "organization") {
@@ -465,6 +499,7 @@ function renderOrganization(data) {
         body.hidden = false;
         body.innerHTML = `${tabsHtml}${panelsHtml}`;
         wireOrganizationTabs(body, "organization");
+        wireOrganizationDocumentViews(body);
     }
     if (status) status.hidden = true;
     if (footer) footer.hidden = false;

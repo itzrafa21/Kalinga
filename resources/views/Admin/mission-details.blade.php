@@ -218,14 +218,22 @@
       color: #64748b;
     }
     .org-doc-meta a,
-    .org-doc-download {
+    .org-doc-download,
+    .org-doc-view {
       color: #15803d;
       text-decoration: underline;
       font-weight: 600;
       word-break: break-word;
+      cursor: pointer;
+      background: none;
+      border: 0;
+      padding: 0;
+      font: inherit;
+      text-align: left;
     }
     .org-doc-meta a:hover,
-    .org-doc-download:hover {
+    .org-doc-download:hover,
+    .org-doc-view:hover {
       color: #166534;
     }
     .mission-docs {

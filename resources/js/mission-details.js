@@ -50,8 +50,9 @@ import {
 import {
   sanitizeCloudinaryDocumentUrl,
   normalizeMissionDocuments,
-  downloadCloudinaryDocument,
-  candidateCloudinaryDocumentUrls,
+  buildDocumentViewHref,
+  preferredDocumentViewUrl,
+  openDocumentForView,
   uploadFileToCloudinary,
   uploadImageToCloudinary,
   buildMissionDocumentPublicId,
@@ -328,26 +329,23 @@ function renderAnnouncementAttachmentsHtml(announcement = {}) {
         <div class="md-announce-docs md-docs-list">${docs
           .map((docItem) => {
             const original = String(docItem.url || "").trim();
-            const candidates = candidateCloudinaryDocumentUrls(original);
-            const url =
-              candidates.find((u) => u.includes("/raw/upload/")) ||
-              candidates[0] ||
-              sanitizeCloudinaryDocumentUrl(original);
-            if (!url) return "";
+            const sourceUrl = preferredDocumentViewUrl(original);
             const name = documentDownloadName(docItem);
+            const href = buildDocumentViewHref(sourceUrl, name);
+            if (!href) return "";
             const sizeLabel = formatDocumentSize(docItem.size);
             const format = String(docItem.format || "").toUpperCase();
             const meta =
               [format, sizeLabel].filter(Boolean).join(" · ") || "Document";
             return `
-              <a class="md-doc-link" href="${escapeHtml(url)}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">
-                <span class="md-doc-link__icon" aria-hidden="true"><i class="ti ti-file-download"></i></span>
+              <button type="button" class="md-doc-link" data-doc-url="${escapeHtml(sourceUrl)}" data-doc-name="${escapeHtml(name)}" data-doc-href="${escapeHtml(href)}">
+                <span class="md-doc-link__icon" aria-hidden="true"><i class="ti ti-eye"></i></span>
                 <span class="md-doc-link__meta">
                   <span class="md-doc-link__name">${escapeHtml(name)}</span>
                   <span class="md-doc-link__sub">${escapeHtml(meta)}</span>
                 </span>
-                <span class="md-doc-link__action">Download</span>
-              </a>`;
+                <span class="md-doc-link__action">View</span>
+              </button>`;
           })
           .filter(Boolean)
           .join("")}</div>
@@ -357,31 +355,42 @@ function renderAnnouncementAttachmentsHtml(announcement = {}) {
   return `${imagesHtml}${docsHtml}`;
 }
 
+function getAnnouncementBody(announcement = {}) {
+  return String(
+    announcement.description ||
+      announcement.desc ||
+      announcement.text ||
+      announcement.message ||
+      ""
+  ).trim();
+}
+
 function renderAnnouncementsSection(announcements, isOwner, inHistory) {
   const canAdd = isOwner && !inHistory;
   const items = Array.isArray(announcements) ? announcements : [];
   const listHtml = items.length
     ? `<div class="md-announce-list">${items
-        .map((a) => {
+        .map((a, index) => {
+          const id = String(a.id || index);
           const title = String(a.title || "").trim();
-          const description = String(a.description || a.desc || "").trim();
-          const text = String(a.text || a.message || "").trim();
-          const attachmentsHtml = renderAnnouncementAttachmentsHtml(a);
-          if (!title && !description && !text && !attachmentsHtml) return "";
+          const body = getAnnouncementBody(a);
+          const { images, docs } = splitAnnouncementAttachments(a);
+          if (!title && !body && !images.length && !docs.length) return "";
           const when = formatAnnouncementTime(a.createdAt);
-          const author = a.authorName || a.createdByName || "";
-          const meta = [author, when].filter(Boolean).join(" · ");
           return `
-            <article class="md-announce-item">
-              ${title ? `<h3>${escapeHtml(title)}</h3>` : ""}
+            <article class="md-announce-item" data-announce-id="${escapeHtml(id)}">
+              ${title ? `<h3>${escapeHtml(title)}</h3>` : `<h3>Announcement</h3>`}
               ${
-                description
-                  ? `<div class="md-announce-desc">${escapeHtml(description)}</div>`
-                  : ""
+                body
+                  ? `<p class="md-announce-desc">${escapeHtml(body)}</p>`
+                  : `<p class="md-announce-desc">Tap view to see attachments.</p>`
               }
-              ${text ? `<p>${escapeHtml(text)}</p>` : ""}
-              ${attachmentsHtml}
-              ${meta ? `<div class="md-announce-meta">${escapeHtml(meta)}</div>` : ""}
+              <div class="md-announce-item-foot">
+                ${when ? `<div class="md-announce-meta">${escapeHtml(when)}</div>` : `<span></span>`}
+                <button type="button" class="md-announce-view-btn" data-view-announce="${escapeHtml(id)}">
+                  View full
+                </button>
+              </div>
             </article>`;
         })
         .filter(Boolean)
@@ -402,6 +411,37 @@ function renderAnnouncementsSection(announcements, isOwner, inHistory) {
       </div>
       ${listHtml}
     </section>`;
+}
+
+function openAnnouncementViewModal(announcement) {
+  const overlay = document.getElementById("missionAnnounceViewModal");
+  const titleEl = document.getElementById("missionAnnounceViewTitle");
+  const contentEl = document.getElementById("missionAnnounceViewContent");
+  if (!overlay || !contentEl) return;
+
+  const title = String(announcement?.title || "").trim() || "Announcement";
+  const body = getAnnouncementBody(announcement);
+  const attachmentsHtml = renderAnnouncementAttachmentsHtml(announcement || {});
+  const when = formatAnnouncementTime(announcement?.createdAt);
+
+  if (titleEl) titleEl.textContent = title;
+  contentEl.innerHTML = `
+    ${body ? `<p class="md-announce-view-body">${escapeHtml(body)}</p>` : ""}
+    ${attachmentsHtml || ""}
+    ${when ? `<div class="md-announce-view-meta">${escapeHtml(when)}</div>` : ""}
+  `;
+  overlay.hidden = false;
+  overlay.classList.add("is-open");
+  document.getElementById("missionAnnounceViewClose")?.focus();
+}
+
+function closeAnnouncementViewModal() {
+  const overlay = document.getElementById("missionAnnounceViewModal");
+  if (!overlay) return;
+  overlay.classList.remove("is-open");
+  overlay.hidden = true;
+  const contentEl = document.getElementById("missionAnnounceViewContent");
+  if (contentEl) contentEl.innerHTML = "";
 }
 
 function missionStatusBadge(status) {
@@ -1496,20 +1536,23 @@ function documentDownloadName(docItem) {
 }
 
 function wireMissionDocumentsDownloads(root) {
-  if (!root || root.dataset.docDownloadWired === "1") return;
-  root.dataset.docDownloadWired = "1";
+  if (!root || root.dataset.docViewWired === "1") return;
+  root.dataset.docViewWired = "1";
   root.addEventListener("click", (event) => {
-    const link = event.target.closest("a.md-doc-link");
+    const link = event.target.closest(
+      "a.md-doc-link, a.org-doc-view, a.mission-doc-link, button.md-doc-link"
+    );
     if (!link || !root.contains(link)) return;
-    const url = link.getAttribute("href") || "";
-    const name =
-      link.getAttribute("data-download-name") ||
-      link.getAttribute("download") ||
-      "document";
-    if (!url || url === "#") return;
+    const sourceUrl = String(link.getAttribute("data-doc-url") || "").trim();
+    if (!sourceUrl) return;
     event.preventDefault();
-    event.stopPropagation();
-    void downloadCloudinaryDocument(url, name);
+    const name = String(
+      link.getAttribute("data-doc-name") ||
+        link.querySelector(".md-doc-link__name")?.textContent ||
+        link.textContent ||
+        "document"
+    ).trim();
+    openDocumentForView(sourceUrl, name);
   });
 }
 
@@ -1645,28 +1688,25 @@ function renderMissionDocumentsSection(mission) {
   const items = docs
     .map((docItem, index) => {
       const original = String(docItem.url || "").trim();
-      const candidates = candidateCloudinaryDocumentUrls(original);
-      const url =
-        candidates.find((u) => u.includes("/raw/upload/")) ||
-        candidates[0] ||
-        sanitizeCloudinaryDocumentUrl(original);
-      if (!url || !(url.startsWith("https://") || url.startsWith("http://"))) {
+      const sourceUrl = preferredDocumentViewUrl(original);
+      const name = documentDownloadName(docItem);
+      const href = buildDocumentViewHref(sourceUrl, name);
+      if (!href || !(href.startsWith("https://") || href.startsWith("http://"))) {
         return "";
       }
-      const name = documentDownloadName(docItem);
       const sizeLabel = formatDocumentSize(docItem.size);
       const format = String(docItem.format || "").toUpperCase();
       const metaParts = [format, sizeLabel].filter(Boolean);
       const meta = metaParts.length ? metaParts.join(" · ") : "Document";
       return `
-        <a class="md-doc-link" href="${escapeHtml(url)}" data-doc-index="${index}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">
-          <span class="md-doc-link__icon" aria-hidden="true"><i class="ti ti-file-download"></i></span>
+        <button type="button" class="md-doc-link" data-doc-url="${escapeHtml(sourceUrl)}" data-doc-name="${escapeHtml(name)}" data-doc-href="${escapeHtml(href)}" data-doc-index="${index}">
+          <span class="md-doc-link__icon" aria-hidden="true"><i class="ti ti-eye"></i></span>
           <span class="md-doc-link__meta">
             <span class="md-doc-link__name">${escapeHtml(name)}</span>
             <span class="md-doc-link__sub">${escapeHtml(meta)}</span>
           </span>
-          <span class="md-doc-link__action">Download</span>
-        </a>`;
+          <span class="md-doc-link__action">View</span>
+        </button>`;
     })
     .filter(Boolean)
     .join("");
@@ -1674,7 +1714,7 @@ function renderMissionDocumentsSection(mission) {
   return `
     <section class="md-card">
       <div class="md-card-head">
-        <span class="md-sec-label--title">Documents</span>
+        <span class="md-sec-label--title">Attachments</span>
       </div>
       ${
         items
@@ -1798,7 +1838,6 @@ function renderMissionFrame(
   const badge = missionStatusBadge(status);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
-  const hostName = resolveHostName(mission, user);
   const weekday = formatWeekday(mission.date);
   const duration = formatDurationHuman(mission);
   const editUrl = `/missions/edit?id=${encodeURIComponent(missionId)}`;
@@ -1832,7 +1871,6 @@ function renderMissionFrame(
         <span class="md-hero-badge md-badge ${badge.cls}">${escapeHtml(badge.label)}</span>
         <div class="md-hero-content">
           <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
-          <p class="md-host">Hosted by ${escapeHtml(hostName)}</p>
           <div class="md-chip-row">
             <span class="md-type-badge">${escapeHtml(mission.type || "General")}</span>
           </div>
@@ -1906,7 +1944,6 @@ function openMissionAnnounceModal() {
   const overlay = document.getElementById("missionAnnounceModal");
   const titleInput = document.getElementById("missionAnnounceTitleInput");
   const descInput = document.getElementById("missionAnnounceDescInput");
-  const input = document.getElementById("missionAnnounceInput");
   const imagesInput = document.getElementById("missionAnnounceImagesInput");
   const docsInput = document.getElementById("missionAnnounceDocsInput");
   const err = document.getElementById("missionAnnounceError");
@@ -1916,7 +1953,6 @@ function openMissionAnnounceModal() {
   renderPendingAnnounceFiles();
   if (titleInput) titleInput.value = "";
   if (descInput) descInput.value = "";
-  if (input) input.value = "";
   if (imagesInput) imagesInput.value = "";
   if (docsInput) docsInput.value = "";
   if (err) err.textContent = "";
@@ -1940,9 +1976,10 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
   const cancelBtn = document.getElementById("missionAnnounceCancel");
   const saveBtn = document.getElementById("missionAnnounceSave");
   const overlay = document.getElementById("missionAnnounceModal");
+  const viewOverlay = document.getElementById("missionAnnounceViewModal");
+  const viewCloseBtn = document.getElementById("missionAnnounceViewClose");
   const titleInput = document.getElementById("missionAnnounceTitleInput");
   const descInput = document.getElementById("missionAnnounceDescInput");
-  const input = document.getElementById("missionAnnounceInput");
   const imageBtn = document.getElementById("missionAnnounceImageBtn");
   const docBtn = document.getElementById("missionAnnounceDocBtn");
   const imagesInput = document.getElementById("missionAnnounceImagesInput");
@@ -1950,6 +1987,7 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
   const imageList = document.getElementById("missionAnnounceImageList");
   const docList = document.getElementById("missionAnnounceDocList");
   const err = document.getElementById("missionAnnounceError");
+  const detailsRoot = document.getElementById("detailsContainer");
 
   if (addBtn && canAdd) {
     addBtn.onclick = () => openMissionAnnounceModal();
@@ -1961,6 +1999,38 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
     overlay.onclick = (e) => {
       if (e.target === overlay) closeMissionAnnounceModal();
     };
+  }
+  if (viewCloseBtn) {
+    viewCloseBtn.onclick = () => closeAnnouncementViewModal();
+  }
+  if (viewOverlay) {
+    viewOverlay.onclick = (e) => {
+      if (e.target === viewOverlay) closeAnnouncementViewModal();
+    };
+    if (!viewOverlay.dataset.escapeWired) {
+      viewOverlay.dataset.escapeWired = "1";
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && viewOverlay.classList.contains("is-open")) {
+          closeAnnouncementViewModal();
+        }
+      });
+    }
+    if (!viewOverlay.dataset.docViewWired) {
+      wireMissionDocumentsDownloads(viewOverlay);
+    }
+  }
+  if (detailsRoot && !detailsRoot.dataset.announceViewWired) {
+    detailsRoot.dataset.announceViewWired = "1";
+    detailsRoot.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-view-announce]");
+      if (!btn || !detailsRoot.contains(btn)) return;
+      const id = String(btn.getAttribute("data-view-announce") || "");
+      const announcement =
+        missionAnnouncementsCache.find((item) => String(item.id) === id) ||
+        missionAnnouncementsCache[Number(id)];
+      if (!announcement) return;
+      openAnnouncementViewModal(announcement);
+    });
   }
   if (imageBtn && imagesInput && canAdd) {
     imageBtn.onclick = () => imagesInput.click();
@@ -2004,19 +2074,18 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
     saveBtn.onclick = async () => {
       const title = String(titleInput?.value || "").trim();
       const description = String(descInput?.value || "").trim();
-      const text = String(input?.value || "").trim();
       const pendingFiles = [...pendingAnnounceImages, ...pendingAnnounceDocs];
       if (!title) {
         if (err) err.textContent = "Please enter a title.";
         titleInput?.focus();
         return;
       }
-      if (!text && !pendingFiles.length) {
+      if (!description && !pendingFiles.length) {
         if (err) {
           err.textContent =
-            "Please enter announcement text or attach at least one file.";
+            "Please enter a description or attach at least one file.";
         }
-        input?.focus();
+        descInput?.focus();
         return;
       }
       saveBtn.disabled = true;
@@ -2039,7 +2108,6 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
         await addDoc(collection(db, "missions", missionId, "announcements"), {
           title,
           description,
-          text,
           attachments,
           images: attachments.filter((a) => a.kind === "image"),
           documents: attachments.filter((a) => a.kind === "document"),
@@ -2177,7 +2245,6 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
   const badge = missionStatusBadge("rejected");
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
-  const hostName = resolveHostName(mission, user);
   const weekday = formatWeekday(mission.date);
   const duration = formatDurationHuman(mission);
   const orgId = mission.orgId || mission.organizationId;
@@ -2200,7 +2267,6 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
         <span class="md-hero-badge md-badge ${badge.cls}">${escapeHtml(badge.label)}</span>
         <div class="md-hero-content">
           <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
-          <p class="md-host">Hosted by ${escapeHtml(hostName)}</p>
           <div class="md-chip-row">
             <span class="md-type-badge">${escapeHtml(mission.type || "General")}</span>
           </div>

@@ -417,7 +417,6 @@ html[data-theme="dark"] body.org-app .md-title,
 html[data-theme="dark"] body.org-app .md-cell-val {
   color: #fff !important;
 }
-html[data-theme="dark"] body.org-app .md-host,
 html[data-theme="dark"] body.org-app .md-cell-sub {
   color: rgba(255, 255, 255, 0.65) !important;
 }

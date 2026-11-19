@@ -13,10 +13,10 @@ import {
 import { computeMissionPointsPayload } from "./mission-type-points.js";
 import { fetchOrganizationDisplayName } from "./org-verification.js";
 import {
-    sanitizeCloudinaryDocumentUrl,
     normalizeMissionDocuments,
-    downloadCloudinaryDocument,
-    candidateCloudinaryDocumentUrls,
+    preferredDocumentViewUrl,
+    buildDocumentViewHref,
+    openDocumentForView,
 } from "./cloudinary-upload.js";
 
 const missionId = document.body.dataset.missionId || "";
@@ -85,21 +85,20 @@ function wireDetailTabs(root, initialTab = "mission") {
 }
 
 function wireMissionDocumentsDownloads(root) {
-    const list = root?.querySelector?.(".mission-docs");
-    if (!list || list.dataset.downloadWired === "1") return;
-    list.dataset.downloadWired = "1";
-    list.addEventListener("click", (event) => {
-        const link = event.target.closest("a.mission-doc-link");
-        if (!link || list.contains(link) === false) return;
-        const url = link.getAttribute("href") || "";
-        const name =
-            link.getAttribute("data-download-name") ||
-            link.getAttribute("download") ||
-            "document";
-        if (!url || url === "#") return;
+    if (!root || root.dataset.docViewWired === "1") return;
+    root.dataset.docViewWired = "1";
+    root.addEventListener("click", (event) => {
+        const link = event.target.closest(
+            "a.md-doc-link, a.org-doc-view, a.mission-doc-link, button.md-doc-link, button.org-doc-view"
+        );
+        if (!link || !root.contains(link)) return;
+        const sourceUrl = String(link.getAttribute("data-doc-url") || "").trim();
+        if (!sourceUrl) return;
         event.preventDefault();
-        event.stopPropagation();
-        void downloadCloudinaryDocument(url, name);
+        const name = String(
+            link.getAttribute("data-doc-name") || link.textContent || "document"
+        ).trim();
+        openDocumentForView(sourceUrl, name);
     });
 }
 
@@ -124,8 +123,8 @@ function missionImageDownloadHtml(src) {
     const fileName = "mission-image.jpg";
     return `
         <span class="org-doc-meta">
-            <a class="org-doc-download" href="${escapeHtml(href)}" download="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer">${escapeHtml(fileName)}</a>
-            <span class="org-doc-meta__sub">Click to download</span>
+            <button type="button" class="org-doc-view" data-doc-url="${escapeHtml(href)}" data-doc-name="${escapeHtml(fileName)}">${escapeHtml(fileName)}</button>
+            <span class="org-doc-meta__sub">Tap to view</span>
         </span>`;
 }
 
@@ -233,17 +232,14 @@ function renderMission(mission, orgDisplayName) {
                       const format = String(docItem.format || "").toUpperCase();
                       const sizeLabel = formatDocumentSize(docItem.size);
                       const meta = [format, sizeLabel].filter(Boolean).join(" · ");
-                      const candidates = candidateCloudinaryDocumentUrls(
-                          String(docItem.url)
+                      const sourceUrl = preferredDocumentViewUrl(
+                          String(docItem.url || "")
                       );
-                      const href =
-                          candidates.find((u) => u.includes("/raw/upload/")) ||
-                          candidates[0] ||
-                          sanitizeCloudinaryDocumentUrl(String(docItem.url));
+                      const href = buildDocumentViewHref(sourceUrl, name);
                       return `
                         <span class="org-doc-meta">
-                          <a class="mission-doc-link org-doc-download" href="${escapeHtml(href)}" data-doc-index="${index}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">${escapeHtml(name)}</a>
-                          ${meta ? `<span class="org-doc-meta__sub">${escapeHtml(meta)}</span>` : ""}
+                          <button type="button" class="mission-doc-link org-doc-view" data-doc-url="${escapeHtml(sourceUrl)}" data-doc-name="${escapeHtml(name)}" data-doc-href="${escapeHtml(href)}" data-doc-index="${index}">${escapeHtml(name)}</button>
+                          ${meta ? `<span class="org-doc-meta__sub">${escapeHtml(meta)} · Tap to view</span>` : `<span class="org-doc-meta__sub">Tap to view</span>`}
                         </span>`;
                   })
                   .join("")}</div>`
