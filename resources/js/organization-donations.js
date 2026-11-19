@@ -2,19 +2,13 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
 import {
     collection,
-    doc,
-    getDoc,
     getDocs,
     limit,
     query,
-    updateDoc,
     where,
-    serverTimestamp,
 } from "firebase/firestore";
 import {
     assertOrgVerified,
-    getOrgProfileOnce,
-    invalidateOrgProfileCache,
 } from "./org-verification.js";
 import {
     blockPageContent,
@@ -49,19 +43,11 @@ import {
 } from "./table-date-sort.js";
 
 let orgId = null;
-let orgName = "";
 let allCampaigns = [];
 let campaignFilter = "all";
 let primaryShareCampaignId = "";
 /** @type {'asc'|'desc'} */
 let donationDateSortDir = "asc";
-
-function maskAccountId(accountId) {
-    const value = String(accountId || "").trim();
-    if (!value) return "";
-    if (value.length <= 4) return `••••${value}`;
-    return `••••${value.slice(-4)}`;
-}
 
 function formatDisplayDate(iso) {
     const raw = String(iso || "").trim();
@@ -100,94 +86,6 @@ async function copyText(text) {
         const ok = document.execCommand("copy");
         input.remove();
         return ok;
-    }
-}
-
-function setPaymongoStatus(connected, accountId = "") {
-    const badge = document.getElementById("paymongoStatusBadge");
-    const help = document.getElementById("paymongoHelp");
-    const title = document.getElementById("paymongoTitle");
-    const icon = document.getElementById("paymongoIcon");
-    const editBtn = document.getElementById("editPaymongoBtn");
-    const input = document.getElementById("paymongoLinkedAccountId");
-    if (input && accountId) input.value = accountId;
-
-    if (connected) {
-        if (title) title.textContent = "PayMongo account connected";
-        if (help) {
-            help.textContent = `Linked account ending in ${maskAccountId(accountId)} · Test mode`;
-        }
-        if (badge) {
-            badge.textContent = "Connected";
-            badge.className = "paymongo-badge";
-        }
-        if (icon) {
-            icon.className = "paymongo-card__icon";
-            icon.innerHTML = '<i class="bi bi-shield-check"></i>';
-        }
-        if (editBtn) editBtn.textContent = "Edit account";
-    } else {
-        if (title) title.textContent = "PayMongo account not connected";
-        if (help) {
-            help.textContent =
-                "Connect your Linked Account so donations settle to your organization — not Kalinga.";
-        }
-        if (badge) {
-            badge.textContent = "Not connected";
-            badge.className = "paymongo-badge is-off";
-        }
-        if (icon) {
-            icon.className = "paymongo-card__icon is-off";
-            icon.innerHTML = '<i class="bi bi-shield-exclamation"></i>';
-        }
-        if (editBtn) editBtn.textContent = "Connect account";
-    }
-}
-
-function togglePaymongoEdit(forceOpen) {
-    const form = document.getElementById("paymongoForm");
-    if (!form) return;
-    const open =
-        typeof forceOpen === "boolean" ? forceOpen : !form.classList.contains("is-open");
-    form.classList.toggle("is-open", open);
-    if (open) document.getElementById("paymongoLinkedAccountId")?.focus();
-}
-
-async function loadOrgPaymongo() {
-    const data = (await getOrgProfileOnce(orgId)) || {};
-    orgName = data.name || data.orgName || "";
-    const linked = data.paymongo?.linkedAccountId || "";
-    setPaymongoStatus(Boolean(linked), linked);
-}
-
-async function savePaymongoAccount(event) {
-    event.preventDefault();
-    const input = document.getElementById("paymongoLinkedAccountId");
-    const btn = document.getElementById("savePaymongoBtn");
-    const accountId = String(input?.value || "").trim();
-    if (!accountId) {
-        alert("Enter your PayMongo Linked Account ID.");
-        return;
-    }
-    if (btn) btn.disabled = true;
-    try {
-        await updateDoc(doc(db, "organizations", orgId), {
-            paymongo: {
-                linkedAccountId: accountId,
-                status: "connected",
-                connectedAt: serverTimestamp(),
-                livemode: false,
-            },
-            updatedAt: serverTimestamp(),
-        });
-        invalidateOrgProfileCache(orgId);
-        setPaymongoStatus(true, accountId);
-        togglePaymongoEdit(false);
-    } catch (error) {
-        console.error(error);
-        alert("Could not save PayMongo account. Check Firestore permissions.");
-    } finally {
-        if (btn) btn.disabled = false;
     }
 }
 

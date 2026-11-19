@@ -114,91 +114,6 @@
     }
     .btn-icon:hover { background: #f9fafb; color: #111827; }
 
-    .paymongo-card {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.85rem 1rem;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 1rem 1.15rem;
-      margin-bottom: 1.15rem;
-    }
-    .paymongo-card__icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      background: #dcfce7;
-      color: #166534;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 1.1rem;
-    }
-    .paymongo-card__icon.is-off {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-    .paymongo-card__copy { flex: 1; min-width: 220px; }
-    .paymongo-card__copy strong {
-      display: block;
-      font-size: 0.98rem;
-      color: #111827;
-      margin-bottom: 0.15rem;
-    }
-    .paymongo-card__copy span {
-      color: #6b7280;
-      font-size: 0.88rem;
-    }
-    .paymongo-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.28rem 0.7rem;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      background: #dcfce7;
-      color: #166534;
-    }
-    .paymongo-badge.is-off {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-    .paymongo-edit {
-      width: 100%;
-      display: none;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      align-items: end;
-      padding-top: 0.85rem;
-      border-top: 1px solid #f3f4f6;
-      margin-top: 0.15rem;
-    }
-    .paymongo-edit.is-open { display: flex; }
-    .paymongo-edit label {
-      display: block;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 0.3rem;
-    }
-    .paymongo-edit input {
-      min-width: min(100%, 320px);
-      width: 320px;
-      max-width: 100%;
-      padding: 0.6rem 0.8rem;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font: inherit;
-    }
-    .paymongo-edit input:focus {
-      outline: none;
-      border-color: #16a34a;
-      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
-    }
-
     .stats {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -446,15 +361,6 @@
           <i class="bi bi-plus-lg"></i> Create campaign
         </a>
       </div>
-
-      <section class="paymongo-card" id="mayaCard">
-        <div class="paymongo-card__icon"><i class="bi bi-shield-check"></i></div>
-        <div class="paymongo-card__copy">
-          <strong>Maya Checkout is active</strong>
-          <span>Donations use Maya Sandbox Party 1. Donors are redirected to Maya to pay by card or Maya wallet.</span>
-        </div>
-        <span class="paymongo-badge">Sandbox</span>
-      </section>
 
       <section class="stats">
         <article class="stat-card">

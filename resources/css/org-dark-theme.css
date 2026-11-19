@@ -85,7 +85,6 @@ html[data-theme="dark"] body.org-app .settings-card,
 html[data-theme="dark"] body.org-app .settings-nav,
 html[data-theme="dark"] body.org-app .preview-card,
 html[data-theme="dark"] body.org-app .steps-card,
-html[data-theme="dark"] body.org-app .pay-card,
 html[data-theme="dark"] body.org-app .stat-card,
 html[data-theme="dark"] body.org-app .stats-card,
 html[data-theme="dark"] body.org-app .mission-card,
@@ -96,7 +95,6 @@ html[data-theme="dark"] body.org-app .content-card,
 html[data-theme="dark"] body.org-app .empty-card,
 html[data-theme="dark"] body.org-app .filter-card,
 html[data-theme="dark"] body.org-app .share-cta,
-html[data-theme="dark"] body.org-app .paymongo-card,
 html[data-theme="dark"] body.org-app .campaigns-card,
 html[data-theme="dark"] body.org-app .campaigns-panel,
 html[data-theme="dark"] body.org-app .summary-card,
@@ -156,8 +154,6 @@ html[data-theme="dark"] body.org-app .org-logout-modal,
 html[data-theme="dark"] body.org-app .login-error-modal,
 html[data-theme="dark"] body.org-app .profile-success-modal,
 html[data-theme="dark"] body.org-app .table-shell,
-html[data-theme="dark"] body.org-app .paymongo-edit,
-html[data-theme="dark"] body.org-app .paymongo-card__icon,
 html[data-theme="dark"] body.org-app .md-b-gray,
 html[data-theme="dark"] body.org-app .md-table tbody tr:hover td,
 html[data-theme="dark"] body.org-app .mission-status--default,
@@ -202,7 +198,6 @@ html[data-theme="dark"] body.org-app .profile-info h1,
 html[data-theme="dark"] body.org-app .vd-profile-name,
 html[data-theme="dark"] body.org-app .date-main,
 html[data-theme="dark"] body.org-app .stat-card .value,
-html[data-theme="dark"] body.org-app .paymongo-card__copy strong,
 html[data-theme="dark"] body.org-app .campaigns-panel__head h2,
 html[data-theme="dark"] body.org-app strong,
 html[data-theme="dark"] body.org-app label {
@@ -228,7 +223,6 @@ html[data-theme="dark"] body.org-app .setting-copy p,
 html[data-theme="dark"] body.org-app .profile-info > p,
 html[data-theme="dark"] body.org-app .stat-card .label,
 html[data-theme="dark"] body.org-app .stat-card .hint,
-html[data-theme="dark"] body.org-app .paymongo-card__copy span,
 html[data-theme="dark"] body.org-app .campaigns-panel__head p,
 html[data-theme="dark"] body.org-app th {
   color: #94a3b8 !important;
@@ -312,7 +306,6 @@ html[data-theme="dark"] body.org-app .status-draft {
   color: #e2e8f0 !important;
 }
 html[data-theme="dark"] body.org-app .status-published,
-html[data-theme="dark"] body.org-app .paymongo-badge,
 html[data-theme="dark"] body.org-app .mode-chip {
   background: #14532d !important;
   color: #bbf7d0 !important;
@@ -324,7 +317,6 @@ html[data-theme="dark"] body.org-app .mission-status--pending {
 }
 html[data-theme="dark"] body.org-app .status-rejected,
 html[data-theme="dark"] body.org-app .status-closed,
-html[data-theme="dark"] body.org-app .paymongo-badge.is-off,
 html[data-theme="dark"] body.org-app .mission-status--rejected {
   background: #7f1d1d !important;
   color: #fecaca !important;

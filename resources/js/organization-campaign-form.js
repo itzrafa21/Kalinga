@@ -92,13 +92,11 @@ function setDonationMode(mode) {
 
     const moneyBlock = document.getElementById("moneyBlock");
     const goodsBlock = document.getElementById("goodsBlock");
-    const payCard = document.getElementById("paymongoCard");
     const acceptsMoney = next === DONATION_MODE.MONEY || next === DONATION_MODE.BOTH;
     const acceptsGoods = next === DONATION_MODE.GOODS || next === DONATION_MODE.BOTH;
 
     if (moneyBlock) moneyBlock.hidden = !acceptsMoney;
     if (goodsBlock) goodsBlock.hidden = !acceptsGoods;
-    if (payCard) payCard.hidden = !acceptsMoney;
 
     const amountInput = document.getElementById("targetAmount");
     if (amountInput) {
@@ -302,21 +300,6 @@ function setCoverPreview(url) {
         }
     }
     updateLivePreview();
-}
-
-function loadPaymongoStatus() {
-    const title = document.getElementById("paymongoTitle");
-    const help = document.getElementById("paymongoHelp");
-    const icon = document.getElementById("paymongoIcon");
-    if (title) title.textContent = "Donors pay with Maya.";
-    if (help) {
-        help.textContent =
-            "Money campaigns use Maya Checkout in sandbox. No PayMongo account is required.";
-    }
-    if (icon) {
-        icon.className = "pay-card__icon";
-        icon.innerHTML = '<i class="bi bi-shield-check"></i>';
-    }
 }
 
 async function loadMissions() {
@@ -606,7 +589,6 @@ onAuthStateChanged(auth, async (user) => {
     orgName = orgSnap.data()?.name || orgSnap.data()?.orgName || "";
 
     wireUi();
-    loadPaymongoStatus();
     await loadMissions();
     await loadCampaign();
     updateLivePreview();

@@ -348,8 +348,7 @@
     }
     .preview-goods strong { color: #111827; }
     .money-block[hidden],
-    .goods-block[hidden],
-    .pay-card[hidden] { display: none !important; }
+    .goods-block[hidden] { display: none !important; }
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -358,51 +357,6 @@
     @media (max-width: 700px) {
       .inkind-row { grid-template-columns: 1fr; }
     }
-    .pay-card {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 1rem 1.15rem;
-      margin-bottom: 0;
-    }
-    .pay-card__icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 999px;
-      background: #dcfce7;
-      color: #166534;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .pay-card__icon.is-off {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-    .pay-card__copy { flex: 1; min-width: 0; }
-    .pay-card__copy strong {
-      display: block;
-      font-size: 0.92rem;
-      color: #111827;
-      margin-bottom: 0.15rem;
-    }
-    .pay-card__copy span {
-      color: #6b7280;
-      font-size: 0.84rem;
-    }
-    .pay-card a {
-      color: #166534;
-      font-weight: 700;
-      text-decoration: none;
-      font-size: 0.88rem;
-      flex-shrink: 0;
-    }
-    .pay-card a:hover { text-decoration: underline; }
-
     .preview-card h2,
     .steps-card h2 {
       margin-bottom: 0.85rem;
@@ -665,13 +619,6 @@
               </div>
             </section>
 
-            <section class="pay-card" id="paymongoCard">
-              <div class="pay-card__icon" id="paymongoIcon"><i class="bi bi-shield-check"></i></div>
-              <div class="pay-card__copy">
-                <strong id="paymongoTitle">Donors pay with Maya.</strong>
-                <span id="paymongoHelp">Money campaigns use Maya Checkout in sandbox. No PayMongo account is required.</span>
-              </div>
-            </section>
           </div>
 
           <aside class="form-side">
