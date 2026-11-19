@@ -542,6 +542,20 @@
       border-radius: 12px;
       background: #f8faf9;
     }
+    .md-announce-item h3 {
+      margin: 0 0 0.25rem;
+      color: #14532d;
+      font-size: 0.98rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .md-announce-desc {
+      margin: 0 0 0.45rem;
+      color: #64748b;
+      font-size: 0.84rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
     .md-announce-item p {
       margin: 0;
       color: #1e293b;
@@ -553,6 +567,130 @@
       margin-top: 0.4rem;
       font-size: 0.75rem;
       color: #6b7280;
+    }
+    .md-announce-attach-block {
+      margin-top: 0.7rem;
+    }
+    .md-announce-attach-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 0.35rem;
+    }
+    .md-announce-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .md-announce-images a {
+      display: block;
+      width: 88px;
+      height: 88px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+    }
+    .md-announce-images img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .md-announce-docs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 0.65rem;
+    }
+    .md-announce-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+    .md-announce-fields label {
+      display: block;
+      margin: 0 0 0.3rem;
+      font-size: 0.84rem;
+      font-weight: 650;
+      color: #334155;
+    }
+    .md-announce-fields input[type="text"],
+    .md-announce-fields textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      font: inherit;
+      color: #0f172a;
+      background: #fff;
+    }
+    .md-announce-fields textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+    .md-announce-attach-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .md-announce-attach-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      border-radius: 10px;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.82rem;
+      font-weight: 650;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .md-announce-attach-btn:hover { background: #f8fafc; }
+    .md-announce-attach-hint {
+      font-size: 0.78rem;
+      color: #6b7280;
+    }
+    .md-announce-file-list {
+      list-style: none;
+      margin: 0.55rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .md-announce-file-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f8fafc;
+      font-size: 0.82rem;
+      color: #334155;
+    }
+    .md-announce-file-list button {
+      border: none;
+      background: transparent;
+      color: #b91c1c;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 650;
+      padding: 0;
+    }
+    .reject-modal.reject-modal--announce {
+      max-width: 560px;
+      max-height: min(90vh, 720px);
+      overflow-y: auto;
     }
     .md-btn-add-announce {
       display: inline-flex;
@@ -746,11 +884,71 @@
     aria-modal="true"
     aria-labelledby="missionAnnounceTitle"
   >
-    <div class="reject-modal">
+    <div class="reject-modal reject-modal--announce">
       <h2 id="missionAnnounceTitle">Add announcement</h2>
       <p class="reject-modal-help">Post an update your volunteers will see on this mission.</p>
-      <label for="missionAnnounceInput">Announcement</label>
-      <textarea id="missionAnnounceInput" placeholder="Share a schedule change, reminder, or update…" maxlength="2000"></textarea>
+      <div class="md-announce-fields">
+        <div>
+          <label for="missionAnnounceTitleInput">Title</label>
+          <input
+            type="text"
+            id="missionAnnounceTitleInput"
+            placeholder="e.g. Schedule change"
+            maxlength="120"
+          >
+        </div>
+        <div>
+          <label for="missionAnnounceDescInput">Description</label>
+          <input
+            type="text"
+            id="missionAnnounceDescInput"
+            placeholder="Short summary of this update"
+            maxlength="240"
+          >
+        </div>
+        <div>
+          <label for="missionAnnounceInput">Text</label>
+          <textarea
+            id="missionAnnounceInput"
+            placeholder="Write the full announcement…"
+            maxlength="2000"
+          ></textarea>
+        </div>
+        <div>
+          <label>Images</label>
+          <div class="md-announce-attach-row">
+            <button type="button" class="md-announce-attach-btn" id="missionAnnounceImageBtn">
+              <i class="bi bi-image" aria-hidden="true"></i> Add images
+            </button>
+            <span class="md-announce-attach-hint">JPG, PNG, WEBP, and other images</span>
+          </div>
+          <input
+            type="file"
+            id="missionAnnounceImagesInput"
+            accept="image/*"
+            multiple
+            hidden
+          >
+          <ul class="md-announce-file-list" id="missionAnnounceImageList"></ul>
+        </div>
+        <div>
+          <label>Documents</label>
+          <div class="md-announce-attach-row">
+            <button type="button" class="md-announce-attach-btn" id="missionAnnounceDocBtn">
+              <i class="bi bi-file-earmark" aria-hidden="true"></i> Add documents
+            </button>
+            <span class="md-announce-attach-hint">PDF, Word, or Excel</span>
+          </div>
+          <input
+            type="file"
+            id="missionAnnounceDocsInput"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf"
+            multiple
+            hidden
+          >
+          <ul class="md-announce-file-list" id="missionAnnounceDocList"></ul>
+        </div>
+      </div>
       <p id="missionAnnounceError" class="reject-modal-error" role="alert"></p>
       <div class="reject-modal-actions">
         <button type="button" class="reject-modal-cancel" id="missionAnnounceCancel">Cancel</button>

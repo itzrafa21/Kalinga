@@ -52,6 +52,10 @@ import {
   normalizeMissionDocuments,
   downloadCloudinaryDocument,
   candidateCloudinaryDocumentUrls,
+  uploadFileToCloudinary,
+  uploadImageToCloudinary,
+  buildMissionDocumentPublicId,
+  ORG_CLOUDINARY,
 } from "./cloudinary-upload.js";
 import {
   parseSortableDateMs,
@@ -64,6 +68,12 @@ let currentMissionContext = null;
 let CURRENT_ACTOR = null;
 let CURRENT_SESSION = null;
 let missionAnnouncementsCache = [];
+/** @type {File[]} */
+let pendingAnnounceImages = [];
+/** @type {File[]} */
+let pendingAnnounceDocs = [];
+const ANNOUNCE_MAX_BYTES = 50 * 1024 * 1024;
+const ANNOUNCE_DOC_EXT = new Set(["pdf", "doc", "docx", "xls", "xlsx"]);
 /** @type {'asc'|'desc'} */
 let rosterDateSortDir = "asc";
 
@@ -237,20 +247,140 @@ async function loadMissionAnnouncements(missionId) {
   }
 }
 
+function announceFileExtension(name) {
+  const parts = String(name || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() : "";
+}
+
+function isAnnounceImageFile(file) {
+  return Boolean(file?.type?.startsWith("image/"));
+}
+
+function isAnnounceDocFile(file) {
+  const ext = announceFileExtension(file?.name);
+  if (ANNOUNCE_DOC_EXT.has(ext)) return true;
+  const type = String(file?.type || "");
+  return (
+    type === "application/pdf" ||
+    type.includes("word") ||
+    type.includes("excel") ||
+    type.includes("spreadsheet")
+  );
+}
+
+function splitAnnouncementAttachments(announcement = {}) {
+  const images = normalizeMissionDocuments(
+    announcement.images || []
+  ).filter((d) => d && (d.url || d.name));
+  const docs = normalizeMissionDocuments(
+    announcement.documents || []
+  ).filter((d) => d && (d.url || d.name));
+
+  if (images.length || docs.length) {
+    return { images, docs };
+  }
+
+  const fallback = normalizeMissionDocuments(
+    announcement.attachments || announcement.files || []
+  ).filter((d) => d && (d.url || d.name));
+  const splitImages = [];
+  const splitDocs = [];
+  fallback.forEach((item) => {
+    const kind = String(item.kind || item.resourceType || "").toLowerCase();
+    const type = String(item.type || "").toLowerCase();
+    const format = String(item.format || "").toLowerCase();
+    const isImage =
+      kind === "image" ||
+      type.startsWith("image/") ||
+      ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(format);
+    if (isImage) splitImages.push(item);
+    else splitDocs.push(item);
+  });
+  return { images: splitImages, docs: splitDocs };
+}
+
+function renderAnnouncementAttachmentsHtml(announcement = {}) {
+  const { images, docs } = splitAnnouncementAttachments(announcement);
+  if (!images.length && !docs.length) return "";
+
+  const imagesHtml = images.length
+    ? `<div class="md-announce-attach-block">
+        <div class="md-announce-attach-label">Images</div>
+        <div class="md-announce-images">${images
+          .map((img) => {
+            const url = sanitizeCloudinaryDocumentUrl(
+              String(img.url || "").trim()
+            );
+            if (!url) return "";
+            const name = documentDownloadName(img);
+            return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(name)}">
+              <img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy">
+            </a>`;
+          })
+          .filter(Boolean)
+          .join("")}</div>
+      </div>`
+    : "";
+
+  const docsHtml = docs.length
+    ? `<div class="md-announce-attach-block">
+        <div class="md-announce-attach-label">Documents</div>
+        <div class="md-announce-docs md-docs-list">${docs
+          .map((docItem) => {
+            const original = String(docItem.url || "").trim();
+            const candidates = candidateCloudinaryDocumentUrls(original);
+            const url =
+              candidates.find((u) => u.includes("/raw/upload/")) ||
+              candidates[0] ||
+              sanitizeCloudinaryDocumentUrl(original);
+            if (!url) return "";
+            const name = documentDownloadName(docItem);
+            const sizeLabel = formatDocumentSize(docItem.size);
+            const format = String(docItem.format || "").toUpperCase();
+            const meta =
+              [format, sizeLabel].filter(Boolean).join(" · ") || "Document";
+            return `
+              <a class="md-doc-link" href="${escapeHtml(url)}" data-download-name="${escapeHtml(name)}" download="${escapeHtml(name)}" rel="noopener noreferrer">
+                <span class="md-doc-link__icon" aria-hidden="true"><i class="ti ti-file-download"></i></span>
+                <span class="md-doc-link__meta">
+                  <span class="md-doc-link__name">${escapeHtml(name)}</span>
+                  <span class="md-doc-link__sub">${escapeHtml(meta)}</span>
+                </span>
+                <span class="md-doc-link__action">Download</span>
+              </a>`;
+          })
+          .filter(Boolean)
+          .join("")}</div>
+      </div>`
+    : "";
+
+  return `${imagesHtml}${docsHtml}`;
+}
+
 function renderAnnouncementsSection(announcements, isOwner, inHistory) {
   const canAdd = isOwner && !inHistory;
   const items = Array.isArray(announcements) ? announcements : [];
   const listHtml = items.length
     ? `<div class="md-announce-list">${items
         .map((a) => {
+          const title = String(a.title || "").trim();
+          const description = String(a.description || a.desc || "").trim();
           const text = String(a.text || a.message || "").trim();
-          if (!text) return "";
+          const attachmentsHtml = renderAnnouncementAttachmentsHtml(a);
+          if (!title && !description && !text && !attachmentsHtml) return "";
           const when = formatAnnouncementTime(a.createdAt);
           const author = a.authorName || a.createdByName || "";
           const meta = [author, when].filter(Boolean).join(" · ");
           return `
             <article class="md-announce-item">
-              <p>${escapeHtml(text)}</p>
+              ${title ? `<h3>${escapeHtml(title)}</h3>` : ""}
+              ${
+                description
+                  ? `<div class="md-announce-desc">${escapeHtml(description)}</div>`
+                  : ""
+              }
+              ${text ? `<p>${escapeHtml(text)}</p>` : ""}
+              ${attachmentsHtml}
               ${meta ? `<div class="md-announce-meta">${escapeHtml(meta)}</div>` : ""}
             </article>`;
         })
@@ -1366,19 +1496,145 @@ function documentDownloadName(docItem) {
 }
 
 function wireMissionDocumentsDownloads(root) {
-  const list = root?.querySelector?.(".md-docs-list");
-  if (!list || list.dataset.downloadWired === "1") return;
-  list.dataset.downloadWired = "1";
-  list.addEventListener("click", (event) => {
+  if (!root || root.dataset.docDownloadWired === "1") return;
+  root.dataset.docDownloadWired = "1";
+  root.addEventListener("click", (event) => {
     const link = event.target.closest("a.md-doc-link");
-    if (!link || list.contains(link) === false) return;
+    if (!link || !root.contains(link)) return;
     const url = link.getAttribute("href") || "";
-    const name = link.getAttribute("data-download-name") || link.getAttribute("download") || "document";
+    const name =
+      link.getAttribute("data-download-name") ||
+      link.getAttribute("download") ||
+      "document";
     if (!url || url === "#") return;
     event.preventDefault();
     event.stopPropagation();
     void downloadCloudinaryDocument(url, name);
   });
+}
+
+function renderPendingAnnounceList(listId, files, removeAttr) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  if (!files.length) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = files
+    .map((file, index) => {
+      const size = formatDocumentSize(file.size);
+      return `<li>
+        <span>${escapeHtml(file.name)}${size ? ` · ${escapeHtml(size)}` : ""}</span>
+        <button type="button" ${removeAttr}="${index}">Remove</button>
+      </li>`;
+    })
+    .join("");
+}
+
+function renderPendingAnnounceFiles() {
+  renderPendingAnnounceList(
+    "missionAnnounceImageList",
+    pendingAnnounceImages,
+    "data-remove-announce-image"
+  );
+  renderPendingAnnounceList(
+    "missionAnnounceDocList",
+    pendingAnnounceDocs,
+    "data-remove-announce-doc"
+  );
+}
+
+function pushUniqueAnnounceFiles(target, fileList, validateFn, invalidMessage) {
+  const incoming = Array.from(fileList || []);
+  const errors = [];
+  incoming.forEach((file) => {
+    if (!validateFn(file)) {
+      errors.push(`“${file.name}” ${invalidMessage}`);
+      return;
+    }
+    if (file.size > ANNOUNCE_MAX_BYTES) {
+      errors.push(`“${file.name}” must be smaller than 50MB.`);
+      return;
+    }
+    const duplicate = target.some(
+      (existing) =>
+        existing.name === file.name &&
+        existing.size === file.size &&
+        existing.lastModified === file.lastModified
+    );
+    if (duplicate) return;
+    target.push(file);
+  });
+  return errors[0] || "";
+}
+
+function addPendingAnnounceImages(fileList) {
+  const error = pushUniqueAnnounceFiles(
+    pendingAnnounceImages,
+    fileList,
+    isAnnounceImageFile,
+    "is not a supported image."
+  );
+  renderPendingAnnounceFiles();
+  return error;
+}
+
+function addPendingAnnounceDocs(fileList) {
+  const error = pushUniqueAnnounceFiles(
+    pendingAnnounceDocs,
+    fileList,
+    isAnnounceDocFile,
+    "is not a supported document."
+  );
+  renderPendingAnnounceFiles();
+  return error;
+}
+
+async function uploadAnnouncementAttachments(files, orgId, missionId) {
+  const uploaded = [];
+  for (let i = 0; i < files.length; i += 1) {
+    const file = files[i];
+    const folder = `${ORG_CLOUDINARY.folder}/${orgId}/missions/${missionId}/announcements`;
+    if (isAnnounceImageFile(file)) {
+      const url = await uploadImageToCloudinary(file, {
+        folder,
+        publicId: buildMissionDocumentPublicId(file, i),
+        maxBytes: ANNOUNCE_MAX_BYTES,
+        tags: ["mission-announcement", orgId, missionId],
+      });
+      uploaded.push({
+        name: file.name,
+        size: file.size,
+        type: file.type || "image/*",
+        url,
+        format: announceFileExtension(file.name),
+        kind: "image",
+        resourceType: "image",
+        uploadedAt: new Date().toISOString(),
+      });
+      continue;
+    }
+
+    const result = await uploadFileToCloudinary(file, {
+      folder,
+      publicId: buildMissionDocumentPublicId(file, i),
+      maxBytes: ANNOUNCE_MAX_BYTES,
+      resourceType: "raw",
+      tags: ["mission-announcement", orgId, missionId],
+    });
+    uploaded.push({
+      name: file.name,
+      size: file.size,
+      type: file.type || "",
+      url: result.url,
+      publicId: result.publicId || "",
+      format: result.format || announceFileExtension(file.name),
+      kind: "document",
+      resourceType: result.resourceType || "raw",
+      uploadedAt: new Date().toISOString(),
+    });
+  }
+  return uploaded;
 }
 
 function renderMissionDocumentsSection(mission) {
@@ -1648,14 +1904,25 @@ function renderMissionFrame(
 
 function openMissionAnnounceModal() {
   const overlay = document.getElementById("missionAnnounceModal");
+  const titleInput = document.getElementById("missionAnnounceTitleInput");
+  const descInput = document.getElementById("missionAnnounceDescInput");
   const input = document.getElementById("missionAnnounceInput");
+  const imagesInput = document.getElementById("missionAnnounceImagesInput");
+  const docsInput = document.getElementById("missionAnnounceDocsInput");
   const err = document.getElementById("missionAnnounceError");
   if (!overlay) return;
+  pendingAnnounceImages = [];
+  pendingAnnounceDocs = [];
+  renderPendingAnnounceFiles();
+  if (titleInput) titleInput.value = "";
+  if (descInput) descInput.value = "";
   if (input) input.value = "";
+  if (imagesInput) imagesInput.value = "";
+  if (docsInput) docsInput.value = "";
   if (err) err.textContent = "";
   overlay.hidden = false;
   overlay.classList.add("is-open");
-  input?.focus();
+  titleInput?.focus();
 }
 
 function closeMissionAnnounceModal() {
@@ -1663,6 +1930,9 @@ function closeMissionAnnounceModal() {
   if (!overlay) return;
   overlay.classList.remove("is-open");
   overlay.hidden = true;
+  pendingAnnounceImages = [];
+  pendingAnnounceDocs = [];
+  renderPendingAnnounceFiles();
 }
 
 function wireMissionAnnouncements(missionId, canAdd, user) {
@@ -1670,7 +1940,15 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
   const cancelBtn = document.getElementById("missionAnnounceCancel");
   const saveBtn = document.getElementById("missionAnnounceSave");
   const overlay = document.getElementById("missionAnnounceModal");
+  const titleInput = document.getElementById("missionAnnounceTitleInput");
+  const descInput = document.getElementById("missionAnnounceDescInput");
   const input = document.getElementById("missionAnnounceInput");
+  const imageBtn = document.getElementById("missionAnnounceImageBtn");
+  const docBtn = document.getElementById("missionAnnounceDocBtn");
+  const imagesInput = document.getElementById("missionAnnounceImagesInput");
+  const docsInput = document.getElementById("missionAnnounceDocsInput");
+  const imageList = document.getElementById("missionAnnounceImageList");
+  const docList = document.getElementById("missionAnnounceDocList");
   const err = document.getElementById("missionAnnounceError");
 
   if (addBtn && canAdd) {
@@ -1684,39 +1962,104 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
       if (e.target === overlay) closeMissionAnnounceModal();
     };
   }
+  if (imageBtn && imagesInput && canAdd) {
+    imageBtn.onclick = () => imagesInput.click();
+    imagesInput.onchange = () => {
+      const error = addPendingAnnounceImages(imagesInput.files);
+      imagesInput.value = "";
+      if (err) err.textContent = error || "";
+    };
+  }
+  if (docBtn && docsInput && canAdd) {
+    docBtn.onclick = () => docsInput.click();
+    docsInput.onchange = () => {
+      const error = addPendingAnnounceDocs(docsInput.files);
+      docsInput.value = "";
+      if (err) err.textContent = error || "";
+    };
+  }
+  if (imageList && !imageList.dataset.wired) {
+    imageList.dataset.wired = "1";
+    imageList.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-remove-announce-image]");
+      if (!btn) return;
+      const index = Number(btn.getAttribute("data-remove-announce-image"));
+      if (!Number.isFinite(index)) return;
+      pendingAnnounceImages.splice(index, 1);
+      renderPendingAnnounceFiles();
+    });
+  }
+  if (docList && !docList.dataset.wired) {
+    docList.dataset.wired = "1";
+    docList.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-remove-announce-doc]");
+      if (!btn) return;
+      const index = Number(btn.getAttribute("data-remove-announce-doc"));
+      if (!Number.isFinite(index)) return;
+      pendingAnnounceDocs.splice(index, 1);
+      renderPendingAnnounceFiles();
+    });
+  }
   if (saveBtn && canAdd) {
     saveBtn.onclick = async () => {
+      const title = String(titleInput?.value || "").trim();
+      const description = String(descInput?.value || "").trim();
       const text = String(input?.value || "").trim();
-      if (!text) {
-        if (err) err.textContent = "Please enter an announcement.";
+      const pendingFiles = [...pendingAnnounceImages, ...pendingAnnounceDocs];
+      if (!title) {
+        if (err) err.textContent = "Please enter a title.";
+        titleInput?.focus();
+        return;
+      }
+      if (!text && !pendingFiles.length) {
+        if (err) {
+          err.textContent =
+            "Please enter announcement text or attach at least one file.";
+        }
+        input?.focus();
         return;
       }
       saveBtn.disabled = true;
+      const prevSaveHtml = saveBtn.innerHTML;
+      saveBtn.textContent = pendingFiles.length ? "Uploading…" : "Posting…";
       if (err) err.textContent = "";
       try {
         const hostName = resolveHostName(
           currentMissionContext?.mission || {},
           user
         );
+        const orgId =
+          currentMissionContext?.mission?.orgId ||
+          currentMissionContext?.mission?.organizationId ||
+          user?.uid ||
+          "";
+        const attachments = pendingFiles.length
+          ? await uploadAnnouncementAttachments(pendingFiles, orgId, missionId)
+          : [];
         await addDoc(collection(db, "missions", missionId, "announcements"), {
+          title,
+          description,
           text,
+          attachments,
+          images: attachments.filter((a) => a.kind === "image"),
+          documents: attachments.filter((a) => a.kind === "document"),
           createdAt: serverTimestamp(),
           createdBy: user?.uid || "",
           authorName: hostName,
-          orgId:
-            currentMissionContext?.mission?.orgId ||
-            currentMissionContext?.mission?.organizationId ||
-            user?.uid ||
-            "",
+          orgId,
         });
         closeMissionAnnounceModal();
         missionAnnouncementsCache = await loadMissionAnnouncements(missionId);
         await refreshMissionDetails({ refresh: true, background: true });
       } catch (e) {
         console.error(e);
-        if (err) err.textContent = "Could not post announcement. Try again.";
+        if (err) {
+          err.textContent =
+            e?.message || "Could not post announcement. Try again.";
+        }
       } finally {
         saveBtn.disabled = false;
+        saveBtn.innerHTML = prevSaveHtml || "Post announcement";
       }
     };
   }
