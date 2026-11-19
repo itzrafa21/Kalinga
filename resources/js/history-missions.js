@@ -152,17 +152,15 @@ function bootHistoryPage() {
         const fresh =
             ready &&
             isOrgCacheFresh(actor.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
+        const needsCreatedAt = historyItemsNeedCreatedAt(
+            cached?.payload?.items || historyItems
+        );
 
-        // Soft nav: reuse ready tableHtml. Otherwise refresh now; refine counts in background.
-        if (!ready) {
+        // Soft nav: reuse ready tableHtml. Always refresh when Created At is missing.
+        if (!ready || !fresh || needsCreatedAt) {
             void loadHistoryMissions(actor, {
                 refresh: true,
                 silent: Boolean(cached?.payload),
-            });
-        } else if (!fresh) {
-            void loadHistoryMissions(actor, {
-                refresh: true,
-                silent: true,
             });
         }
     });
@@ -392,30 +390,74 @@ function renderCreatedAtCellHtml(value) {
         <div class="mission-time-sub">${escapeHtml(timePart)}</div>`;
 }
 
+function pickCreatedAtValue(data = {}) {
+    return (
+        data.createdAt ??
+        data.submittedAt ??
+        data.approvedAt ??
+        null
+    );
+}
+
+function historyItemsNeedCreatedAt(items = []) {
+    return (
+        Array.isArray(items) &&
+        items.some((item) => !(Number(item?.createdAtMs) > 0))
+    );
+}
+
 async function resolveHistoryCreatedAt(missionId, mission = {}) {
-    const local = mission.createdAt ?? mission.submittedAt ?? null;
+    const local = pickCreatedAtValue(mission);
     if (getCreatedAtMs(local)) return local;
+    if (!missionId) return local;
+
     try {
         const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (!globalSnap.exists()) return local;
-        const data = globalSnap.data() || {};
-        return data.createdAt ?? data.submittedAt ?? local;
+        if (globalSnap.exists()) {
+            const fromMissions = pickCreatedAtValue(globalSnap.data() || {});
+            if (getCreatedAtMs(fromMissions)) return fromMissions;
+        }
     } catch (err) {
         console.warn("[WARN] Could not read missions.createdAt:", missionId, err);
-        return local;
     }
+
+    try {
+        const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+        if (subSnap.exists()) {
+            const fromSub = pickCreatedAtValue(subSnap.data() || {});
+            if (getCreatedAtMs(fromSub)) return fromSub;
+        }
+    } catch (err) {
+        console.warn(
+            "[WARN] Could not read mission_submissions.createdAt:",
+            missionId,
+            err
+        );
+    }
+
+    return local;
 }
 
 async function enrichHistoryCreatedAt(items = []) {
     const next = await Promise.all(
         items.map(async (item) => {
-            if (item.createdAtMs) return item;
+            if (Number(item.createdAtMs) > 0) {
+                return {
+                    ...item,
+                    row: buildHistoryRow(item),
+                };
+            }
             const createdAt = await resolveHistoryCreatedAt(
                 item.missionId,
                 item.mission || {}
             );
             const createdAtMs = getCreatedAtMs(createdAt);
-            if (!createdAtMs) return item;
+            if (!createdAtMs) {
+                return {
+                    ...item,
+                    row: buildHistoryRow(item),
+                };
+            }
             const createdAtLabel = formatCreatedAtLabel(createdAtMs);
             const mission = {
                 ...(item.mission || {}),
@@ -606,9 +648,7 @@ function buildHistoryRow(item) {
     return `
         <tr class="history-mission-row" data-period="${periodBucket}" data-mission-id="${escapeHtml(missionId)}">
             <td class="col-created">${renderCreatedAtCellHtml(
-                item.createdAtMs ||
-                    mission.createdAt ||
-                    mission.submittedAt
+                item.createdAtMs || pickCreatedAtValue(mission)
             )}</td>
             <td class="col-date">${renderHistoryDateCellHtml(mission)}</td>
             <td class="col-mission">
@@ -638,7 +678,7 @@ function processHistoryMissionLocal(docSnap, userId) {
     const periodBucket = getPeriodBucket(completedOn);
     const missionName = mission.missionName || mission.name || "Untitled";
     const { datePart, timePart } = getHistoryDateParts(mission);
-    const createdAt = mission.createdAt ?? mission.submittedAt ?? null;
+    const createdAt = pickCreatedAtValue(mission);
     const createdAtMs = getCreatedAtMs(createdAt);
     const createdAtLabel = formatCreatedAtLabel(createdAt);
     const dateMs = parseSortableDateMs(mission.date || mission.endDate || "");
@@ -789,21 +829,31 @@ function slimHistoryMission(mission = {}) {
 
 function serializeHistoryItems(items = []) {
     // Keep cache small so sessionStorage writes succeed (full mission docs were too heavy).
-    return items.map((item) => ({
-        missionId: item.missionId,
-        orgId: item.orgId,
-        mission: slimHistoryMission(item.mission || {}),
-        status: item.status,
-        actualVolunteers: item.actualVolunteers,
-        needsCountFetch: false,
-        completedOnMs: item.completedOnMs || item.completedOn?.getTime?.() || 0,
-        createdAtMs: item.createdAtMs || 0,
-        createdAtLabel: item.createdAtLabel || "",
-        dateMs: item.dateMs || 0,
-        totalNeeded: item.totalNeeded,
-        periodBucket: item.periodBucket,
-        searchText: item.searchText,
-    }));
+    return items.map((item) => {
+        const createdAtMs = Number(item.createdAtMs) || 0;
+        const mission = slimHistoryMission(item.mission || {});
+        // Persist a plain ms/ISO so Created At survives sessionStorage round-trips.
+        if (createdAtMs > 0 && !mission.createdAt) {
+            mission.createdAt = new Date(createdAtMs).toISOString();
+        }
+        return {
+            missionId: item.missionId,
+            orgId: item.orgId,
+            mission,
+            status: item.status,
+            actualVolunteers: item.actualVolunteers,
+            needsCountFetch: false,
+            completedOnMs: item.completedOnMs || item.completedOn?.getTime?.() || 0,
+            createdAtMs,
+            createdAtLabel:
+                item.createdAtLabel ||
+                (createdAtMs ? formatCreatedAtLabel(createdAtMs) : ""),
+            dateMs: item.dateMs || 0,
+            totalNeeded: item.totalNeeded,
+            periodBucket: item.periodBucket,
+            searchText: item.searchText,
+        };
+    });
 }
 
 function rehydrateHistoryItems(items = []) {
@@ -815,11 +865,12 @@ function rehydrateHistoryItems(items = []) {
                   (item.completedOnMs ? new Date(item.completedOnMs) : null);
         const mission = item.mission || {};
         const createdAtMs =
-            item.createdAtMs ||
-            getCreatedAtMs(mission.createdAt ?? mission.submittedAt);
+            Number(item.createdAtMs) ||
+            getCreatedAtMs(pickCreatedAtValue(mission));
         const createdAtLabel =
+            (createdAtMs && formatCreatedAtLabel(createdAtMs)) ||
             item.createdAtLabel ||
-            formatCreatedAtLabel(mission.createdAt ?? mission.submittedAt);
+            "";
         const dateMs =
             item.dateMs ||
             parseSortableDateMs(mission.date || mission.endDate || "");
@@ -945,12 +996,21 @@ function applyCachedHistory(payload) {
     const hasItems =
         Array.isArray(payload.items) && payload.items.length > 0;
 
-    // Instant path: paint ready tableHtml before rebuilding item rows.
+    if (hasItems) {
+        historyItems = rehydrateHistoryItems(payload.items);
+    } else {
+        historyItems = [];
+    }
+
+    const createdAtReady = !historyItemsNeedCreatedAt(historyItems);
+
+    // Instant path: only reuse tableHtml when Created At values are present.
     if (
         historyTableBody &&
         cachedHtml &&
         !isLoadingTableHtml(cachedHtml) &&
-        cachedHtml.includes("col-created")
+        cachedHtml.includes("col-created") &&
+        createdAtReady
     ) {
         historyTableBody.innerHTML = cachedHtml;
         const rowCount = historyTableBody.querySelectorAll(
@@ -964,21 +1024,7 @@ function applyCachedHistory(payload) {
         } else if (payload.empty || !hasItems) {
             updateHistoryMissionFooter(0);
         }
-
-        // Rehydrate filter/search data after first paint.
-        if (hasItems) {
-            historyItems = rehydrateHistoryItems(payload.items);
-        } else {
-            historyItems = [];
-        }
-        if (CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
         return;
-    }
-
-    if (hasItems) {
-        historyItems = rehydrateHistoryItems(payload.items);
-    } else {
-        historyItems = [];
     }
 
     if (payload.empty || !hasItems) {
@@ -989,8 +1035,8 @@ function applyCachedHistory(payload) {
         return;
     }
 
-    // No tableHtml yet — rebuild once and persist ready tableHtml for next visit.
-    paintFilteredHistoryTable({ persist: true });
+    // Rebuild rows (fixes blank Created At from older cache snapshots).
+    paintFilteredHistoryTable({ persist: createdAtReady });
 }
 
 async function loadHistoryMissions(user, { silent = false, refresh = true } = {}) {

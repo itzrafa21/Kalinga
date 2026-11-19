@@ -928,7 +928,8 @@ function initializeFormHandlers() {
       } finally {
         if (changeBtn) {
           changeBtn.disabled = false;
-          changeBtn.innerHTML = '<i class="bi bi-lock"></i> Change Password';
+          changeBtn.innerHTML =
+            '<i class="bi bi-save" aria-hidden="true"></i> Save password';
         }
       }
     });
@@ -937,12 +938,16 @@ function initializeFormHandlers() {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const saveBtn = document.getElementById("saveBtn");
-    const prevSaveHtml = saveBtn?.innerHTML;
-    if (saveBtn) {
-      saveBtn.disabled = true;
-      saveBtn.textContent = "Saving...";
-    }
+    const saveButtons = Array.from(
+      document.querySelectorAll("#saveBtn, .profile-tab-save")
+    );
+    const prevSaveHtml = new Map(
+      saveButtons.map((btn) => [btn, btn.innerHTML])
+    );
+    saveButtons.forEach((btn) => {
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+    });
 
     try {
       const orgName = readValue("orgName");
@@ -1020,11 +1025,12 @@ function initializeFormHandlers() {
       console.error("[ERROR] Error updating profile:", err);
       alert(`Failed to update profile: ${err.message}`);
     } finally {
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        if (prevSaveHtml != null) saveBtn.innerHTML = prevSaveHtml;
-        else saveBtn.innerHTML = '<i class="bi bi-save"></i> Save Changes';
-      }
+      saveButtons.forEach((btn) => {
+        btn.disabled = false;
+        btn.innerHTML =
+          prevSaveHtml.get(btn) ||
+          '<i class="bi bi-save" aria-hidden="true"></i> Save changes';
+      });
     }
   });
 }

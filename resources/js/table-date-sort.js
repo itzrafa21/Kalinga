@@ -13,9 +13,16 @@ export function parseSortableDateMs(value) {
     if (value?.seconds != null) {
         return Number(value.seconds) * 1000;
     }
+    if (value?._seconds != null) {
+        return Number(value._seconds) * 1000;
+    }
     const raw = String(value).trim();
     if (!raw || raw === "—" || raw === "N/A") return 0;
-    // Prefer ISO / yyyy-mm-dd style values.
+    // Full ISO timestamps (createdAt) before date-only mission schedule strings.
+    if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+        const d = new Date(raw);
+        return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+    }
     const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
     if (iso) {
         const d = new Date(`${iso[1]}T12:00:00`);

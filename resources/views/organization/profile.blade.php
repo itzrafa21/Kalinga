@@ -454,6 +454,16 @@
     }
     .save-btn:hover { background: #14532d; }
     .save-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+    .profile-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    html[data-theme="dark"] .profile-card-actions {
+      border-top-color: #334155;
+    }
 
     .profile-success-overlay {
       position: fixed;
@@ -752,6 +762,11 @@
                   <input type="text" id="completeAddress" name="completeAddress" class="form-control" placeholder="Street / barangay / city">
                 </div>
               </div>
+              <div class="profile-card-actions">
+                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
+                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
+                </button>
+              </div>
             </section>
 
             <section class="profile-card" id="section-representative" data-profile-panel="representative" role="tabpanel" hidden>
@@ -773,6 +788,11 @@
                   <label class="form-label" for="repContactNumber">Contact number</label>
                   <input type="tel" id="repContactNumber" name="repContactNumber" class="form-control" placeholder="Mobile or telephone number">
                 </div>
+              </div>
+              <div class="profile-card-actions">
+                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
+                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
+                </button>
               </div>
             </section>
 
@@ -809,6 +829,11 @@
                   <span class="field-hint">Search or pin the emergency rendezvous / HQ location on the map.</span>
                 </div>
               </div>
+              <div class="profile-card-actions">
+                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
+                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
+                </button>
+              </div>
             </section>
 
             <section class="profile-card" id="section-account" data-profile-panel="account" role="tabpanel" hidden>
@@ -826,6 +851,11 @@
                   </div>
                   <span class="field-hint">Sign-in email cannot be changed here.</span>
                 </div>
+              </div>
+              <div class="profile-card-actions">
+                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
+                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
+                </button>
               </div>
             </section>
           </form>
@@ -866,9 +896,11 @@
                 </ul>
               </div>
 
-              <button type="submit" class="change-password-submit" id="changePasswordBtn">
-                Update password
-              </button>
+              <div class="profile-card-actions">
+                <button type="submit" class="save-btn" id="changePasswordBtn">
+                  <i class="bi bi-save" aria-hidden="true"></i> Save password
+                </button>
+              </div>
             </form>
             <div class="success-message" id="successMessage"></div>
             <div class="error-message" id="errorMessage"></div>
