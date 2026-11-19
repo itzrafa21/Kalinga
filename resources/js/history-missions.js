@@ -102,6 +102,7 @@ function tryEarlyHistoryPaint() {
 }
 
 function bootHistoryPage() {
+    // Instant table paint from sessionStorage (before auth / Firestore).
     tryEarlyHistoryPaint();
 
     onAuthStateChanged(auth, async (user) => {
@@ -129,24 +130,28 @@ function bootHistoryPage() {
         CURRENT_USER = actor;
 
         const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.HISTORY);
+        const ready = isReadyHistoryCache(cached?.payload);
         if (cached?.payload) {
             applyCachedHistory(cached.payload);
         }
 
         void populateSidebarUser(actor);
 
-        const fresh = isOrgCacheFresh(
-            actor.uid,
-            ORG_CACHE_KEYS.HISTORY,
-            NAV_FRESH_MS
-        );
-        if (!fresh) {
+        const fresh =
+            ready &&
+            isOrgCacheFresh(actor.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
+
+        // Soft nav: reuse ready tableHtml. Otherwise refresh now; refine counts in background.
+        if (!ready) {
             void loadHistoryMissions(actor, {
                 refresh: true,
                 silent: Boolean(cached?.payload),
             });
-        } else if (!cached?.payload) {
-            void loadHistoryMissions(actor, { refresh: true, silent: false });
+        } else if (!fresh) {
+            void loadHistoryMissions(actor, {
+                refresh: true,
+                silent: true,
+            });
         }
     });
 }
@@ -625,11 +630,26 @@ function historyEmptyHtml() {
             </tr>`;
 }
 
+function slimHistoryMission(mission = {}) {
+    return {
+        missionName: mission.missionName || mission.name || "Untitled",
+        name: mission.name || mission.missionName || "",
+        location: mission.location || "",
+        date: mission.date || "",
+        endDate: mission.endDate || "",
+        startTime: mission.startTime || "",
+        endTime: mission.endTime || "",
+        volunteers: mission.volunteers,
+        status: mission.status || "",
+    };
+}
+
 function serializeHistoryItems(items = []) {
+    // Keep cache small so sessionStorage writes succeed (full mission docs were too heavy).
     return items.map((item) => ({
         missionId: item.missionId,
         orgId: item.orgId,
-        mission: item.mission,
+        mission: slimHistoryMission(item.mission || {}),
         status: item.status,
         actualVolunteers: item.actualVolunteers,
         needsCountFetch: false,
@@ -659,7 +679,7 @@ function rehydrateHistoryItems(items = []) {
     });
 }
 
-/** Same pattern as mission dashboard saveDashboardCache — ready tableHtml for hydrate. */
+/** Same pattern as mission dashboard / volunteer details — ready tableHtml for hydrate. */
 function saveHistoryCache(orgId) {
     if (!orgId) return;
     const tbody = document.getElementById("historyMissionsBody");
@@ -671,7 +691,15 @@ function saveHistoryCache(orgId) {
         period: activeHistoryPeriod || "all",
         // Always store painted rows (or empty-state HTML) for instant next visit.
         tableHtml: html || tableHtmlForCache(historyEmptyHtml()),
+        ready: true,
     });
+}
+
+function isReadyHistoryCache(payload) {
+    if (!payload) return false;
+    if (payload.empty === true) return true;
+    if (payload.tableHtml && !isLoadingTableHtml(payload.tableHtml)) return true;
+    return payload.ready === true && Array.isArray(payload.items);
 }
 
 function paintFilteredHistoryTable({ keepPage = false, persist = true } = {}) {
@@ -730,7 +758,7 @@ function setHistoryItems(items = [], stats = null) {
     paintFilteredHistoryTable();
 }
 
-/** Apply cache like applyCachedDashboardMissions — tableHtml first, no rebuild flash. */
+/** Apply cache like volunteer/mission details — paint tableHtml first, rehydrate after. */
 function applyCachedHistory(payload) {
     if (!payload) return;
 
@@ -757,31 +785,35 @@ function applyCachedHistory(payload) {
     const hasItems =
         Array.isArray(payload.items) && payload.items.length > 0;
 
-    if (hasItems) {
-        historyItems = rehydrateHistoryItems(payload.items);
-    } else {
-        historyItems = [];
-    }
-
-    // Instant path (same as dashboard): paint ready tableHtml and stop.
+    // Instant path: paint ready tableHtml before rebuilding item rows.
     if (historyTableBody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
         historyTableBody.innerHTML = cachedHtml;
         const rowCount = historyTableBody.querySelectorAll(
             "tr.history-mission-row"
         ).length;
-        const totalForUi = Math.max(
-            rowCount,
-            getFilteredHistoryItems().length
+        updateHistoryPaginationUi(
+            Math.max(rowCount, Number(payload.stats?.totalCompleted) || 0)
         );
-        updateHistoryPaginationUi(totalForUi);
         if (rowCount > 0) {
             updateHistoryMissionFooter(rowCount);
         } else if (payload.empty || !hasItems) {
             updateHistoryMissionFooter(0);
         }
-        // Keep cache warm with ready tableHtml for next navigation.
+
+        // Rehydrate filter/search data after first paint.
+        if (hasItems) {
+            historyItems = rehydrateHistoryItems(payload.items);
+        } else {
+            historyItems = [];
+        }
         if (CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
         return;
+    }
+
+    if (hasItems) {
+        historyItems = rehydrateHistoryItems(payload.items);
+    } else {
+        historyItems = [];
     }
 
     if (payload.empty || !hasItems) {
@@ -806,12 +838,14 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
         (cached.payload.empty === true ||
             Array.isArray(cached.payload.items) ||
             Boolean(cached.payload.tableHtml));
+    const ready = isReadyHistoryCache(cached?.payload);
 
+    // Never blank the table while loading — paint cache first.
     if (hasUsableCache) {
         applyCachedHistory(cached.payload);
     }
 
-    if (hasUsableCache && !refresh) {
+    if (ready && !refresh) {
         return;
     }
 

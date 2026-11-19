@@ -80,6 +80,7 @@
         if (!entry || entry.payload === undefined) return;
         entry.payload.tableHtml = html;
         entry.payload.period = entry.payload.period || "all";
+        entry.payload.ready = true;
         sessionStorage.setItem(P + uid + ":history-v2", JSON.stringify(entry));
       } catch (e) {}
     }
