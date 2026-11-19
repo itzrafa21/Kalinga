@@ -692,10 +692,12 @@ function showTab(tabName) {
         console.log("[INFO] Hiding tab:", tab.id);
     });
     
-    document.querySelectorAll('[data-tab]').forEach(link => {
-        link.classList.remove('active');
+    const navLinks = document.querySelectorAll(".nav-item[data-tab]");
+    navLinks.forEach((link) => {
+        link.classList.remove("active");
+        if (typeof link.blur === "function") link.blur();
     });
-    
+
     // Show selected tab
     const selectedTab = document.getElementById(`${tabName}-tab`);
     if (selectedTab) {
@@ -705,9 +707,19 @@ function showTab(tabName) {
         console.error("[ERROR] Tab content not found:", `${tabName}-tab`);
     }
     
-    const selectedNavLink = document.querySelector(`[data-tab="${tabName}"]`);
+    const selectedNavLink = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
     if (selectedNavLink) {
         selectedNavLink.classList.add('active');
+        if (typeof selectedNavLink.blur === "function") selectedNavLink.blur();
+    }
+
+    // Clear sticky :hover after SPA tab switches (pointer-events nudge).
+    const nav = document.querySelector(".sb-nav");
+    if (nav) {
+        nav.classList.add("is-tab-switching");
+        window.requestAnimationFrame(() => {
+            nav.classList.remove("is-tab-switching");
+        });
     }
 
     const topbarTitle = document.getElementById('topbarTitle');

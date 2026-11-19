@@ -30,12 +30,39 @@
     html[data-admin-tab="campaigns"] #campaigns-tab {
       display: block !important;
     }
-    html[data-admin-tab] .nav-item[data-tab].active { background: transparent; color: #666; font-weight: 400; }
+    /* Active tab comes only from data-admin-tab so hover/focus cannot stick on another item */
+    html[data-admin-tab] .nav-item[data-tab],
+    html[data-admin-tab] .nav-item[data-tab].active,
+    html[data-admin-tab] .nav-item[data-tab]:hover,
+    html[data-admin-tab] .nav-item[data-tab]:focus,
+    html[data-admin-tab] .nav-item[data-tab]:focus-visible {
+      background: transparent;
+      color: #666;
+      font-weight: 400;
+      outline: none;
+      box-shadow: none;
+    }
+    @media (hover: hover) {
+      html[data-admin-tab] .nav-item[data-tab]:hover {
+        background: #f4f5f7;
+        color: #222;
+      }
+    }
     html[data-admin-tab="dashboard"] .nav-item[data-tab="dashboard"],
+    html[data-admin-tab="dashboard"] .nav-item[data-tab="dashboard"]:hover,
+    html[data-admin-tab="dashboard"] .nav-item[data-tab="dashboard"]:focus,
     html[data-admin-tab="organizations"] .nav-item[data-tab="organizations"],
+    html[data-admin-tab="organizations"] .nav-item[data-tab="organizations"]:hover,
+    html[data-admin-tab="organizations"] .nav-item[data-tab="organizations"]:focus,
     html[data-admin-tab="missions"] .nav-item[data-tab="missions"],
+    html[data-admin-tab="missions"] .nav-item[data-tab="missions"]:hover,
+    html[data-admin-tab="missions"] .nav-item[data-tab="missions"]:focus,
     html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"],
-    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"] {
+    html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"]:hover,
+    html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"]:focus,
+    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"],
+    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"]:hover,
+    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"]:focus {
       background: #aaf0ba;
       color: #000;
       font-weight: 500;
@@ -345,6 +372,7 @@
     .sb-header { padding: 20px 16px 16px; border-bottom: 1px solid #f0f2f5; }
     @include('partials.sidebar-logo-mark-styles')
     .sb-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .sb-nav.is-tab-switching .nav-item { pointer-events: none; }
     .sb-section {
       font-size: 10px; color: #c8c8c8; padding: 10px 8px 5px;
       letter-spacing: .07em; text-transform: uppercase; font-weight: 500;
@@ -355,7 +383,14 @@
       cursor: pointer; margin-bottom: 2px; text-decoration: none;
       transition: background .12s, color .12s;
     }
-    .nav-item:hover { background: #f4f5f7; color: #222; }
+    @media (hover: hover) {
+      .nav-item:hover { background: #f4f5f7; color: #222; }
+    }
+    .nav-item:focus,
+    .nav-item:focus-visible {
+      outline: none;
+      box-shadow: none;
+    }
     .nav-item.active { background: #aaf0ba; color: #000000; font-weight: 500; }
     .nav-item i { font-size: 17px; }
     .sb-footer { padding: 14px; border-top: 1px solid #f0f2f5; }
