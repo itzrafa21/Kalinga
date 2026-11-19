@@ -251,7 +251,8 @@
       color: #64748b;
       margin-top: 0.1rem;
     }
-    #missionsTable td.col-date {
+    #missionsTable td.col-date,
+    #missionsTable td.col-created {
       font-weight: 500;
       color: #1e3a2f;
       white-space: normal;
@@ -477,16 +478,26 @@
       <div class="table-wrap">
         <table id="missionsTable">
           <colgroup>
-            <col style="width: 14%">
-            <col style="width: 35%">
-            <col style="width: 14%">
             <col style="width: 12%">
             <col style="width: 12%">
-            <col style="width: 13%">
+            <col style="width: 28%">
+            <col style="width: 12%">
+            <col style="width: 12%">
+            <col style="width: 12%">
+            <col style="width: 12%">
           </colgroup>
           <thead>
             <tr>
-              <th>Date</th>
+              <th class="col-created th-sortable" id="missionCreatedSortHeader" aria-sort="ascending">
+                <button type="button" class="th-sort-btn">
+                  Created At <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                </button>
+              </th>
+              <th class="col-date th-sortable" id="missionDateSortHeader" aria-sort="ascending">
+                <button type="button" class="th-sort-btn">
+                  Date <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                </button>
+              </th>
               <th>Mission</th>
               <th>Type</th>
               <th class="col-volunteers">Volunteers</th>

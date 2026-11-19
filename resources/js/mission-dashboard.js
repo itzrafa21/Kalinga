@@ -32,17 +32,64 @@ import {
     isLoadingTableHtml,
     tableHtmlForCache,
 } from "./org-data-cache.js";
+import {
+    parseSortableDateMs,
+    compareDateMs,
+    wireDateSortHeader,
+} from "./table-date-sort.js";
 
 let CURRENT_USER = null;
 let allDashboardMissions = [];
 let statusSyncTimer = null;
+/** @type {'created'|'date'} */
+let missionSortField = "date";
+/** @type {'asc'|'desc'} */
+let missionCreatedSortDir = "asc";
+/** @type {'asc'|'desc'} */
+let missionDateSortDir = "asc";
 
 function getCreatedAtMs(value) {
-    if (!value) return 0;
-    if (typeof value.toDate === "function") return value.toDate().getTime();
-    if (value instanceof Date) return value.getTime();
-    const parsed = new Date(value).getTime();
-    return Number.isNaN(parsed) ? 0 : parsed;
+    return parseSortableDateMs(value);
+}
+
+function formatCreatedAtLabel(value) {
+    const ms = getCreatedAtMs(value);
+    if (!ms) return "—";
+    return new Date(ms).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+}
+
+function normalizeDashboardMission(m = {}) {
+    const createdAt = m.createdAt ?? m.submittedAt ?? null;
+    const createdAtMs = m.createdAtMs || getCreatedAtMs(createdAt);
+    return {
+        ...m,
+        createdAt,
+        createdAtMs,
+        createdAtLabel:
+            m.createdAtLabel && m.createdAtLabel !== "—"
+                ? m.createdAtLabel
+                : formatCreatedAtLabel(createdAtMs || createdAt),
+    };
+}
+
+async function resolveMissionCreatedAt(missionId, mission = {}) {
+    const local = mission.createdAt ?? mission.submittedAt ?? null;
+    if (getCreatedAtMs(local)) return local;
+    try {
+        const globalSnap = await getDoc(doc(db, "missions", missionId));
+        if (!globalSnap.exists()) return local;
+        const data = globalSnap.data() || {};
+        return data.createdAt ?? data.submittedAt ?? local;
+    } catch (err) {
+        console.warn("[WARN] Could not read missions.createdAt:", missionId, err);
+        return local;
+    }
 }
 
 function sortMissionsByCreatedAt(missions) {
@@ -94,6 +141,7 @@ onAuthStateChanged(auth, async (user) => {
     CURRENT_USER = actor;
 
     initMissionFilters();
+    initMissionDateSort();
 
     // Hide create actions when the user cannot create missions.
     if (!sessionCan(access.session, "missions", "create")) {
@@ -498,7 +546,7 @@ function showMissionsLoading() {
     if (!tbody) return;
     tbody.innerHTML = `
         <tr class="missions-loading-row">
-            <td colspan="6">
+            <td colspan="7">
                 <div class="missions-loading">
                     <div class="missions-loading-spinner" aria-hidden="true"></div>
                     <span>Loading missions…</span>
@@ -532,7 +580,7 @@ function renderMissionsTable(missions) {
     if (missions.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="missions-empty">
                         <i class="bi bi-journal-x" aria-hidden="true"></i>
                         <h4>No missions found</h4>
@@ -559,6 +607,13 @@ function renderMissionsTable(missions) {
 
             return `
                 <tr data-status="${escapeMissionCell(normalizeMissionStatus(statusLabel))}">
+                    <td class="col-created">
+                        <div class="mission-date-main">${escapeMissionCell(
+                            m.createdAtLabel ||
+                                formatCreatedAtLabel(m.createdAtMs || m.createdAt) ||
+                                "—"
+                        )}</div>
+                    </td>
                     <td class="col-date">
                         <div class="mission-date-main">${escapeMissionCell(m.dateLabel)}</div>
                         ${timeSub}
@@ -613,7 +668,45 @@ function applyMissionFilters() {
         });
     }
 
+    const sortDir =
+        missionSortField === "created"
+            ? missionCreatedSortDir
+            : missionDateSortDir;
+    list.sort((a, b) => {
+        if (missionSortField === "created") {
+            return compareDateMs(
+                a.createdAtMs ?? getCreatedAtMs(a.createdAt),
+                b.createdAtMs ?? getCreatedAtMs(b.createdAt),
+                sortDir
+            );
+        }
+        return compareDateMs(
+            a.dateMs ?? parseSortableDateMs(a.date || a.dateLabel),
+            b.dateMs ?? parseSortableDateMs(b.date || b.dateLabel),
+            sortDir
+        );
+    });
+
     renderMissionsTable(list);
+}
+
+function initMissionDateSort() {
+    wireDateSortHeader(document.getElementById("missionCreatedSortHeader"), {
+        getDir: () => missionCreatedSortDir,
+        setDir: (d) => {
+            missionCreatedSortDir = d === "desc" ? "desc" : "asc";
+            missionSortField = "created";
+        },
+        onSort: () => applyMissionFilters(),
+    });
+    wireDateSortHeader(document.getElementById("missionDateSortHeader"), {
+        getDir: () => missionDateSortDir,
+        setDir: (d) => {
+            missionDateSortDir = d === "desc" ? "desc" : "asc";
+            missionSortField = "date";
+        },
+        onSort: () => applyMissionFilters(),
+    });
 }
 
 function initMissionFilters() {
@@ -647,20 +740,23 @@ async function buildDashboardMission(user, docSnap, today) {
     }
 
     const signedUp = await countApprovedForMission(missionId, user.uid);
+    const createdAt = await resolveMissionCreatedAt(missionId, mission);
 
-    return {
+    return normalizeDashboardMission({
         id: missionId,
         missionName: mission.missionName || mission.name || "Untitled",
         type: mission.type || "—",
         status: mission.status || "N/A",
         volunteersNeeded: mission.volunteers ?? 0,
         signedUp,
+        date: mission.date || mission.endDate || "",
         dateLabel: formatMissionDate(mission),
+        dateMs: parseSortableDateMs(mission.date || mission.endDate || ""),
         timeLabel: formatMissionTimeRange(mission),
         locationShort: formatLocationShort(mission),
         autoAcceptVolunteers: mission.autoAcceptVolunteers === true,
-        createdAt: mission.createdAt ?? mission.submittedAt ?? null,
-    };
+        createdAt,
+    });
 }
 
 function getDashboardStatsSnapshot(missions) {
@@ -685,12 +781,17 @@ function saveDashboardCache(orgId) {
 }
 
 function applyCachedDashboardMissions(payload) {
-    allDashboardMissions = payload.missions || [];
+    allDashboardMissions = (payload.missions || []).map(normalizeDashboardMission);
     updateDashboardStats(allDashboardMissions);
 
     const tbody = document.getElementById("missionsBody");
     const cachedHtml = payload.tableHtml || "";
-    if (tbody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
+    if (
+        tbody &&
+        cachedHtml &&
+        !isLoadingTableHtml(cachedHtml) &&
+        cachedHtml.includes("col-created")
+    ) {
         tbody.innerHTML = cachedHtml;
         return;
     }
@@ -766,7 +867,7 @@ async function loadMissions(user, { silent = false, force = false, refresh = tru
             if (!hasCache || isLoadingTableHtml(missionsTableBody.innerHTML)) {
                 missionsTableBody.innerHTML = `
             <tr>
-                <td colspan="6" class="missions-error-cell">Could not load missions. Please refresh the page.</td>
+                <td colspan="7" class="missions-error-cell">Could not load missions. Please refresh the page.</td>
             </tr>`;
             }
         }

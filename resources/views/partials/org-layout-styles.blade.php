@@ -283,4 +283,37 @@
   html[data-theme="dark"] .org-access-denied__detail {
     color: #94a3b8;
   }
+
+  /* Sortable date column headers */
+  th.th-sortable {
+    white-space: nowrap;
+  }
+  .th-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+  }
+  .th-sort-btn:hover {
+    color: #166534;
+  }
+  .th-sort-icon {
+    font-size: 0.85em;
+    opacity: 0.7;
+  }
+  .th-sort-btn:hover .th-sort-icon {
+    opacity: 1;
+  }
+  html[data-theme="dark"] .th-sort-btn:hover {
+    color: #86efac;
+  }
 </style>

@@ -91,7 +91,7 @@
       histBody.innerHTML = histHtml;
     } else if (hist.empty || (Array.isArray(hist.items) && !hist.items.length)) {
       histBody.innerHTML =
-        '<tr><td colspan="6"><div class="missions-empty"><i class="bi bi-clipboard"></i><h4>No completed missions found</h4><p>Missions will appear here once they are completed</p></div></td></tr>';
+        '<tr><td colspan="7"><div class="missions-empty"><i class="bi bi-clipboard"></i><h4>No completed missions found</h4><p>Missions will appear here once they are completed</p></div></td></tr>';
       persistHistoryTableHtml(histBody.innerHTML);
     } else if (Array.isArray(hist.items) && hist.items.length) {
       // One-time upgrade: build tableHtml from items, then persist for next visit.

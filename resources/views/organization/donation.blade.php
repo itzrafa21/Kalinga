@@ -499,7 +499,11 @@
                 <th>Campaign</th>
                 <th>Status</th>
                 <th>Progress</th>
-                <th>Dates</th>
+                <th class="th-sortable" id="donationDateSortHeader" aria-sort="ascending">
+                  <button type="button" class="th-sort-btn">
+                    Dates <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                  </button>
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>

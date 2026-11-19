@@ -42,12 +42,19 @@ import {
     isOrgCacheFresh,
     invalidateOrgCache,
 } from "./org-data-cache.js";
+import {
+    parseSortableDateMs,
+    compareDateMs,
+    wireDateSortHeader,
+} from "./table-date-sort.js";
 
 let orgId = null;
 let orgName = "";
 let allCampaigns = [];
 let campaignFilter = "all";
 let primaryShareCampaignId = "";
+/** @type {'asc'|'desc'} */
+let donationDateSortDir = "asc";
 
 function maskAccountId(accountId) {
     const value = String(accountId || "").trim();
@@ -185,18 +192,26 @@ async function savePaymongoAccount(event) {
 }
 
 function filteredCampaigns() {
+    let list;
     if (campaignFilter === "published") {
-        return allCampaigns.filter((c) => c.status === CAMPAIGN_STATUS.PUBLISHED);
-    }
-    if (campaignFilter === "drafts") {
-        return allCampaigns.filter(
+        list = allCampaigns.filter((c) => c.status === CAMPAIGN_STATUS.PUBLISHED);
+    } else if (campaignFilter === "drafts") {
+        list = allCampaigns.filter(
             (c) =>
                 c.status === CAMPAIGN_STATUS.DRAFT ||
                 c.status === CAMPAIGN_STATUS.REJECTED ||
                 c.status === CAMPAIGN_STATUS.PENDING
         );
+    } else {
+        list = allCampaigns.slice();
     }
-    return allCampaigns.slice();
+    return list.sort((a, b) =>
+        compareDateMs(
+            parseSortableDateMs(a.startDate || a.endDate),
+            parseSortableDateMs(b.startDate || b.endDate),
+            donationDateSortDir
+        )
+    );
 }
 
 function closeAllMenus() {
@@ -418,6 +433,14 @@ async function loadCampaigns({ force = false } = {}) {
 }
 
 function wireUi() {
+    wireDateSortHeader(document.getElementById("donationDateSortHeader"), {
+        getDir: () => donationDateSortDir,
+        setDir: (d) => {
+            donationDateSortDir = d === "desc" ? "desc" : "asc";
+        },
+        onSort: () => renderCampaignRows(),
+    });
+
     document.querySelectorAll("[data-campaign-filter]").forEach((btn) => {
         btn.addEventListener("click", () => {
             campaignFilter = btn.getAttribute("data-campaign-filter") || "all";

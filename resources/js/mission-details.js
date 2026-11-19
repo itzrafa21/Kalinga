@@ -53,12 +53,19 @@ import {
   downloadCloudinaryDocument,
   candidateCloudinaryDocumentUrls,
 } from "./cloudinary-upload.js";
+import {
+  parseSortableDateMs,
+  compareDateMs,
+  wireDateSortHeader,
+} from "./table-date-sort.js";
 
 let pendingRejectVolunteer = null;
 let currentMissionContext = null;
 let CURRENT_ACTOR = null;
 let CURRENT_SESSION = null;
 let missionAnnouncementsCache = [];
+/** @type {'asc'|'desc'} */
+let rosterDateSortDir = "asc";
 
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -1433,23 +1440,57 @@ function renderMissionDocumentsSection(mission) {
     </section>`;
 }
 
+function sortRosterVolunteers(volunteers = []) {
+  return [...volunteers].sort((a, b) =>
+    compareDateMs(
+      parseSortableDateMs(a.appliedAt),
+      parseSortableDateMs(b.appliedAt),
+      rosterDateSortDir
+    )
+  );
+}
+
+function initRosterDateSort() {
+  wireDateSortHeader(document.getElementById("rosterDateSortHeader"), {
+    getDir: () => rosterDateSortDir,
+    setDir: (d) => {
+      rosterDateSortDir = d === "desc" ? "desc" : "asc";
+    },
+    onSort: () => {
+      const ctx = currentMissionContext;
+      if (!ctx?.mission || !ctx?.missionId) return;
+      renderMissionFrame(
+        document.getElementById("detailsContainer"),
+        ctx.mission,
+        ctx.missionId,
+        ctx.user,
+        countApprovedVolunteers(ctx.volunteers || []),
+        ctx.volunteers || [],
+        Boolean(ctx.inHistory),
+        missionAnnouncementsCache
+      );
+    },
+  });
+}
+
 function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
   if (!isOwner) return "";
 
   const missionPoints = resolveMissionPoints(mission);
   const durationHours =
     mission.durationHours ?? computeMissionDurationHours(mission);
+  const sorted = sortRosterVolunteers(volunteers);
 
   const rows =
-    volunteers.length > 0
-      ? volunteers
+    sorted.length > 0
+      ? sorted
           .map((v) =>
             rosterRowHtml(v, mission, missionPoints, durationHours, isOwner, slotInfo)
           )
           .join("")
       : "";
 
-  const tableBody = volunteers.length
+  const tableBody = sorted.length
     ? rows
     : `<tr><td colspan="7"><div class="md-empty-roster">No volunteer applications yet.</div></td></tr>`;
 
@@ -1465,7 +1506,11 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
             <tr>
               <th style="width:18%">Name</th>
               <th style="width:18%">Email</th>
-              <th style="width:10%">Date joined</th>
+              <th style="width:10%" class="th-sortable" id="rosterDateSortHeader" aria-sort="ascending">
+                <button type="button" class="th-sort-btn">
+                  Date joined <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                </button>
+              </th>
               <th style="width:7%">Hours</th>
               <th style="width:7%">Points</th>
               <th style="width:20%">Status</th>
@@ -1612,6 +1657,7 @@ function renderMissionFrame(
   bindMissionInteractions(container, mission, missionId, user, volunteers, isOwner);
   wireMissionDocumentsDownloads(container);
   wireMissionAnnouncements(missionId, isOwner && !inHistory, user);
+  initRosterDateSort();
 }
 
 function openMissionAnnounceModal() {
@@ -2096,6 +2142,7 @@ function renderMissionDetailsFromCache(container, payload, user) {
     user,
     volunteers: volunteers || [],
     slotInfo: getMissionVolunteerCapacity(mission, volunteers || []),
+    inHistory: Boolean(inHistory),
   };
 
   renderMissionFrame(
@@ -2217,6 +2264,7 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
       user,
       volunteers,
       slotInfo: getMissionVolunteerCapacity(mission, volunteers),
+      inHistory: Boolean(inHistory),
     };
 
     renderMissionFrame(

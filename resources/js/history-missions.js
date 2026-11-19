@@ -27,6 +27,11 @@ import {
     isLoadingTableHtml,
     tableHtmlForCache,
 } from "./org-data-cache.js";
+import {
+    parseSortableDateMs,
+    compareDateMs,
+    wireDateSortHeader,
+} from "./table-date-sort.js";
 
 let CURRENT_USER = null;
 let historySearchListenerAttached = false;
@@ -38,6 +43,12 @@ let historyItems = [];
 let historyStats = { totalCompleted: 0, thisMonth: 0, totalVolunteers: 0 };
 /** Same as mission page: show full list by default; period filter is optional. */
 let activeHistoryPeriod = "all";
+/** @type {'created'|'date'} */
+let historySortField = "date";
+/** @type {'asc'|'desc'} */
+let historyCreatedSortDir = "asc";
+/** @type {'asc'|'desc'} */
+let historyDateSortDir = "asc";
 
 async function populateSidebarUser(user) {
     try {
@@ -128,6 +139,7 @@ function bootHistoryPage() {
             actor.uid
         );
         CURRENT_USER = actor;
+        initHistoryDateSort();
 
         const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.HISTORY);
         const ready = isReadyHistoryCache(cached?.payload);
@@ -205,9 +217,46 @@ function historyItemMatchesFilters(item, period, q) {
 function getFilteredHistoryItems() {
     const period = getActiveHistoryPeriod();
     const q = getActiveHistorySearch();
-    return historyItems.filter((item) =>
+    const filtered = historyItems.filter((item) =>
         historyItemMatchesFilters(item, period, q)
     );
+    const sortDir =
+        historySortField === "created"
+            ? historyCreatedSortDir
+            : historyDateSortDir;
+    return filtered.sort((a, b) => {
+        if (historySortField === "created") {
+            return compareDateMs(
+                a.createdAtMs || 0,
+                b.createdAtMs || 0,
+                sortDir
+            );
+        }
+        return compareDateMs(
+            a.dateMs || a.completedOnMs || 0,
+            b.dateMs || b.completedOnMs || 0,
+            sortDir
+        );
+    });
+}
+
+function initHistoryDateSort() {
+    wireDateSortHeader(document.getElementById("historyCreatedSortHeader"), {
+        getDir: () => historyCreatedSortDir,
+        setDir: (d) => {
+            historyCreatedSortDir = d === "desc" ? "desc" : "asc";
+            historySortField = "created";
+        },
+        onSort: () => paintFilteredHistoryTable({ keepPage: true }),
+    });
+    wireDateSortHeader(document.getElementById("historyDateSortHeader"), {
+        getDir: () => historyDateSortDir,
+        setDir: (d) => {
+            historyDateSortDir = d === "desc" ? "desc" : "asc";
+            historySortField = "date";
+        },
+        onSort: () => paintFilteredHistoryTable({ keepPage: true }),
+    });
 }
 
 function filterHistoryMissionsTable() {
@@ -306,6 +355,64 @@ function filterHistoryMissionsTable() {
             });
         }
     }
+function getCreatedAtMs(value) {
+    return parseSortableDateMs(value);
+}
+
+function formatCreatedAtLabel(value) {
+    const ms = getCreatedAtMs(value);
+    if (!ms) return "—";
+    return new Date(ms).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+}
+
+async function resolveHistoryCreatedAt(missionId, mission = {}) {
+    const local = mission.createdAt ?? mission.submittedAt ?? null;
+    if (getCreatedAtMs(local)) return local;
+    try {
+        const globalSnap = await getDoc(doc(db, "missions", missionId));
+        if (!globalSnap.exists()) return local;
+        const data = globalSnap.data() || {};
+        return data.createdAt ?? data.submittedAt ?? local;
+    } catch (err) {
+        console.warn("[WARN] Could not read missions.createdAt:", missionId, err);
+        return local;
+    }
+}
+
+async function enrichHistoryCreatedAt(items = []) {
+    const next = await Promise.all(
+        items.map(async (item) => {
+            if (item.createdAtMs) return item;
+            const createdAt = await resolveHistoryCreatedAt(
+                item.missionId,
+                item.mission || {}
+            );
+            const createdAtMs = getCreatedAtMs(createdAt);
+            if (!createdAtMs) return item;
+            const createdAtLabel = formatCreatedAtLabel(createdAtMs);
+            const mission = {
+                ...(item.mission || {}),
+                createdAt,
+            };
+            const enriched = {
+                ...item,
+                mission,
+                createdAtMs,
+                createdAtLabel,
+            };
+            enriched.row = buildHistoryRow(enriched);
+            return enriched;
+        })
+    );
+    return next;
+}
+
 function toJsDate(value) {
     if (!value) return null;
     if (typeof value.toDate === "function") return value.toDate();
@@ -475,8 +582,15 @@ function buildHistoryRow(item) {
             ? "—"
             : `${actualVolunteers}/${totalNeeded} volunteers`;
 
+    const createdLabel =
+        item.createdAtLabel ||
+        formatCreatedAtLabel(mission.createdAt ?? mission.submittedAt);
+
     return `
         <tr class="history-mission-row" data-period="${periodBucket}" data-mission-id="${escapeHtml(missionId)}">
+            <td class="col-created">
+                <div class="mission-date-main">${escapeHtml(createdLabel || "—")}</div>
+            </td>
             <td class="col-date">${renderHistoryDateCellHtml(mission)}</td>
             <td class="col-mission">
                 <a href="${detailsUrl}" class="mission-name-link">${escapeHtml(missionName)}</a>
@@ -505,8 +619,13 @@ function processHistoryMissionLocal(docSnap, userId) {
     const periodBucket = getPeriodBucket(completedOn);
     const missionName = mission.missionName || mission.name || "Untitled";
     const { datePart, timePart } = getHistoryDateParts(mission);
+    const createdAt = mission.createdAt ?? mission.submittedAt ?? null;
+    const createdAtMs = getCreatedAtMs(createdAt);
+    const createdAtLabel = formatCreatedAtLabel(createdAt);
+    const dateMs = parseSortableDateMs(mission.date || mission.endDate || "");
     const searchText = [
         missionName,
+        createdAtLabel,
         datePart,
         timePart,
         mission.location || "",
@@ -521,6 +640,9 @@ function processHistoryMissionLocal(docSnap, userId) {
         needsCountFetch: status !== "rejected" && storedCount == null,
         completedOn,
         completedOnMs: completedOn?.getTime?.() || 0,
+        createdAtMs,
+        createdAtLabel,
+        dateMs,
         totalNeeded,
         periodBucket,
         searchText,
@@ -620,7 +742,7 @@ async function refineHistoryVolunteerCounts(items = []) {
 function historyEmptyHtml() {
     return `
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="missions-empty">
                         <i class="bi bi-clipboard"></i>
                         <h4>No completed missions found</h4>
@@ -641,6 +763,8 @@ function slimHistoryMission(mission = {}) {
         endTime: mission.endTime || "",
         volunteers: mission.volunteers,
         status: mission.status || "",
+        createdAt: mission.createdAt ?? null,
+        submittedAt: mission.submittedAt ?? null,
     };
 }
 
@@ -654,6 +778,9 @@ function serializeHistoryItems(items = []) {
         actualVolunteers: item.actualVolunteers,
         needsCountFetch: false,
         completedOnMs: item.completedOnMs || item.completedOn?.getTime?.() || 0,
+        createdAtMs: item.createdAtMs || 0,
+        createdAtLabel: item.createdAtLabel || "",
+        dateMs: item.dateMs || 0,
         totalNeeded: item.totalNeeded,
         periodBucket: item.periodBucket,
         searchText: item.searchText,
@@ -667,10 +794,24 @@ function rehydrateHistoryItems(items = []) {
                 ? item.completedOn
                 : toJsDate(item.completedOn) ||
                   (item.completedOnMs ? new Date(item.completedOnMs) : null);
+        const mission = item.mission || {};
+        const createdAtMs =
+            item.createdAtMs ||
+            getCreatedAtMs(mission.createdAt ?? mission.submittedAt);
+        const createdAtLabel =
+            item.createdAtLabel ||
+            formatCreatedAtLabel(mission.createdAt ?? mission.submittedAt);
+        const dateMs =
+            item.dateMs ||
+            parseSortableDateMs(mission.date || mission.endDate || "");
         const next = {
             ...item,
+            mission,
             completedOn,
             completedOnMs: completedOn?.getTime?.() || item.completedOnMs || 0,
+            createdAtMs,
+            createdAtLabel,
+            dateMs,
             periodBucket:
                 item.periodBucket || getPeriodBucket(completedOn) || "older",
         };
@@ -722,7 +863,7 @@ function paintFilteredHistoryTable({ keepPage = false, persist = true } = {}) {
     if (!filtered.length) {
         historyTableBody.innerHTML = `
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="missions-empty">
                         <i class="bi bi-clipboard"></i>
                         <h4>No missions in this period</h4>
@@ -786,7 +927,12 @@ function applyCachedHistory(payload) {
         Array.isArray(payload.items) && payload.items.length > 0;
 
     // Instant path: paint ready tableHtml before rebuilding item rows.
-    if (historyTableBody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
+    if (
+        historyTableBody &&
+        cachedHtml &&
+        !isLoadingTableHtml(cachedHtml) &&
+        cachedHtml.includes("col-created")
+    ) {
         historyTableBody.innerHTML = cachedHtml;
         const rowCount = historyTableBody.querySelectorAll(
             "tr.history-mission-row"
@@ -870,6 +1016,7 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
         let validResults = historySnapshot.docs.map((docSnap) =>
             processHistoryMissionLocal(docSnap, user.uid)
         );
+        validResults = await enrichHistoryCreatedAt(validResults);
 
         validResults.sort(
             (a, b) => (b.completedOnMs || 0) - (a.completedOnMs || 0)
@@ -932,7 +1079,7 @@ async function loadHistoryMissions(user, { silent = false, refresh = true } = {}
         if (!hasUsableCache) {
             historyTableBody.innerHTML = `
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="missions-error">
                         <i class="bi bi-x-circle"></i>
                         <h4>Error loading missions</h4>

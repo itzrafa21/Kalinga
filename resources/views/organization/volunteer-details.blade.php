@@ -427,7 +427,11 @@
             <thead>
               <tr>
                 <th class="col-mission">Mission</th>
-                <th class="col-date">Date</th>
+                <th class="col-date th-sortable" id="vdDateSortHeader" aria-sort="ascending">
+                  <button type="button" class="th-sort-btn">
+                    Date <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                  </button>
+                </th>
                 <th class="col-desc">Description</th>
                 <th class="col-action">Action</th>
               </tr>

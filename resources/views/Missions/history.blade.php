@@ -234,7 +234,8 @@
       text-decoration: underline;
     }
 
-    #missionsTable td.col-date {
+    #missionsTable td.col-date,
+    #missionsTable td.col-created {
       font-weight: 500;
       color: #1e3a2f;
       white-space: normal;
@@ -475,16 +476,26 @@
       <div class="table-wrap">
         <table id="missionsTable">
           <colgroup>
+            <col style="width: 12%">
+            <col style="width: 12%">
+            <col style="width: 20%">
+            <col style="width: 18%">
+            <col style="width: 12%">
+            <col style="width: 12%">
             <col style="width: 14%">
-            <col style="width: 24%">
-            <col style="width: 22%">
-            <col style="width: 12%">
-            <col style="width: 12%">
-            <col style="width: 16%">
           </colgroup>
           <thead>
             <tr>
-              <th>Date</th>
+              <th class="col-created th-sortable" id="historyCreatedSortHeader" aria-sort="ascending">
+                <button type="button" class="th-sort-btn">
+                  Created At <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                </button>
+              </th>
+              <th class="col-date th-sortable" id="historyDateSortHeader" aria-sort="ascending">
+                <button type="button" class="th-sort-btn">
+                  Date <i class="bi bi-arrow-down-up th-sort-icon" aria-hidden="true"></i>
+                </button>
+              </th>
               <th>Mission</th>
               <th>Location</th>
               <th class="col-volunteers">Volunteers</th>

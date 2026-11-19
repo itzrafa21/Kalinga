@@ -38,10 +38,17 @@ import {
     LAST_ORG_UID_KEY,
     ORG_CACHE_KEYS,
 } from "./org-data-cache.js";
+import {
+    parseSortableDateMs,
+    compareDateMs,
+    wireDateSortHeader,
+} from "./table-date-sort.js";
 
 let applicantUserId = null;
 let coordinatorOrgId = null;
 let cachedVolunteerProfile = null;
+/** @type {'asc'|'desc'} */
+let vdDateSortDir = "asc";
 let orgMissionById = new Map();
 let historyMissionIds = new Set();
 let applicantApplications = [];
@@ -506,8 +513,22 @@ function getAttendedMissions() {
             };
         })
         .sort((a, b) =>
-            String(b.sortDate || "").localeCompare(String(a.sortDate || ""))
+            compareDateMs(
+                parseSortableDateMs(a.sortDate),
+                parseSortableDateMs(b.sortDate),
+                vdDateSortDir
+            )
         );
+}
+
+function initVolunteerDetailDateSort() {
+    wireDateSortHeader(document.getElementById("vdDateSortHeader"), {
+        getDir: () => vdDateSortDir,
+        setDir: (d) => {
+            vdDateSortDir = d === "desc" ? "desc" : "asc";
+        },
+        onSort: () => renderAttendedMissionsTable(),
+    });
 }
 
 async function buildOrgMissionMap(orgId) {
@@ -1019,7 +1040,13 @@ function renderAttendedFromCachedRows(attended) {
     const tbody = document.getElementById("applicantMissionsBody");
     if (!tbody) return;
     renderVolunteerStats();
-    const rows = Array.isArray(attended) ? attended : [];
+    const rows = (Array.isArray(attended) ? [...attended] : []).sort((a, b) =>
+        compareDateMs(
+            parseSortableDateMs(a.sortDate || a.missionDate),
+            parseSortableDateMs(b.sortDate || b.missionDate),
+            vdDateSortDir
+        )
+    );
     if (!rows.length) {
         tbody.innerHTML = `
             <tr>
@@ -1233,6 +1260,7 @@ async function refreshVolunteerDetails(
 function bootVolunteerDetailsPage() {
     // Paint immediately if hydrate already ran or cache is available.
     tryEarlyVolunteerDetailPaint();
+    initVolunteerDetailDateSort();
 
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
