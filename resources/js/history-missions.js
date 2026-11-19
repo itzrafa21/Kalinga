@@ -20,6 +20,7 @@ import {
 import {
     ORG_CACHE_KEYS,
     NAV_FRESH_MS,
+    LAST_ORG_UID_KEY,
     readOrgCache,
     writeOrgCache,
     isOrgCacheFresh,
@@ -80,41 +81,81 @@ async function populateSidebarUser(user) {
     }
 }
 
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "/organization/login";
-        return;
+/** Paint history from sessionStorage before auth (same as mission dashboard). */
+function tryEarlyHistoryPaint() {
+    const historyTableBody = document.getElementById("historyMissionsBody");
+    if (!historyTableBody) return false;
+    if (historyTableBody.querySelector("tr.history-mission-row, .missions-empty")) {
+        return true;
     }
-    if (!(await assertOrgVerified(user))) return;
-    const access = await requireOrgPageAccess(user);
-    if (!access) return;
-    if (!sessionCan(access.session, "history")) {
-        blockPageContent(
-            "Your account does not include History of Missions access. Ask the organization owner to update your rights."
+    let uid = "";
+    try {
+        uid = sessionStorage.getItem(LAST_ORG_UID_KEY) || "";
+    } catch {
+        uid = "";
+    }
+    if (!uid) return false;
+    const cached = readOrgCache(uid, ORG_CACHE_KEYS.HISTORY);
+    if (!cached?.payload) return false;
+    applyCachedHistory(cached.payload);
+    return true;
+}
+
+function bootHistoryPage() {
+    tryEarlyHistoryPaint();
+
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.href = "/organization/login";
+            return;
+        }
+        if (!(await assertOrgVerified(user))) return;
+        const access = await requireOrgPageAccess(user);
+        if (!access) return;
+        if (!sessionCan(access.session, "history")) {
+            blockPageContent(
+                "Your account does not include History of Missions access. Ask the organization owner to update your rights."
+            );
+            return;
+        }
+
+        const actor = access.actor;
+        console.log(
+            "[SUCCESS] User logged in:",
+            access.session.authUid,
+            "org:",
+            actor.uid
         );
-        return;
-    }
+        CURRENT_USER = actor;
 
-    const actor = access.actor;
-    console.log("[SUCCESS] User logged in:", access.session.authUid, "org:", actor.uid);
-    CURRENT_USER = actor;
+        const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.HISTORY);
+        if (cached?.payload) {
+            applyCachedHistory(cached.payload);
+        }
 
-    // Same as missions/volunteers: paint cache immediately, sidebar is non-blocking.
-    const cached = readOrgCache(actor.uid, ORG_CACHE_KEYS.HISTORY);
-    if (cached?.payload) {
-        applyCachedHistory(cached.payload);
-    }
+        void populateSidebarUser(actor);
 
-    void populateSidebarUser(actor);
+        const fresh = isOrgCacheFresh(
+            actor.uid,
+            ORG_CACHE_KEYS.HISTORY,
+            NAV_FRESH_MS
+        );
+        if (!fresh) {
+            void loadHistoryMissions(actor, {
+                refresh: true,
+                silent: Boolean(cached?.payload),
+            });
+        } else if (!cached?.payload) {
+            void loadHistoryMissions(actor, { refresh: true, silent: false });
+        }
+    });
+}
 
-    const fresh = isOrgCacheFresh(actor.uid, ORG_CACHE_KEYS.HISTORY, NAV_FRESH_MS);
-    if (!fresh) {
-        void loadHistoryMissions(actor, {
-            refresh: true,
-            silent: Boolean(cached?.payload),
-        });
-    }
-});
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootHistoryPage);
+} else {
+    bootHistoryPage();
+}
 
 function updateHistoryMissionFooter(visibleCount) {
     const el = document.getElementById("historyCountText");
@@ -618,16 +659,18 @@ function rehydrateHistoryItems(items = []) {
     });
 }
 
-/** Same pattern as mission dashboard: persist painted table HTML for instant hydrate. */
+/** Same pattern as mission dashboard saveDashboardCache — ready tableHtml for hydrate. */
 function saveHistoryCache(orgId) {
     if (!orgId) return;
     const tbody = document.getElementById("historyMissionsBody");
+    const html = tableHtmlForCache(tbody?.innerHTML || "");
     writeOrgCache(orgId, ORG_CACHE_KEYS.HISTORY, {
         empty: !historyItems.length,
         items: serializeHistoryItems(historyItems),
         stats: historyStats,
         period: activeHistoryPeriod || "all",
-        tableHtml: tableHtmlForCache(tbody?.innerHTML || historyEmptyHtml()),
+        // Always store painted rows (or empty-state HTML) for instant next visit.
+        tableHtml: html || tableHtmlForCache(historyEmptyHtml()),
     });
 }
 
@@ -687,11 +730,10 @@ function setHistoryItems(items = [], stats = null) {
     paintFilteredHistoryTable();
 }
 
-/** Apply cache like mission dashboard: paint tableHtml immediately when present. */
+/** Apply cache like applyCachedDashboardMissions — tableHtml first, no rebuild flash. */
 function applyCachedHistory(payload) {
     if (!payload) return;
 
-    // Prefer saved period; older caches without period default to full list.
     activeHistoryPeriod = payload.period || "all";
     syncHistoryPeriodSelect();
     ensureHistorySearchListener();
@@ -712,9 +754,37 @@ function applyCachedHistory(payload) {
 
     const historyTableBody = document.getElementById("historyMissionsBody");
     const cachedHtml = payload.tableHtml || "";
+    const hasItems =
+        Array.isArray(payload.items) && payload.items.length > 0;
 
-    if (payload.empty || !Array.isArray(payload.items) || !payload.items.length) {
+    if (hasItems) {
+        historyItems = rehydrateHistoryItems(payload.items);
+    } else {
         historyItems = [];
+    }
+
+    // Instant path (same as dashboard): paint ready tableHtml and stop.
+    if (historyTableBody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
+        historyTableBody.innerHTML = cachedHtml;
+        const rowCount = historyTableBody.querySelectorAll(
+            "tr.history-mission-row"
+        ).length;
+        const totalForUi = Math.max(
+            rowCount,
+            getFilteredHistoryItems().length
+        );
+        updateHistoryPaginationUi(totalForUi);
+        if (rowCount > 0) {
+            updateHistoryMissionFooter(rowCount);
+        } else if (payload.empty || !hasItems) {
+            updateHistoryMissionFooter(0);
+        }
+        // Keep cache warm with ready tableHtml for next navigation.
+        if (CURRENT_USER?.uid) saveHistoryCache(CURRENT_USER.uid);
+        return;
+    }
+
+    if (payload.empty || !hasItems) {
         if (historyTableBody) historyTableBody.innerHTML = historyEmptyHtml();
         updateHistoryMissionFooter(0);
         updateHistoryPaginationUi(0);
@@ -722,21 +792,7 @@ function applyCachedHistory(payload) {
         return;
     }
 
-    historyItems = rehydrateHistoryItems(payload.items);
-
-    // Prefer cached table HTML for instant paint (same as mission dashboard).
-    if (historyTableBody && cachedHtml && !isLoadingTableHtml(cachedHtml)) {
-        historyTableBody.innerHTML = cachedHtml;
-        const filteredCount = getFilteredHistoryItems().length;
-        updateHistoryPaginationUi(filteredCount);
-        // Persist period/tableHtml in the new format when upgrading old caches.
-        if (!payload.period && CURRENT_USER?.uid) {
-            saveHistoryCache(CURRENT_USER.uid);
-        }
-        return;
-    }
-
-    // Rebuild list (defaults to All time) and persist fresh tableHtml.
+    // No tableHtml yet — rebuild once and persist ready tableHtml for next visit.
     paintFilteredHistoryTable({ persist: true });
 }
 

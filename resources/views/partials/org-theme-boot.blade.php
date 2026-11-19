@@ -53,9 +53,31 @@
         }
       }
 
-      // Hide main content until live rights confirm (stops flash of disabled pages/data).
-      // Denied pages stay hidden here; JS then shows a centered Access Denied message.
-      document.documentElement.setAttribute("data-org-access-boot", "pending");
+      // Only hide when cached rights deny this route. Allowed pages stay visible
+      // so History/Missions lists can paint from cache immediately.
+      function moduleForPath(path) {
+        if (path.indexOf("/missions/history") === 0) return "history";
+        if (path.indexOf("/organization/volunteers") === 0) return "volunteers";
+        if (path.indexOf("/donation") === 0) return "donations";
+        if (
+          path.indexOf("/organization/profile") === 0 ||
+          path.indexOf("/organization/settings") === 0
+        ) {
+          return "account";
+        }
+        if (path.indexOf("/organization/users") === 0) return "users";
+        if (
+          path.indexOf("/missions") === 0 ||
+          path.indexOf("/organization/dashboard") === 0
+        ) {
+          return "missions";
+        }
+        return "";
+      }
+      var pathMod = moduleForPath(window.location.pathname || "");
+      if (pathMod === "users" || (pathMod && !hasModule(session, pathMod))) {
+        document.documentElement.setAttribute("data-org-access-boot", "pending");
+      }
     } catch (e) {}
   })();
 </script>

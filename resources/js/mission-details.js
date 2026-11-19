@@ -40,6 +40,9 @@ import {
   writeOrgCache,
   invalidateOrgCache,
   missionDetailCacheKey,
+  isOrgCacheFresh,
+  NAV_FRESH_MS,
+  LAST_ORG_UID_KEY,
 } from "./org-data-cache.js";
 import {
   sanitizeCloudinaryDocumentUrl,
@@ -1896,6 +1899,28 @@ function renderMissionDetailsFromCache(container, payload, user) {
   return true;
 }
 
+/** Paint from sessionStorage before auth finishes (same idea as mission list hydrate). */
+function tryEarlyMissionDetailPaint() {
+  const container = document.getElementById("detailsContainer");
+  const missionId = getMissionIdFromUrl();
+  if (!container || !missionId) return false;
+  if (container.querySelector(".md-page, .md-hero")) {
+    return true;
+  }
+  let uid = "";
+  try {
+    uid = sessionStorage.getItem(LAST_ORG_UID_KEY) || "";
+  } catch {
+    uid = "";
+  }
+  if (!uid) return false;
+  const cached = readOrgCache(uid, missionDetailCacheKey(missionId));
+  if (!cached?.payload?.mission) return false;
+  return renderMissionDetailsFromCache(container, cached.payload, {
+    uid,
+  });
+}
+
 async function refreshMissionDetails({ refresh = true, background = false } = {}) {
   const container = document.getElementById("detailsContainer");
   const missionId = getMissionIdFromUrl();
@@ -1907,30 +1932,22 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
   const cached = orgId ? readOrgCache(orgId, cacheKey) : null;
   const hasCache = Boolean(cached?.payload?.mission);
 
+  // Never show a loading spinner — paint cache or keep current content.
   if (hasCache && !background) {
-    const rendered = renderMissionDetailsFromCache(
-      container,
-      cached.payload,
-      user
-    );
-    if (!rendered && !background) {
-      container.innerHTML = `
-        <div class="md-loading">
-          <div class="missions-loading-spinner" aria-hidden="true"></div>
-          <span>Loading mission…</span>
-        </div>`;
-    }
-  } else if (!hasCache && !background) {
-    container.innerHTML = `
-      <div class="md-loading">
-        <div class="missions-loading-spinner" aria-hidden="true"></div>
-        <span>Loading mission…</span>
-      </div>`;
+    renderMissionDetailsFromCache(container, cached.payload, user);
   }
 
-  // Cached payload can render immediately, but always continue when refresh/background
-  // so newly joined volunteers are not stuck behind a stale roster.
+  // Cached payload can render immediately; skip network when fresh unless forced.
   if (hasCache && !refresh && !background) {
+    return;
+  }
+  if (
+    hasCache &&
+    background &&
+    orgId &&
+    isOrgCacheFresh(orgId, cacheKey, NAV_FRESH_MS) &&
+    !refresh
+  ) {
     return;
   }
 
@@ -2008,17 +2025,14 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
     }
     } catch (err) {
       console.error(err);
-    if (
-      !hasCache ||
-      container.querySelector(".md-loading, .missions-loading")
-    ) {
+    if (!hasCache && !container.querySelector(".md-page, .md-hero")) {
       clearMissionPageNav();
       container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
     }
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootMissionDetailsPage() {
   const container = document.getElementById("detailsContainer");
   const missionId = getMissionIdFromUrl();
 
@@ -2028,6 +2042,9 @@ document.addEventListener("DOMContentLoaded", () => {
     container.innerHTML = `<p class="md-error">No mission ID provided.</p>`;
     return;
   }
+
+  // Instant paint from last org cache (before auth / Firestore).
+  tryEarlyMissionDetailPaint();
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -2052,18 +2069,32 @@ document.addEventListener("DOMContentLoaded", () => {
       wireRosterStatusSuccessModal();
       wireMissionFullModal();
 
-      const missionId = getMissionIdFromUrl();
+      // Paint cache immediately; do not wait on platform config.
+      void loadPlatformConfig();
+      await refreshMissionDetails({ refresh: false });
 
-      await Promise.all([
-        loadPlatformConfig(),
-        refreshMissionDetails({ refresh: false }),
-      ]);
-
-      // Always refresh in background so volunteer joins appear without a hard cache wait.
-      void refreshMissionDetails({ refresh: true, background: true });
+      const orgId = CURRENT_ACTOR?.uid;
+      const fresh =
+        orgId &&
+        isOrgCacheFresh(
+          orgId,
+          missionDetailCacheKey(missionId),
+          NAV_FRESH_MS
+        );
+      if (!fresh) {
+        void refreshMissionDetails({ refresh: true, background: true });
+      }
     } catch (err) {
       console.error(err);
-      container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
+      if (!container.querySelector(".md-page, .md-hero")) {
+        container.innerHTML = `<p class="md-error">Error loading mission details.</p>`;
+      }
     }
   });
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootMissionDetailsPage);
+} else {
+  bootMissionDetailsPage();
+}

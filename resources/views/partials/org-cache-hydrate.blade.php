@@ -52,9 +52,10 @@
     if (pVol && profile.stats.volunteers != null) pVol.textContent = String(profile.stats.volunteers);
   }
 
-  // History: same as missions/volunteers — restore list before module JS runs.
+  // History: same as mission dashboard — restore ready tableHtml instantly.
+  var histBody = document.getElementById("historyMissionsBody");
   var hist = readPayload("history-v2") || readPayload("history");
-  if (hist) {
+  if (hist && histBody) {
     if (hist.stats) {
       var completedEl = document.getElementById("totalCompletedMissions");
       var monthEl = document.getElementById("thisMonthMissions");
@@ -69,68 +70,82 @@
         helpedEl.textContent = String(hist.stats.totalVolunteers);
       }
     }
-    var histBody = document.getElementById("historyMissionsBody");
-    if (histBody) {
-      var histHtml = hist.tableHtml || hist.previewTableHtml || "";
-      if (histHtml && !isLoadingHtml(histHtml)) {
-        histBody.innerHTML = histHtml;
-      } else if (hist.empty || (Array.isArray(hist.items) && !hist.items.length)) {
-        histBody.innerHTML =
-          '<tr><td colspan="6"><div class="missions-empty"><i class="bi bi-clipboard"></i><h4>No completed missions found</h4><p>Missions will appear here once they are completed</p></div></td></tr>';
-      } else if (Array.isArray(hist.items) && hist.items.length) {
-        // Older caches without tableHtml: build rows from items so list shows immediately.
-        function esc(s) {
-          return String(s == null ? "" : s)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-        }
-        histBody.innerHTML = hist.items
-          .slice(0, 10)
-          .map(function (item) {
-            var mission = item.mission || {};
-            var name = mission.missionName || mission.name || "Untitled";
-            var loc = mission.location || "N/A";
-            var status =
-              String(item.status || "").toLowerCase() === "rejected"
-                ? "Rejected"
-                : "Completed";
-            var id = item.missionId || "";
-            var href = "/missions/details?id=" + encodeURIComponent(id);
-            var dateLabel = item.completedOnMs
-              ? new Date(item.completedOnMs).toLocaleDateString()
-              : "—";
-            return (
-              '<tr class="history-mission-row">' +
-              "<td>" +
-              esc(dateLabel) +
-              "</td>" +
-              '<td><a href="' +
-              href +
-              '" class="mission-name-link">' +
-              esc(name) +
-              "</a></td>" +
-              "<td>" +
-              esc(loc) +
-              "</td>" +
-              "<td>" +
-              (status === "Rejected"
-                ? "—"
-                : String(item.actualVolunteers || 0) +
-                  " / " +
-                  String(item.totalNeeded || 0)) +
-              "</td>" +
-              "<td>" +
-              status +
-              "</td>" +
-              '<td><a href="' +
-              href +
-              '" class="btn-table solid">View</a></td>' +
-              "</tr>"
-            );
-          })
-          .join("");
+
+    function persistHistoryTableHtml(html) {
+      try {
+        var key = P + uid + ":history-v2";
+        var raw = sessionStorage.getItem(key) || sessionStorage.getItem(P + uid + ":history");
+        if (!raw) return;
+        var entry = JSON.parse(raw);
+        if (!entry || entry.payload === undefined) return;
+        entry.payload.tableHtml = html;
+        entry.payload.period = entry.payload.period || "all";
+        sessionStorage.setItem(P + uid + ":history-v2", JSON.stringify(entry));
+      } catch (e) {}
+    }
+
+    var histHtml = hist.tableHtml || "";
+    if (histHtml && !isLoadingHtml(histHtml)) {
+      // Ready tableHtml path (same as dashboard.tableHtml).
+      histBody.innerHTML = histHtml;
+    } else if (hist.empty || (Array.isArray(hist.items) && !hist.items.length)) {
+      histBody.innerHTML =
+        '<tr><td colspan="6"><div class="missions-empty"><i class="bi bi-clipboard"></i><h4>No completed missions found</h4><p>Missions will appear here once they are completed</p></div></td></tr>';
+      persistHistoryTableHtml(histBody.innerHTML);
+    } else if (Array.isArray(hist.items) && hist.items.length) {
+      // One-time upgrade: build tableHtml from items, then persist for next visit.
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
       }
+      histBody.innerHTML = hist.items
+        .slice(0, 10)
+        .map(function (item) {
+          var mission = item.mission || {};
+          var name = mission.missionName || mission.name || "Untitled";
+          var loc = mission.location || "N/A";
+          var status =
+            String(item.status || "").toLowerCase() === "rejected"
+              ? "Rejected"
+              : "Completed";
+          var id = item.missionId || "";
+          var href = "/missions/details?id=" + encodeURIComponent(id);
+          var dateLabel = item.completedOnMs
+            ? new Date(item.completedOnMs).toLocaleDateString()
+            : "—";
+          return (
+            '<tr class="history-mission-row">' +
+            "<td>" +
+            esc(dateLabel) +
+            "</td>" +
+            '<td><a href="' +
+            href +
+            '" class="mission-name-link">' +
+            esc(name) +
+            "</a></td>" +
+            "<td>" +
+            esc(loc) +
+            "</td>" +
+            "<td>" +
+            (status === "Rejected"
+              ? "—"
+              : String(item.actualVolunteers || 0) +
+                " / " +
+                String(item.totalNeeded || 0)) +
+            "</td>" +
+            "<td>" +
+            status +
+            "</td>" +
+            '<td><a href="' +
+            href +
+            '" class="btn-table solid">View</a></td>' +
+            "</tr>"
+          );
+        })
+        .join("");
+      persistHistoryTableHtml(histBody.innerHTML);
     }
   }
 

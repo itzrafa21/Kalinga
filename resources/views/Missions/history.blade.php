@@ -495,10 +495,11 @@
           <tbody id="historyMissionsBody"></tbody>
         </table>
       </div>
+      {{-- Same placement as mission dashboard: restore tableHtml before first paint continues --}}
       @include('partials.org-cache-hydrate')
 
       <div class="history-footer">
-        <span id="historyCountText">Showing 0 missions</span>
+        <span id="historyCountText"></span>
         <div class="history-pagination">
           <label class="history-page-size-label" for="historyPageSize">Rows per page</label>
           <select id="historyPageSize" class="history-page-size" aria-label="Rows per page">
@@ -514,6 +515,21 @@
           </div>
         </div>
       </div>
+      <script>
+        (function () {
+          var body = document.getElementById("historyMissionsBody");
+          var count = document.getElementById("historyCountText");
+          if (!body || !count) return;
+          var n = body.querySelectorAll("tr.history-mission-row").length;
+          if (body.querySelector(".missions-empty")) {
+            count.textContent = "Showing 0 missions";
+          } else if (n === 1) {
+            count.textContent = "Showing 1 mission";
+          } else if (n > 1) {
+            count.textContent = "Showing " + n + " missions";
+          }
+        })();
+      </script>
     </div>
   </main>
 </body>
