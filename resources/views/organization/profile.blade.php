@@ -762,11 +762,6 @@
                   <input type="text" id="completeAddress" name="completeAddress" class="form-control" placeholder="Street / barangay / city">
                 </div>
               </div>
-              <div class="profile-card-actions">
-                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
-                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
-                </button>
-              </div>
             </section>
 
             <section class="profile-card" id="section-representative" data-profile-panel="representative" role="tabpanel" hidden>
@@ -788,11 +783,6 @@
                   <label class="form-label" for="repContactNumber">Contact number</label>
                   <input type="tel" id="repContactNumber" name="repContactNumber" class="form-control" placeholder="Mobile or telephone number">
                 </div>
-              </div>
-              <div class="profile-card-actions">
-                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
-                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
-                </button>
               </div>
             </section>
 
@@ -829,11 +819,6 @@
                   <span class="field-hint">Search or pin the emergency rendezvous / HQ location on the map.</span>
                 </div>
               </div>
-              <div class="profile-card-actions">
-                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
-                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
-                </button>
-              </div>
             </section>
 
             <section class="profile-card" id="section-account" data-profile-panel="account" role="tabpanel" hidden>
@@ -851,11 +836,6 @@
                   </div>
                   <span class="field-hint">Sign-in email cannot be changed here.</span>
                 </div>
-              </div>
-              <div class="profile-card-actions">
-                <button type="submit" class="save-btn profile-tab-save" form="profileForm">
-                  <i class="bi bi-save" aria-hidden="true"></i> Save changes
-                </button>
               </div>
             </section>
           </form>
