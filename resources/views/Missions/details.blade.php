@@ -16,12 +16,43 @@
   ])
   @include('partials.org-layout-styles')
   <style>
-    .org-main-content.main-content {
-      padding: calc(65px + 1.5rem) 1.75rem 2.5rem;
+    html, body.org-app {
+      height: 100%;
+      overflow: hidden;
+      background: #effff4;
+    }
+    body.org-app { display: flex; }
+    .org-main-content.main-content.mission-details-page {
+      margin-left: 210px;
+      max-width: none;
+      width: calc(100% - 210px);
+      height: 100vh;
+      min-height: 100vh;
+      padding: 65px 0 0;
+      background: #effff4;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
     .md-wrap {
-      max-width: 1080px;
-      margin: 0 auto;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      overflow-y: auto;
+      padding: 1.25rem 3rem 1.75rem;
+      box-sizing: border-box;
+    }
+    @media (max-width: 900px) {
+      .org-main-content.main-content.mission-details-page {
+        margin-left: 0;
+        width: 100%;
+      }
+      .md-wrap { padding: 1.15rem 1.5rem 1.5rem; }
+    }
+    @media (max-width: 700px) {
+      .md-wrap { padding: 1rem 1.1rem 1.25rem; }
     }
     .md-page-head {
       display: flex;
@@ -181,171 +212,175 @@
     .md-back i { font-size: 16px; }
     .md-topbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .md-hero {
-      padding: 1.75rem 1.75rem 1.5rem;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 42%, #e8f8ef 100%);
-      border: 1px solid rgba(34, 197, 94, 0.22);
-      box-shadow:
-        0 4px 24px rgba(22, 163, 74, 0.1),
-        0 1px 0 rgba(255, 255, 255, 0.8) inset;
+      padding: 1.5rem 1.6rem 1.35rem;
+      border-radius: 18px;
+      background: #143528;
+      border: none;
+      box-shadow: 0 10px 28px rgba(15, 53, 40, 0.22);
       position: relative;
       overflow: hidden;
+      color: #fff;
     }
-    .md-hero::before {
-      content: "";
-      position: absolute;
-      top: -40%;
-      right: -8%;
-      width: 280px;
-      height: 280px;
-      background: radial-gradient(circle, rgba(255, 255, 255, 0.55) 0%, transparent 70%);
-      pointer-events: none;
-    }
+    .md-hero::before { display: none; }
     .md-hero-badge {
       position: absolute;
       top: 1.15rem;
       right: 1.15rem;
       z-index: 3;
-      padding: 10px 18px;
-      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
-      letter-spacing: 0.03em;
       text-transform: capitalize;
       border-radius: 999px;
-      border-width: 2px;
-      border-style: solid;
+      border: none;
       line-height: 1.2;
-      box-shadow:
-        0 2px 10px rgba(15, 23, 42, 0.12),
-        0 0 0 3px rgba(255, 255, 255, 0.95);
       white-space: nowrap;
+      background: #fff !important;
+      color: #166534 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
-    .md-hero-badge.md-b-green {
-      background: #fff;
-      color: #15803d;
-      border-color: #22c55e;
+    .md-hero-badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      flex-shrink: 0;
     }
-    .md-hero-badge.md-b-amber {
-      /* background: #fffbeb; */
-      color: #b45309;
-      border-color: #f59e0b;
-    }
-    .md-hero-badge.md-b-blue {
-      background: #fff;
-      color: #1d4ed8;
-      border-color: #3b82f6;
-    }
-    .md-hero-badge.md-b-gray {
-      background: #fff;
-      color: #475569;
-      border-color: #94a3b8;
-    }
-    .md-hero-badge.md-b-red {
-      background: #fff;
-      color: #b91c1c;
-      border-color: #ef4444;
-    }
-    .md-hero-content { position: relative; z-index: 1; min-width: 0; padding-right: 7.5rem; }
+    .md-hero-badge.md-b-amber::before { background: #f59e0b; }
+    .md-hero-badge.md-b-blue::before { background: #3b82f6; }
+    .md-hero-badge.md-b-gray::before { background: #94a3b8; }
+    .md-hero-badge.md-b-red::before { background: #ef4444; }
+    .md-hero-content { position: relative; z-index: 1; min-width: 0; padding-right: 6.5rem; }
     @media (max-width: 560px) {
-      .md-hero-content { padding-right: 0; padding-top: 2.75rem; }
-    }
-    .md-title-row {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px 12px;
-      margin-bottom: 10px;
-      padding-right: 0;
+      .md-hero-content { padding-right: 0; padding-top: 2.5rem; }
     }
     .md-title {
-      font-size: 1.65rem;
-      font-weight: 700;
-      margin: 0;
-      line-height: 1.25;
-      color: #14532d;
-      letter-spacing: -0.02em;
-      flex: 1 1 auto;
-      min-width: 0;
+      font-size: 1.85rem;
+      font-weight: 800;
+      margin: 0 0 0.2rem;
+      line-height: 1.15;
+      color: #fff;
+      letter-spacing: -0.03em;
     }
+    .md-host {
+      margin: 0 0 0.85rem;
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.78);
+      font-weight: 500;
+    }
+    .md-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-bottom: 1.15rem;
+    }
+    .md-type-badge,
     .md-donation-badge {
-      font-size: 12px;
-      padding: 6px 12px;
-      white-space: normal;
-      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      padding: 0.28rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 650;
+      border: none;
     }
     .md-type-badge {
-      flex-shrink: 0;
-      padding: 5px 12px;
-      font-size: 12px;
-      font-weight: 600;
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
     }
-    .md-desc {
-      font-size: 14px;
-      color: #3f6212;
-      line-height: 1.65;
-      margin: 0 0 1.25rem;
-      max-width: 52rem;
+    .md-donation-badge.md-b-green {
+      background: rgba(34, 197, 94, 0.22);
+      color: #bbf7d0;
+    }
+    .md-donation-badge.md-b-gray {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.82);
     }
     .md-info-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
+      gap: 0.65rem;
     }
     @media (max-width: 900px) { .md-info-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 480px) { .md-info-grid { grid-template-columns: 1fr; } }
     .md-cell {
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
-      padding: 12px 14px;
-      box-shadow: 0 2px 8px rgba(22, 101, 52, 0.06);
-      backdrop-filter: blur(4px);
-      transition: transform 0.2s, box-shadow 0.2s;
+      padding: 0.85rem 0.95rem;
+      box-shadow: none;
+      backdrop-filter: none;
+      transition: none;
     }
-    .md-cell:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(22, 101, 52, 0.1);
-    }
+    .md-cell:hover { transform: none; box-shadow: none; }
     .md-cell-label {
-      font-size: 10px;
-      color: #aaa;
+      font-size: 0.68rem;
+      color: rgba(255, 255, 255, 0.55);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 3px;
-      display: flex;
-      align-items: center;
-      gap: 3px;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.3rem;
+      font-weight: 650;
+      display: block;
     }
-    .md-cell-label i { font-size: 12px; color: #16a34a; }
-    .md-cell-val { font-size: 13px; font-weight: 500; color: #111827; line-height: 1.3; }
-    .md-cell-sub { font-size: 11px; color: #888; margin-top: 1px; }
+    .md-cell-label i { display: none; }
+    .md-cell-val {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .md-cell-sub {
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 0.15rem;
+    }
     .md-pts-cell {
-      background: linear-gradient(145deg, #fff 0%, #f0fdf4 100%);
-      border-color: rgba(34, 197, 94, 0.35);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.1);
     }
-    .md-pts-cell .md-cell-label { color: #16a34a; }
-    .md-pts-cell .md-cell-val { color: #15803d; font-size: 1.05rem; }
+    .md-pts-cell .md-cell-label { color: rgba(255, 255, 255, 0.55); }
+    .md-pts-cell .md-cell-val { color: #fff; font-size: 0.92rem; }
     .md-body {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1rem;
+    }
+    .md-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 800px) {
+      .md-split { grid-template-columns: 1fr; }
     }
     .md-card {
       background: #fff;
-      border-radius: 14px;
-      padding: 1.25rem 1.35rem;
+      border-radius: 16px;
+      padding: 1.15rem 1.25rem;
       border: 1px solid #e8ecef;
-      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
     }
     .md-card--table { padding: 0; overflow: hidden; }
-    .md-card--table .md-roster-head { padding: 1rem 1.25rem 0; }
-    .md-sec-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 10px;
+    .md-card--table .md-roster-head { padding: 1rem 1.25rem 0.75rem; margin-bottom: 0; }
+    .md-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    .md-sec-label,
+    .md-sec-label--title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #111827;
+      text-transform: none;
+      letter-spacing: normal;
+      margin-bottom: 0;
     }
     .md-docs-list {
       display: flex;
@@ -356,10 +391,10 @@
       display: flex;
       align-items: center;
       gap: 0.7rem;
-      padding: 0.7rem 0.85rem;
-      border: 1px solid #bbf7d0;
-      border-radius: 10px;
-      background: #f8fafc;
+      padding: 0.75rem 0.85rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8faf9;
       text-decoration: none;
       color: inherit;
       transition: background 0.15s ease, border-color 0.15s ease;
@@ -369,16 +404,16 @@
       border-color: #86efac;
     }
     .md-doc-link__icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
       background: #ecfdf3;
       color: #166534;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      font-size: 1rem;
+      font-size: 1.05rem;
     }
     .md-doc-link__meta {
       min-width: 0;
@@ -389,7 +424,7 @@
     }
     .md-doc-link__name {
       font-size: 0.88rem;
-      font-weight: 600;
+      font-weight: 650;
       color: #1e293b;
       white-space: nowrap;
       overflow: hidden;
@@ -404,37 +439,33 @@
       font-size: 0.78rem;
       font-weight: 700;
       color: #15803d;
-    }
-    .md-sec-label--title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #1e3a2f;
-      text-transform: none;
-      letter-spacing: normal;
-      margin-bottom: 0;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 0.35rem 0.65rem;
+      background: #fff;
     }
     .md-prog-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12px;
-      margin-bottom: 4px;
+      font-size: 0.88rem;
+      margin-top: 0.65rem;
     }
     .md-prog-wrap {
-      height: 10px;
-      background: #e2e8f0;
+      height: 8px;
+      background: #e5e7eb;
       border-radius: 999px;
       overflow: hidden;
-      margin-top: 4px;
+      margin-top: 0.15rem;
     }
     .md-prog {
       height: 100%;
-      background: linear-gradient(90deg, #22c55e, #16a34a);
+      background: #166534;
       border-radius: 999px;
       transition: width 0.45s ease;
-      box-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+      box-shadow: none;
     }
-    .md-slots-open { color: #16a34a; font-weight: 600; font-size: 13px; }
+    .md-slots-open { color: #166534; font-weight: 700; font-size: 0.88rem; }
     .md-roster-head {
       display: flex;
       align-items: center;
@@ -476,7 +507,7 @@
       flex-shrink: 0;
     }
     .md-name-cell { display: flex; align-items: center; gap: 8px; }
-    .md-muted { color: #888; }
+    .md-muted { color: #6b7280; }
     .md-dash { color: #bbb; font-size: 11px; }
     .md-pts-val { font-weight: 500; color: #15803d; }
     .md-action-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
@@ -491,19 +522,75 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.25rem 0.5rem;
+      padding: 0.95rem 1.15rem;
       flex-wrap: wrap;
       gap: 10px;
+      background: #fff;
+      border: 1px solid #e8ecef;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
     }
-    .md-foot-meta { font-size: 12px; color: #94a3b8; }
+    .md-foot-meta { font-size: 0.85rem; color: #94a3b8; }
     .md-foot-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .md-empty-roster {
-      padding: 1.5rem;
+    .md-empty-roster,
+    .md-empty-block {
+      padding: 1.35rem 1rem;
       text-align: center;
-      color: #888;
-      font-size: 13px;
-      border: 0.5px dashed #e5e7eb;
-      border-radius: 8px;
+      color: #6b7280;
+      font-size: 0.88rem;
+      border: 1px dashed #d1d5db;
+      border-radius: 12px;
+      background: #fafafa;
+    }
+    .md-announce-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .md-announce-item {
+      padding: 0.85rem 0.95rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8faf9;
+    }
+    .md-announce-item p {
+      margin: 0;
+      color: #1e293b;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    .md-announce-meta {
+      margin-top: 0.4rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .md-btn-add-announce {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      border-radius: 10px;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.82rem;
+      font-weight: 650;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .md-btn-add-announce:hover { background: #f8fafc; }
+    .md-btn-g {
+      background: #166534;
+      color: #fff;
+      border-color: #166534;
+      box-shadow: none;
+    }
+    .md-btn-g:hover {
+      background: #14532d;
+      transform: none;
+      box-shadow: none;
+      color: #fff;
     }
     .md-rejection {
       background: #fef2f2;
@@ -652,7 +739,7 @@
   @include('partials.org-sidebar', ['activeNav' => 'missions'])
   @include('partials.org-topbar', ['pageTitle' => 'Mission Details'])
 
-  <main class="org-main-content main-content">
+  <main class="org-main-content main-content mission-details-page" id="mainContent">
     <div class="md-wrap">
       <header class="md-page-head">
         <div id="mdPageBack"></div>
@@ -661,6 +748,27 @@
       <div id="detailsContainer"></div>
     </div>
   </main>
+
+  <div
+    id="missionAnnounceModal"
+    class="reject-modal-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="missionAnnounceTitle"
+  >
+    <div class="reject-modal">
+      <h2 id="missionAnnounceTitle">Add announcement</h2>
+      <p class="reject-modal-help">Post an update your volunteers will see on this mission.</p>
+      <label for="missionAnnounceInput">Announcement</label>
+      <textarea id="missionAnnounceInput" placeholder="Share a schedule change, reminder, or update…" maxlength="2000"></textarea>
+      <p id="missionAnnounceError" class="reject-modal-error" role="alert"></p>
+      <div class="reject-modal-actions">
+        <button type="button" class="reject-modal-cancel" id="missionAnnounceCancel">Cancel</button>
+        <button type="button" class="md-btn md-btn-g" id="missionAnnounceSave">Post announcement</button>
+      </div>
+    </div>
+  </div>
 
   <div
     id="rejectReasonModal"

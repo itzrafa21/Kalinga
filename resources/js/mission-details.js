@@ -7,6 +7,8 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
+  limit,
   addDoc,
   updateDoc,
   deleteField,
@@ -43,6 +45,7 @@ import {
   isOrgCacheFresh,
   NAV_FRESH_MS,
   LAST_ORG_UID_KEY,
+  ORG_CACHE_KEYS,
 } from "./org-data-cache.js";
 import {
   sanitizeCloudinaryDocumentUrl,
@@ -55,6 +58,7 @@ let pendingRejectVolunteer = null;
 let currentMissionContext = null;
 let CURRENT_ACTOR = null;
 let CURRENT_SESSION = null;
+let missionAnnouncementsCache = [];
 
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -169,8 +173,110 @@ function missionDonationBadge(mission) {
   );
   const isSet = mission && mission.makeDonations === true && hasDetails;
   return isSet
-    ? { cls: "md-b-green", label: "Donation has been set for this mission" }
-    : { cls: "md-b-gray", label: "Donation has not been set for this mission" };
+    ? { cls: "md-b-green", label: "Donation set" }
+    : { cls: "md-b-gray", label: "No donation set" };
+}
+
+function resolveHostName(mission, user) {
+  const fromMission =
+    mission?.orgName ||
+    mission?.organizationName ||
+    mission?.organization?.orgName ||
+    mission?.organization?.name ||
+    "";
+  if (String(fromMission).trim()) return String(fromMission).trim();
+
+  const orgId = mission?.orgId || mission?.organizationId || user?.uid || "";
+  if (orgId) {
+    try {
+      const cached = readOrgCache(orgId, ORG_CACHE_KEYS.SIDEBAR);
+      const name =
+        cached?.payload?.displayName ||
+        cached?.payload?.orgData?.orgName ||
+        cached?.payload?.orgData?.name ||
+        "";
+      if (String(name).trim()) return String(name).trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  return user?.displayName || "Organization";
+}
+
+function formatAnnouncementTime(ts) {
+  if (!ts) return "";
+  let d;
+  if (ts?.toDate) d = ts.toDate();
+  else if (ts?.seconds) d = new Date(ts.seconds * 1000);
+  else d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+async function loadMissionAnnouncements(missionId) {
+  if (!missionId) return [];
+  const col = collection(db, "missions", missionId, "announcements");
+  try {
+    const q = query(col, orderBy("createdAt", "desc"), limit(30));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    try {
+      const snap = await getDocs(query(col, limit(30)));
+      return snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const am = a.createdAt?.toMillis?.() || a.createdAt?.seconds || 0;
+          const bm = b.createdAt?.toMillis?.() || b.createdAt?.seconds || 0;
+          return bm - am;
+        });
+    } catch (err2) {
+      console.warn("[WARN] loadMissionAnnouncements:", err2 || err);
+      return [];
+    }
+  }
+}
+
+function renderAnnouncementsSection(announcements, isOwner, inHistory) {
+  const canAdd = isOwner && !inHistory;
+  const items = Array.isArray(announcements) ? announcements : [];
+  const listHtml = items.length
+    ? `<div class="md-announce-list">${items
+        .map((a) => {
+          const text = String(a.text || a.message || "").trim();
+          if (!text) return "";
+          const when = formatAnnouncementTime(a.createdAt);
+          const author = a.authorName || a.createdByName || "";
+          const meta = [author, when].filter(Boolean).join(" · ");
+          return `
+            <article class="md-announce-item">
+              <p>${escapeHtml(text)}</p>
+              ${meta ? `<div class="md-announce-meta">${escapeHtml(meta)}</div>` : ""}
+            </article>`;
+        })
+        .filter(Boolean)
+        .join("")}</div>`
+    : `<div class="md-empty-block">No announcements yet.${
+        canAdd ? " Post one to update your volunteers." : ""
+      }</div>`;
+
+  return `
+    <section class="md-card" id="missionAnnouncementsCard">
+      <div class="md-card-head">
+        <span class="md-sec-label--title">Announcements</span>
+        ${
+          canAdd
+            ? `<button type="button" class="md-btn-add-announce" id="addMissionAnnounceBtn">+ Add announcement</button>`
+            : ""
+        }
+      </div>
+      ${listHtml}
+    </section>`;
 }
 
 function missionStatusBadge(status) {
@@ -1284,7 +1390,6 @@ function renderMissionDocumentsSection(mission) {
   const docs = normalizeMissionDocuments(mission?.documents).filter(
     (d) => d && (d.url || d.name)
   );
-  if (!docs.length) return "";
 
   const items = docs
     .map((docItem, index) => {
@@ -1315,12 +1420,16 @@ function renderMissionDocumentsSection(mission) {
     .filter(Boolean)
     .join("");
 
-  if (!items) return "";
-
   return `
     <section class="md-card">
-      <div class="md-sec-label">Documents</div>
-      <div class="md-docs-list">${items}</div>
+      <div class="md-card-head">
+        <span class="md-sec-label--title">Documents</span>
+      </div>
+      ${
+        items
+          ? `<div class="md-docs-list">${items}</div>`
+          : `<div class="md-empty-block">No documents attached.</div>`
+      }
     </section>`;
 }
 
@@ -1347,9 +1456,9 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
   return `
     <section class="md-card md-card--table">
       <div class="md-roster-head">
-        <span class="md-sec-label md-sec-label--title">Volunteer List</span>
+        <span class="md-sec-label--title">Volunteer list</span>
         <span class="md-badge md-b-gray">${volunteers.length} total</span>
-        </div>
+      </div>
       <div class="md-table-wrap">
         <table class="md-table">
           <thead>
@@ -1359,7 +1468,7 @@ function renderRosterSection(volunteers, mission, isOwner, slotInfo) {
               <th style="width:10%">Date joined</th>
               <th style="width:7%">Hours</th>
               <th style="width:7%">Points</th>
-              <th style="width:20%">Status / Actions</th>
+              <th style="width:20%">Status</th>
               <th style="width:20%">Attendance</th>
             </tr>
           </thead>
@@ -1376,7 +1485,8 @@ function renderMissionFrame(
   user,
   signedUp,
   volunteers,
-  inHistory = false
+  inHistory = false,
+  announcements = []
 ) {
   const status = mission.status || "N/A";
   const statusLower = status.toLowerCase();
@@ -1400,15 +1510,17 @@ function renderMissionFrame(
   const donationBadge = missionDonationBadge(mission);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
-  const ptsSub = pointsBreakdown(mission);
+  const hostName = resolveHostName(mission, user);
+  const weekday = formatWeekday(mission.date);
+  const duration = formatDurationHuman(mission);
   const editUrl = `/missions/edit?id=${encodeURIComponent(missionId)}`;
   const lastUpdated = formatLastUpdated(mission);
   const backHref = inHistory ? "/missions/history" : "/organization/dashboard";
   const backLabel = inHistory ? "History" : "Dashboard";
 
   const topEdit = canVolunteer
-  ? `<button type="button" class="md-btn md-btn-g" id="volunteerApplyBtn">...</button>`
-  : "";
+    ? `<button type="button" class="md-btn md-btn-g" id="volunteerApplyBtn">Apply as volunteer</button>`
+    : "";
 
   const footerActions = renderOwnerFooterActions(
     isOwner,
@@ -1418,6 +1530,11 @@ function renderMissionFrame(
   );
   const rosterHtml = renderRosterSection(volunteers, mission, isOwner, slotInfo);
   const documentsHtml = renderMissionDocumentsSection(mission);
+  const announcementsHtml = renderAnnouncementsSection(
+    announcements,
+    isOwner,
+    inHistory
+  );
 
   setMissionPageNav(backHref, backLabel, topEdit);
 
@@ -1426,52 +1543,61 @@ function renderMissionFrame(
       <div class="md-hero">
         <span class="md-hero-badge md-badge ${badge.cls}">${escapeHtml(badge.label)}</span>
         <div class="md-hero-content">
-          <div class="md-title-row">
-            <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
-            <span class="md-badge md-b-blue md-type-badge">${escapeHtml(mission.type || "General")}</span>
-            <span class="md-badge ${donationBadge.cls} md-donation-badge">${escapeHtml(donationBadge.label)}</span>
+          <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
+          <p class="md-host">Hosted by ${escapeHtml(hostName)}</p>
+          <div class="md-chip-row">
+            <span class="md-type-badge">${escapeHtml(mission.type || "General")}</span>
+            <span class="md-donation-badge ${donationBadge.cls}">${escapeHtml(donationBadge.label)}</span>
           </div>
-          <p class="md-desc">${escapeHtml(mission.description || "No description provided.")}</p>
           <div class="md-info-grid">
             <div class="md-cell">
-              <div class="md-cell-label"><i class="ti ti-calendar" aria-hidden="true"></i> Date</div>
+              <div class="md-cell-label">Date</div>
               <div class="md-cell-val">${escapeHtml(formatDisplayDate(mission.date))}</div>
-              <div class="md-cell-sub">${escapeHtml(formatWeekday(mission.date))}</div>
-          </div>
-            <div class="md-cell">
-              <div class="md-cell-label"><i class="ti ti-clock" aria-hidden="true"></i> Time</div>
-              <div class="md-cell-val">${escapeHtml(formatTimeRange(mission))}</div>
-              <div class="md-cell-sub">${escapeHtml(formatDurationHuman(mission))}</div>
+              ${weekday ? `<div class="md-cell-sub">${escapeHtml(weekday)}</div>` : ""}
             </div>
             <div class="md-cell">
-              <div class="md-cell-label"><i class="ti ti-map-pin" aria-hidden="true"></i> Location</div>
+              <div class="md-cell-label">Time</div>
+              <div class="md-cell-val">${escapeHtml(formatTimeRange(mission))}</div>
+              ${duration ? `<div class="md-cell-sub">${escapeHtml(duration)}</div>` : ""}
+            </div>
+            <div class="md-cell">
+              <div class="md-cell-label">Location</div>
               <div class="md-cell-val">${escapeHtml(loc.line1)}</div>
               ${loc.line2 ? `<div class="md-cell-sub">${escapeHtml(loc.line2)}</div>` : ""}
             </div>
             <div class="md-cell md-pts-cell">
-              <div class="md-cell-label"><i class="ti ti-star" aria-hidden="true"></i> Points</div>
-              <div class="md-cell-val">${pts ? `${escapeHtml(String(pts))} pts` : "—"}</div>
-              ${ptsSub ? `<div class="md-cell-sub">${escapeHtml(ptsSub)}</div>` : ""}
+              <div class="md-cell-label">Points</div>
+              <div class="md-cell-val">${
+                pts ? `${escapeHtml(String(pts))} pts` : "—"
+              }</div>
+              <div class="md-cell-sub">per volunteer</div>
             </div>
           </div>
         </div>
       </div>
 
       <div class="md-body">
-        <section class="md-card">
-          <div class="md-sec-label">Volunteer progress</div>
-          <div class="md-prog-row">
-            <span class="md-muted">${signedUp} / ${needed || "—"} signed up</span>
-            <span class="md-slots-open">${
-              needed ? `${slotsOpen} slot${slotsOpen !== 1 ? "s" : ""} open` : ""
-            }</span>
-          </div>
-          <div class="md-prog-wrap">
-            <div class="md-prog" style="width:${pct}%"></div>
-          </div>
-        </section>
+        <div class="md-split">
+          <section class="md-card">
+            <div class="md-card-head">
+              <span class="md-sec-label--title">Volunteer progress</span>
+              <span class="md-slots-open">${
+                needed
+                  ? `${slotsOpen} slot${slotsOpen !== 1 ? "s" : ""} open`
+                  : ""
+              }</span>
+            </div>
+            <div class="md-prog-wrap">
+              <div class="md-prog" style="width:${pct}%"></div>
+            </div>
+            <div class="md-prog-row">
+              <span class="md-muted">${signedUp} of ${needed || "—"} signed up</span>
+            </div>
+          </section>
+          ${documentsHtml}
+        </div>
 
-        ${documentsHtml}
+        ${announcementsHtml}
         ${rosterHtml}
       </div>
 
@@ -1485,6 +1611,83 @@ function renderMissionFrame(
   wireRejectModal(missionId);
   bindMissionInteractions(container, mission, missionId, user, volunteers, isOwner);
   wireMissionDocumentsDownloads(container);
+  wireMissionAnnouncements(missionId, isOwner && !inHistory, user);
+}
+
+function openMissionAnnounceModal() {
+  const overlay = document.getElementById("missionAnnounceModal");
+  const input = document.getElementById("missionAnnounceInput");
+  const err = document.getElementById("missionAnnounceError");
+  if (!overlay) return;
+  if (input) input.value = "";
+  if (err) err.textContent = "";
+  overlay.hidden = false;
+  overlay.classList.add("is-open");
+  input?.focus();
+}
+
+function closeMissionAnnounceModal() {
+  const overlay = document.getElementById("missionAnnounceModal");
+  if (!overlay) return;
+  overlay.classList.remove("is-open");
+  overlay.hidden = true;
+}
+
+function wireMissionAnnouncements(missionId, canAdd, user) {
+  const addBtn = document.getElementById("addMissionAnnounceBtn");
+  const cancelBtn = document.getElementById("missionAnnounceCancel");
+  const saveBtn = document.getElementById("missionAnnounceSave");
+  const overlay = document.getElementById("missionAnnounceModal");
+  const input = document.getElementById("missionAnnounceInput");
+  const err = document.getElementById("missionAnnounceError");
+
+  if (addBtn && canAdd) {
+    addBtn.onclick = () => openMissionAnnounceModal();
+  }
+  if (cancelBtn) {
+    cancelBtn.onclick = () => closeMissionAnnounceModal();
+  }
+  if (overlay) {
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeMissionAnnounceModal();
+    };
+  }
+  if (saveBtn && canAdd) {
+    saveBtn.onclick = async () => {
+      const text = String(input?.value || "").trim();
+      if (!text) {
+        if (err) err.textContent = "Please enter an announcement.";
+        return;
+      }
+      saveBtn.disabled = true;
+      if (err) err.textContent = "";
+      try {
+        const hostName = resolveHostName(
+          currentMissionContext?.mission || {},
+          user
+        );
+        await addDoc(collection(db, "missions", missionId, "announcements"), {
+          text,
+          createdAt: serverTimestamp(),
+          createdBy: user?.uid || "",
+          authorName: hostName,
+          orgId:
+            currentMissionContext?.mission?.orgId ||
+            currentMissionContext?.mission?.organizationId ||
+            user?.uid ||
+            "",
+        });
+        closeMissionAnnounceModal();
+        missionAnnouncementsCache = await loadMissionAnnouncements(missionId);
+        await refreshMissionDetails({ refresh: true, background: true });
+      } catch (e) {
+        console.error(e);
+        if (err) err.textContent = "Could not post announcement. Try again.";
+      } finally {
+        saveBtn.disabled = false;
+      }
+    };
+  }
 }
 
 function bindMissionInteractions(container, mission, missionId, user, volunteers, isOwner) {
@@ -1600,7 +1803,9 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
   const donationBadge = missionDonationBadge(mission);
   const loc = splitLocation(mission);
   const pts = resolveMissionPoints(mission);
-  const ptsSub = pointsBreakdown(mission);
+  const hostName = resolveHostName(mission, user);
+  const weekday = formatWeekday(mission.date);
+  const duration = formatDurationHuman(mission);
   const orgId = mission.orgId || mission.organizationId;
   const isOwner = Boolean(user && orgId && orgId === user.uid);
   const editUrl = `/missions/edit?id=${encodeURIComponent(missionId)}`;
@@ -1620,32 +1825,32 @@ function renderRejectedMissionPage(container, mission, missionId, user, inHistor
       <div class="md-hero">
         <span class="md-hero-badge md-badge ${badge.cls}">${escapeHtml(badge.label)}</span>
         <div class="md-hero-content">
-          <div class="md-title-row">
-            <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
-            <span class="md-badge md-b-blue md-type-badge">${escapeHtml(mission.type || "General")}</span>
-            <span class="md-badge ${donationBadge.cls} md-donation-badge">${escapeHtml(donationBadge.label)}</span>
+          <h2 class="md-title">${escapeHtml(mission.missionName || "Untitled mission")}</h2>
+          <p class="md-host">Hosted by ${escapeHtml(hostName)}</p>
+          <div class="md-chip-row">
+            <span class="md-type-badge">${escapeHtml(mission.type || "General")}</span>
+            <span class="md-donation-badge ${donationBadge.cls}">${escapeHtml(donationBadge.label)}</span>
           </div>
-          <p class="md-desc">${escapeHtml(mission.description || "No description provided.")}</p>
           <div class="md-info-grid">
             <div class="md-cell">
-              <div class="md-cell-label"><i class="ti ti-calendar" aria-hidden="true"></i> Date</div>
+              <div class="md-cell-label">Date</div>
               <div class="md-cell-val">${escapeHtml(formatDisplayDate(mission.date))}</div>
-              <div class="md-cell-sub">${escapeHtml(formatWeekday(mission.date))}</div>
+              ${weekday ? `<div class="md-cell-sub">${escapeHtml(weekday)}</div>` : ""}
             </div>
             <div class="md-cell">
-              <div class="md-cell-label"><i class="ti ti-clock" aria-hidden="true"></i> Time</div>
+              <div class="md-cell-label">Time</div>
               <div class="md-cell-val">${escapeHtml(formatTimeRange(mission))}</div>
-              <div class="md-cell-sub">${escapeHtml(formatDurationHuman(mission))}</div>
+              ${duration ? `<div class="md-cell-sub">${escapeHtml(duration)}</div>` : ""}
             </div>
             <div class="md-cell">
-              <div class="md-cell-label"><i class="ti ti-map-pin" aria-hidden="true"></i> Location</div>
+              <div class="md-cell-label">Location</div>
               <div class="md-cell-val">${escapeHtml(loc.line1)}</div>
               ${loc.line2 ? `<div class="md-cell-sub">${escapeHtml(loc.line2)}</div>` : ""}
             </div>
             <div class="md-cell md-pts-cell">
-              <div class="md-cell-label"><i class="ti ti-star" aria-hidden="true"></i> Points</div>
+              <div class="md-cell-label">Points</div>
               <div class="md-cell-val">${pts ? `${escapeHtml(String(pts))} pts` : "—"}</div>
-              ${ptsSub ? `<div class="md-cell-sub">${escapeHtml(ptsSub)}</div>` : ""}
+              <div class="md-cell-sub">per volunteer</div>
             </div>
           </div>
         </div>
@@ -1871,13 +2076,19 @@ function saveMissionDetailCache(orgId, missionId, payload) {
 }
 
 function renderMissionDetailsFromCache(container, payload, user) {
-  const { mission, inHistory, volunteers, signedUp, missionId } = payload;
+  const { mission, inHistory, volunteers, signedUp, missionId, announcements } =
+    payload;
   if (!mission || !missionId) return false;
 
   if ((mission.status || "").toLowerCase() === "rejected") {
     renderRejectedMissionPage(container, mission, missionId, user, Boolean(inHistory));
     return true;
   }
+
+  const list = Array.isArray(announcements)
+    ? announcements
+    : missionAnnouncementsCache;
+  missionAnnouncementsCache = list;
 
   currentMissionContext = {
     mission,
@@ -1894,7 +2105,8 @@ function renderMissionDetailsFromCache(container, payload, user) {
     user,
     signedUp ?? 0,
     volunteers || [],
-    Boolean(inHistory)
+    Boolean(inHistory),
+    list
   );
   return true;
 }
@@ -1996,6 +2208,9 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
       ? countApprovedVolunteers(volunteers)
       : await countMissionSignups(missionId, orgId);
 
+    const announcements = await loadMissionAnnouncements(missionId);
+    missionAnnouncementsCache = announcements;
+
     currentMissionContext = {
       mission,
       missionId,
@@ -2011,7 +2226,8 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
       user,
       signedUp,
       volunteers,
-      inHistory
+      inHistory,
+      announcements
     );
 
     if (orgId) {
@@ -2021,6 +2237,7 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
         inHistory,
         volunteers,
         signedUp,
+        announcements,
       });
     }
     } catch (err) {

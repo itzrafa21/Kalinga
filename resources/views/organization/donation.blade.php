@@ -18,7 +18,7 @@
     html, body.org-app {
       height: 100%;
       overflow: hidden;
-      background: #f3f4f6;
+      background: #effff4;
     }
     body.org-app { display: flex; }
     .org-main-content.main-content.donation-page {
@@ -28,7 +28,7 @@
       height: 100vh;
       min-height: 100vh;
       padding: 65px 0 0;
-      background: #f3f4f6;
+      background: #effff4;
       display: flex;
       flex-direction: column;
       overflow: hidden;
