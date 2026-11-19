@@ -359,16 +359,37 @@ function getCreatedAtMs(value) {
     return parseSortableDateMs(value);
 }
 
-function formatCreatedAtLabel(value) {
+function getCreatedAtParts(value) {
     const ms = getCreatedAtMs(value);
-    if (!ms) return "—";
-    return new Date(ms).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    });
+    if (!ms) return { datePart: "—", timePart: "" };
+    const d = new Date(ms);
+    return {
+        datePart: d.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        }),
+        timePart: d.toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+        }),
+    };
+}
+
+function formatCreatedAtLabel(value) {
+    const { datePart, timePart } = getCreatedAtParts(value);
+    if (!timePart) return datePart;
+    return `${datePart}, ${timePart}`;
+}
+
+function renderCreatedAtCellHtml(value) {
+    const { datePart, timePart } = getCreatedAtParts(value);
+    if (!timePart) {
+        return `<div class="mission-date-main">${escapeHtml(datePart)}</div>`;
+    }
+    return `
+        <div class="mission-date-main">${escapeHtml(datePart)}</div>
+        <div class="mission-time-sub">${escapeHtml(timePart)}</div>`;
 }
 
 async function resolveHistoryCreatedAt(missionId, mission = {}) {
@@ -582,15 +603,13 @@ function buildHistoryRow(item) {
             ? "—"
             : `${actualVolunteers}/${totalNeeded} volunteers`;
 
-    const createdLabel =
-        item.createdAtLabel ||
-        formatCreatedAtLabel(mission.createdAt ?? mission.submittedAt);
-
     return `
         <tr class="history-mission-row" data-period="${periodBucket}" data-mission-id="${escapeHtml(missionId)}">
-            <td class="col-created">
-                <div class="mission-date-main">${escapeHtml(createdLabel || "—")}</div>
-            </td>
+            <td class="col-created">${renderCreatedAtCellHtml(
+                item.createdAtMs ||
+                    mission.createdAt ||
+                    mission.submittedAt
+            )}</td>
             <td class="col-date">${renderHistoryDateCellHtml(mission)}</td>
             <td class="col-mission">
                 <a href="${detailsUrl}" class="mission-name-link">${escapeHtml(missionName)}</a>

@@ -52,25 +52,49 @@ function getCreatedAtMs(value) {
     return parseSortableDateMs(value);
 }
 
-function formatCreatedAtLabel(value) {
+function getCreatedAtParts(value) {
     const ms = getCreatedAtMs(value);
-    if (!ms) return "—";
-    return new Date(ms).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    });
+    if (!ms) return { datePart: "—", timePart: "" };
+    const d = new Date(ms);
+    return {
+        datePart: d.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        }),
+        timePart: d.toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+        }),
+    };
+}
+
+function formatCreatedAtLabel(value) {
+    const { datePart, timePart } = getCreatedAtParts(value);
+    if (!timePart) return datePart;
+    return `${datePart}, ${timePart}`;
+}
+
+function renderCreatedAtCellHtml(value) {
+    const { datePart, timePart } = getCreatedAtParts(value);
+    if (!timePart) {
+        return `<div class="mission-date-main">${escapeMissionCell(datePart)}</div>`;
+    }
+    return `
+        <div class="mission-date-main">${escapeMissionCell(datePart)}</div>
+        <div class="mission-time-sub">${escapeMissionCell(timePart)}</div>`;
 }
 
 function normalizeDashboardMission(m = {}) {
     const createdAt = m.createdAt ?? m.submittedAt ?? null;
     const createdAtMs = m.createdAtMs || getCreatedAtMs(createdAt);
+    const parts = getCreatedAtParts(createdAtMs || createdAt);
     return {
         ...m,
         createdAt,
         createdAtMs,
+        createdAtDate: parts.datePart,
+        createdAtTime: parts.timePart,
         createdAtLabel:
             m.createdAtLabel && m.createdAtLabel !== "—"
                 ? m.createdAtLabel
@@ -607,13 +631,9 @@ function renderMissionsTable(missions) {
 
             return `
                 <tr data-status="${escapeMissionCell(normalizeMissionStatus(statusLabel))}">
-                    <td class="col-created">
-                        <div class="mission-date-main">${escapeMissionCell(
-                            m.createdAtLabel ||
-                                formatCreatedAtLabel(m.createdAtMs || m.createdAt) ||
-                                "—"
-                        )}</div>
-                    </td>
+                    <td class="col-created">${renderCreatedAtCellHtml(
+                        m.createdAtMs || m.createdAt
+                    )}</td>
                     <td class="col-date">
                         <div class="mission-date-main">${escapeMissionCell(m.dateLabel)}</div>
                         ${timeSub}
