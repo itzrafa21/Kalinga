@@ -200,18 +200,26 @@
       font-weight: 650;
       font-family: inherit;
       cursor: pointer;
+      outline: none;
+      box-shadow: none;
       transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
     .profile-tab:hover {
-      background: #f8faf9;
-      color: #166534;
-      border-color: #86efac;
+      background: #f8fafc;
+      color: #334155;
+      border-color: #cbd5e1;
     }
-    .profile-tab.active {
+    .profile-tab:focus,
+    .profile-tab:focus-visible {
+      outline: none;
+      box-shadow: none;
+    }
+    .profile-tab.active,
+    .profile-tab.active:hover {
       background: #ecfdf3;
       color: #166534;
       border-color: #22c55e;
-      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+      box-shadow: none;
     }
 
     .profile-card {
@@ -526,12 +534,26 @@
       background: #0f172a !important;
       border-color: #334155 !important;
       color: #94a3b8 !important;
+      box-shadow: none !important;
+      outline: none !important;
     }
-    html[data-theme="dark"] .profile-tab:hover,
-    html[data-theme="dark"] .profile-tab.active {
+    html[data-theme="dark"] .profile-tab:hover {
+      background: #1e293b !important;
+      border-color: #475569 !important;
+      color: #e2e8f0 !important;
+      box-shadow: none !important;
+    }
+    html[data-theme="dark"] .profile-tab:focus,
+    html[data-theme="dark"] .profile-tab:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    html[data-theme="dark"] .profile-tab.active,
+    html[data-theme="dark"] .profile-tab.active:hover {
       background: #14532d !important;
       border-color: #166534 !important;
       color: #bbf7d0 !important;
+      box-shadow: none !important;
     }
     html[data-theme="dark"] .profile-avatar { background: #334155 !important; color: #e2e8f0 !important; }
     html[data-theme="dark"] .form-control,
