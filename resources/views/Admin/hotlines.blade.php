@@ -293,6 +293,7 @@
       <a class="nav-item" href="/admin/dashboard#missions"><i class="ti ti-target" aria-hidden="true"></i> Missions</a>
       <a class="nav-item" href="/admin/dashboard#volunteers"><i class="ti ti-users" aria-hidden="true"></i> Volunteers</a>
       <a class="nav-item" href="/admin/dashboard#campaigns"><i class="ti ti-gift" aria-hidden="true"></i> Campaigns</a>
+      <a class="nav-item" href="/admin/dashboard#settlements"><i class="ti ti-cash"></i> Settlements</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Rules &amp; Rewards</a>
       <a class="nav-item active" href="/admin/hotlines"><i class="ti ti-phone" aria-hidden="true"></i> Hotlines</a>
@@ -318,7 +319,7 @@
             <div class="section-title" id="hotlines-heading">
               <i class="ti ti-phone-call" aria-hidden="true"></i> Hotline directory
             </div>
-            <p class="section-desc">Add an organization with phone, email, and a map pin â€” each contact needs both a number and an email</p>
+            <p class="section-desc">Add an organization with phone, email, and a map pin — each contact needs both a number and an email</p>
           </div>
           <button type="button" class="btn btn-g btn-sm" id="categoryAddBtn">
             <i class="ti ti-plus" style="font-size:12px"></i> Add Emergency Hotline
@@ -342,7 +343,7 @@
                     type="text"
                     id="nc-search"
                     class="hotline-map-search"
-                    placeholder="Search place, barangay, landmarkâ€¦"
+                    placeholder="Search place, barangay, landmark…"
                     autocomplete="off"
                     aria-label="Search hotline location"
                   />

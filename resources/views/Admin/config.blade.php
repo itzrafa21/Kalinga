@@ -241,6 +241,7 @@
       <a class="nav-item" href="/admin/dashboard#missions"><i class="ti ti-target" aria-hidden="true"></i> Missions</a>
       <a class="nav-item" href="/admin/dashboard#volunteers"><i class="ti ti-users" aria-hidden="true"></i> Volunteers</a>
       <a class="nav-item" href="/admin/dashboard#campaigns"><i class="ti ti-gift" aria-hidden="true"></i> Campaigns</a>
+      <a class="nav-item" href="/admin/dashboard#settlements"><i class="ti ti-cash"></i> Settlements</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item active" href="/admin/config"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Rules &amp; Rewards</a>
       <a class="nav-item" href="/admin/hotlines"><i class="ti ti-phone" aria-hidden="true"></i> Hotlines</a>
@@ -373,16 +374,16 @@
             <div class="section-body">
               <div class="block-label">Duration multipliers</div>
               <div class="mult-row">
-                <div><div class="mult-label">Short shift</div><div class="mult-sub">1 â€“ 3 hours</div></div>
-                <div class="mult-right"><span class="pts-unit">Ã—</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Short shift multiplier" /></div>
+                <div><div class="mult-label">Short shift</div><div class="mult-sub">1 – 3 hours</div></div>
+                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Short shift multiplier" /></div>
               </div>
               <div class="mult-row">
-                <div><div class="mult-label">Half day</div><div class="mult-sub">4 â€“ 6 hours</div></div>
-                <div class="mult-right"><span class="pts-unit">Ã—</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Half day multiplier" /></div>
+                <div><div class="mult-label">Half day</div><div class="mult-sub">4 – 6 hours</div></div>
+                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Half day multiplier" /></div>
               </div>
               <div class="mult-row">
                 <div><div class="mult-label">Full day</div><div class="mult-sub">7+ hours</div></div>
-                <div class="mult-right"><span class="pts-unit">Ã—</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Full day multiplier" /></div>
+                <div class="mult-right"><span class="pts-unit">×</span><input type="number" class="pts-in mult-in" min="1" step="0.5" onchange="flashSaved()" aria-label="Full day multiplier" /></div>
               </div>
 
               <div class="calc-box">
@@ -396,7 +397,7 @@
                   <span id="calc-result">5</span>
                 </div>
               </div>
-              <p class="info-hint"><i class="ti ti-calculator"></i> Final = base Ã— duration multiplier</p>
+              <p class="info-hint"><i class="ti ti-calculator"></i> Final = base × duration multiplier</p>
             </div>
           </section>
         </div>

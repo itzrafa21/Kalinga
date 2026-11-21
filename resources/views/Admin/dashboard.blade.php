@@ -15,7 +15,7 @@
   <script>
     (function () {
       var tab = (window.location.hash || "").replace(/^#/, "");
-      var allowed = { dashboard: 1, organizations: 1, missions: 1, volunteers: 1, campaigns: 1 };
+      var allowed = { dashboard: 1, organizations: 1, missions: 1, volunteers: 1, campaigns: 1, settlements: 1 };
       if (!allowed[tab]) tab = "dashboard";
       document.documentElement.setAttribute("data-admin-tab", tab);
     })();
@@ -27,7 +27,8 @@
     html[data-admin-tab="organizations"] #organizations-tab,
     html[data-admin-tab="missions"] #missions-tab,
     html[data-admin-tab="volunteers"] #volunteers-tab,
-    html[data-admin-tab="campaigns"] #campaigns-tab {
+    html[data-admin-tab="campaigns"] #campaigns-tab,
+    html[data-admin-tab="settlements"] #settlements-tab {
       display: block !important;
     }
     /* Active tab comes only from data-admin-tab so hover/focus cannot stick on another item */
@@ -62,10 +63,39 @@
     html[data-admin-tab="volunteers"] .nav-item[data-tab="volunteers"]:focus,
     html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"],
     html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"]:hover,
-    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"]:focus {
+    html[data-admin-tab="campaigns"] .nav-item[data-tab="campaigns"]:focus,
+    html[data-admin-tab="settlements"] .nav-item[data-tab="settlements"],
+    html[data-admin-tab="settlements"] .nav-item[data-tab="settlements"]:hover,
+    html[data-admin-tab="settlements"] .nav-item[data-tab="settlements"]:focus {
       background: #aaf0ba;
       color: #000;
       font-weight: 500;
+    }
+    .settlement-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .settlement-stat {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+    }
+    .settlement-stat .label {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+    .settlement-stat .value {
+      margin: 0.2rem 0 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #111827;
+    }
+    @media (max-width: 800px) {
+      .settlement-stats { grid-template-columns: 1fr; }
     }
     .org-modal-backdrop {
   position: fixed;
@@ -553,6 +583,9 @@
       <a class="nav-item" href="#campaigns" data-tab="campaigns">
         <i class="ti ti-gift"></i> Campaigns
       </a>
+      <a class="nav-item" href="#settlements" data-tab="settlements">
+        <i class="ti ti-cash"></i> Settlements
+      </a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config">
         <i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards
@@ -578,7 +611,8 @@
           organizations: "Organizations",
           missions: "Missions",
           volunteers: "Volunteers",
-          campaigns: "Campaigns"
+          campaigns: "Campaigns",
+          settlements: "Settlements"
         };
         var tab = document.documentElement.getAttribute("data-admin-tab") || "dashboard";
         var el = document.getElementById("topbarTitle");
@@ -859,6 +893,82 @@
       </div>
     </div>
 
+    <!-- Settlements Tab -->
+    <div id="settlements-tab" class="tab-content" style="display: none;">
+      <div class="settlement-stats">
+        <article class="settlement-stat">
+          <p class="label">Raised (paid donations)</p>
+          <p class="value" id="settlementRaisedTotal">₱0.00</p>
+        </article>
+        <article class="settlement-stat">
+          <p class="label">Already settled to orgs</p>
+          <p class="value" id="settlementSettledTotal">₱0.00</p>
+        </article>
+        <article class="settlement-stat">
+          <p class="label">Outstanding</p>
+          <p class="value" id="settlementOutstandingTotal">₱0.00</p>
+        </article>
+      </div>
+
+      <div class="card admin-card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h5 class="mb-0"><i class="ti ti-cash"></i> Campaign payouts</h5>
+            <div class="small text-muted">Record manual transfers from the platform Maya merchant to organizations.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <input type="text" class="form-control search-box" id="settlementSearch" placeholder="Search org or campaign...">
+            <select class="form-select filter-dropdown" id="settlementFilter">
+              <option value="outstanding">Outstanding</option>
+              <option value="settled">Fully settled</option>
+              <option value="all">All money campaigns</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Campaign</th>
+                  <th>Organization</th>
+                  <th>Raised</th>
+                  <th>Settled</th>
+                  <th>Outstanding</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="settlementsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card admin-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="ti ti-history"></i> Recent settlements</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Campaign</th>
+                  <th>Organization</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>By</th>
+                </tr>
+              </thead>
+              <tbody id="settlementHistoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     </div>
   </div>
 </div>
@@ -963,6 +1073,62 @@
       <button type="button" class="reject-modal-confirm" id="missionRejectConfirm">Reject mission</button>
     </div>
     </div>
+</div>
+
+<!-- Record settlement modal -->
+<div
+  id="settlementModal"
+  class="reject-modal-overlay"
+  hidden
+  aria-modal="true"
+  role="dialog"
+  aria-labelledby="settlementModalTitle"
+>
+  <div class="reject-modal" role="document">
+    <h2 id="settlementModalTitle">Record settlement</h2>
+    <p class="reject-modal-help" id="settlementModalHelp">
+      Mark funds as paid out to the organization after you transfer them outside the app.
+    </p>
+    <input type="hidden" id="settlementCampaignId" value="">
+    <label for="settlementAmountPesos">Amount (₱)</label>
+    <input
+      type="number"
+      id="settlementAmountPesos"
+      min="1"
+      step="0.01"
+      class="form-control mb-2"
+      autocomplete="off"
+    >
+    <label for="settlementMethod">Method</label>
+    <select id="settlementMethod" class="form-select mb-2">
+      <option value="bank">Bank transfer</option>
+      <option value="gcash">GCash</option>
+      <option value="maya">Maya</option>
+      <option value="cash">Cash</option>
+      <option value="other">Other</option>
+    </select>
+    <label for="settlementReference">Reference / receipt #</label>
+    <input
+      type="text"
+      id="settlementReference"
+      class="form-control mb-2"
+      maxlength="120"
+      placeholder="Optional transfer reference"
+      autocomplete="off"
+    >
+    <label for="settlementNotes">Notes</label>
+    <textarea
+      id="settlementNotes"
+      rows="3"
+      placeholder="Optional notes for audit trail…"
+      autocomplete="off"
+    ></textarea>
+    <p id="settlementModalError" class="reject-modal-error" role="alert"></p>
+    <div class="reject-modal-actions">
+      <button type="button" class="reject-modal-cancel" id="settlementModalCancel">Cancel</button>
+      <button type="button" class="reject-modal-confirm" id="settlementModalConfirm">Save settlement</button>
+    </div>
+  </div>
 </div>
 
 </body>

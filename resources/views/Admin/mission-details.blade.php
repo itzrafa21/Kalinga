@@ -376,6 +376,7 @@
       <a class="nav-item active" href="/admin/dashboard#missions"><i class="ti ti-target"></i> Missions</a>
       <a class="nav-item" href="/admin/dashboard#volunteers"><i class="ti ti-users"></i> Volunteers</a>
       <a class="nav-item" href="/admin/dashboard#campaigns"><i class="ti ti-gift"></i> Campaigns</a>
+      <a class="nav-item" href="/admin/dashboard#settlements"><i class="ti ti-cash"></i> Settlements</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config"><i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards</a>
       <a class="nav-item" href="/admin/hotlines"><i class="ti ti-phone"></i> Hotlines</a>
@@ -399,7 +400,7 @@
           <i class="fas fa-bullseye" aria-hidden="true"></i>
           <h1 id="missionDetailsTitle">MISSION DETAILS</h1>
         </header>
-        <div class="org-page__status" id="missionPageStatus">Loading missionâ€¦</div>
+        <div class="org-page__status" id="missionPageStatus">Loading mission…</div>
         <div class="org-page__body" id="missionPageBody" hidden></div>
         <footer class="org-page__footer" id="missionPageFooter" hidden>
           <div class="org-page__actions" id="missionPageActions"></div>
@@ -424,7 +425,7 @@
     <h2 id="missionRejectModalTitle">Reject mission</h2>
     <p class="reject-modal-help">Please provide a reason for rejecting this mission. The organization may see this message.</p>
     <label for="missionRejectReasonInput">Reason (required)</label>
-    <textarea id="missionRejectReasonInput" rows="4" placeholder="e.g. Incomplete details, policy violationâ€¦" autocomplete="off"></textarea>
+    <textarea id="missionRejectReasonInput" rows="4" placeholder="e.g. Incomplete details, policy violation…" autocomplete="off"></textarea>
     <p id="missionRejectReasonError" class="reject-modal-error" role="alert"></p>
     <div class="reject-modal-actions">
       <button type="button" class="reject-modal-cancel" id="missionRejectCancel">Cancel</button>

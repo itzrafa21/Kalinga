@@ -275,6 +275,7 @@
       <a class="nav-item" href="/admin/dashboard#missions"><i class="ti ti-target"></i> Missions</a>
       <a class="nav-item active" href="/admin/dashboard#volunteers"><i class="ti ti-users"></i> Volunteers</a>
       <a class="nav-item" href="/admin/dashboard#campaigns"><i class="ti ti-gift"></i> Campaigns</a>
+      <a class="nav-item" href="/admin/dashboard#settlements"><i class="ti ti-cash"></i> Settlements</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config"><i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards</a>
       <a class="nav-item" href="/admin/hotlines"><i class="ti ti-phone"></i> Hotlines</a>
@@ -298,7 +299,7 @@
           <i class="fas fa-hands-helping" aria-hidden="true"></i>
           <h1 id="volunteerDetailsTitle">VOLUNTEER DETAILS</h1>
         </header>
-        <div class="org-page__status" id="volunteerPageStatus">Loading volunteerâ€¦</div>
+        <div class="org-page__status" id="volunteerPageStatus">Loading volunteer…</div>
         <div class="org-page__body" id="volunteerPageBody" hidden></div>
         <footer class="org-page__footer" id="volunteerPageFooter" hidden>
           <a class="org-action org-action--back" href="/admin/dashboard#volunteers">Back</a>

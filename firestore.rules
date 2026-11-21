@@ -41,7 +41,8 @@ service cloud.firestore {
         request.resource.data.orgId == request.auth.uid &&
         request.resource.data.status in ['draft', 'pending_approval'] &&
         request.resource.data.raisedAmountCentavos == 0 &&
-        request.resource.data.donorCount == 0;
+        request.resource.data.donorCount == 0 &&
+        request.resource.data.get('settledAmountCentavos', 0) == 0;
 
       allow update: if isAdmin() ||
         (signedIn() &&
@@ -53,9 +54,11 @@ service cloud.firestore {
               request.resource.data.status == 'pending_approval')
           ) &&
           request.resource.data.raisedAmountCentavos == resource.data.raisedAmountCentavos &&
-          request.resource.data.donorCount == resource.data.donorCount
+          request.resource.data.donorCount == resource.data.donorCount &&
+          request.resource.data.get('settledAmountCentavos', 0) ==
+            resource.data.get('settledAmountCentavos', 0)
         ) ||
-        // Donor (or settlement client) may only bump totals + recentDonations.
+        // Donor (or payment confirmation client) may only bump totals + recentDonations.
         (signedIn() &&
           resource.data.status == 'published' &&
           request.resource.data.diff(resource.data).affectedKeys()
@@ -134,14 +137,25 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Admin manual payouts from platform Maya merchant → organizations.
+    match /donation_settlements/{settlementId} {
+      allow read: if isAdmin() ||
+        (signedIn() && (
+          resource.data.orgId == request.auth.uid ||
+          isOrgTeamOf(resource.data.orgId)
+        ));
+      allow create: if isAdmin() &&
+        request.resource.data.amountCentavos is int &&
+        request.resource.data.amountCentavos > 0 &&
+        request.resource.data.status == 'completed';
+      allow update, delete: if isAdmin();
+    }
+
     // Admin-managed platform settings (hotlines, rewards config, etc.)
     match /platform_config/{docId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
-
-    // Also allow orgs to update their paymongo map on organizations/{orgId}
-    // (keep your existing organization rules; ensure update includes paymongo.*).
 
     // Team users for organization accounts:
     // match /organizations/{orgId}/team/{memberId} {

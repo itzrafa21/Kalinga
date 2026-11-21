@@ -70,6 +70,12 @@ let allAdminMissions = [];
 let allAdminVolunteers = [];
 let allAdminOrganizations = [];
 let allAdminCampaigns = [];
+/** @type {Array<Record<string, any>>} */
+let allSettlementCampaigns = [];
+/** @type {Array<Record<string, any>>} */
+let allSettlementHistory = [];
+/** @type {Record<string, any>|null} */
+let settlementModalCampaign = null;
 const missionDurationHoursCache = new Map();
 let adminMissionsPageSize = 10;
 let adminMissionsCurrentPage = 1;
@@ -729,6 +735,7 @@ function showTab(tabName) {
         missions: 'Missions',
         volunteers: 'Volunteers',
         campaigns: 'Campaigns',
+        settlements: 'Settlements',
     };
     if (topbarTitle) {
         topbarTitle.textContent = pageTitles[tabName] || tabName;
@@ -769,6 +776,11 @@ function loadTabData(tabName, { force = false } = {}) {
         case "campaigns":
             void loadCampaignsData({ force }).then(() =>
                 markAdminTabLoaded("campaigns")
+            );
+            break;
+        case "settlements":
+            void loadSettlementsData({ force }).then(() =>
+                markAdminTabLoaded("settlements")
             );
             break;
         case "settings":
@@ -1973,6 +1985,23 @@ function setupEventListeners() {
     if (campaignFilter) {
         campaignFilter.addEventListener("change", filterCampaigns);
     }
+    const settlementSearch = document.getElementById("settlementSearch");
+    const settlementFilter = document.getElementById("settlementFilter");
+    if (settlementSearch) {
+        settlementSearch.addEventListener("input", filterSettlements);
+    }
+    if (settlementFilter) {
+        settlementFilter.addEventListener("change", filterSettlements);
+    }
+    document
+        .getElementById("settlementModalCancel")
+        ?.addEventListener("click", closeSettlementModal);
+    document
+        .getElementById("settlementModalConfirm")
+        ?.addEventListener("click", confirmSettlementModal);
+    document.getElementById("settlementModal")?.addEventListener("click", (event) => {
+        if (event.target?.id === "settlementModal") closeSettlementModal();
+    });
 
     if (volunteerSearch) {
         volunteerSearch.addEventListener('input', filterVolunteers);
@@ -2460,6 +2489,404 @@ window.rejectCampaign = async function (campaignId) {
         alert("Could not reject campaign.");
     }
 };
+
+function campaignRaisedCentavos(campaign) {
+    return Math.max(0, Math.floor(Number(campaign?.raisedAmountCentavos) || 0));
+}
+
+function campaignSettledCentavos(campaign) {
+    return Math.max(0, Math.floor(Number(campaign?.settledAmountCentavos) || 0));
+}
+
+function campaignOutstandingCentavos(campaign) {
+    return Math.max(0, campaignRaisedCentavos(campaign) - campaignSettledCentavos(campaign));
+}
+
+function settlementWhenLabel(value) {
+    if (!value) return "—";
+    try {
+        const date =
+            typeof value?.toDate === "function"
+                ? value.toDate()
+                : value instanceof Date
+                  ? value
+                  : new Date(value);
+        if (Number.isNaN(date.getTime())) return "—";
+        return date.toLocaleString("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+        });
+    } catch {
+        return "—";
+    }
+}
+
+function settlementMethodLabel(method) {
+    switch (String(method || "").toLowerCase()) {
+        case "bank":
+            return "Bank transfer";
+        case "gcash":
+            return "GCash";
+        case "maya":
+            return "Maya";
+        case "cash":
+            return "Cash";
+        default:
+            return "Other";
+    }
+}
+
+function paintSettlementTotals(list) {
+    let raised = 0;
+    let settled = 0;
+    list.forEach((c) => {
+        raised += campaignRaisedCentavos(c);
+        settled += Math.min(campaignSettledCentavos(c), campaignRaisedCentavos(c));
+    });
+    const outstanding = Math.max(0, raised - settled);
+    const set = (id, cents) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = formatCentavos(cents);
+    };
+    set("settlementRaisedTotal", raised);
+    set("settlementSettledTotal", settled);
+    set("settlementOutstandingTotal", outstanding);
+}
+
+async function loadSettlementsData({ force = false } = {}) {
+    try {
+        if (
+            !force &&
+            isAdminCacheFresh(ADMIN_CACHE_KEYS.SETTLEMENTS) &&
+            Array.isArray(readAdminCache(ADMIN_CACHE_KEYS.SETTLEMENTS)?.payload?.campaigns)
+        ) {
+            const cached = readAdminCache(ADMIN_CACHE_KEYS.SETTLEMENTS).payload;
+            allSettlementCampaigns = cached.campaigns || [];
+            allSettlementHistory = cached.history || [];
+            paintSettlementTotals(allSettlementCampaigns);
+            filterSettlements();
+            renderSettlementHistory(allSettlementHistory);
+            return;
+        }
+
+        const payload = await adminCachedFetch(
+            ADMIN_CACHE_KEYS.SETTLEMENTS,
+            async () => {
+                let campaignSnap;
+                try {
+                    campaignSnap = await getDocs(
+                        query(
+                            collection(db, "donation_campaigns"),
+                            orderBy("updatedAt", "desc"),
+                            limit(200)
+                        )
+                    );
+                } catch {
+                    campaignSnap = await getDocs(
+                        query(collection(db, "donation_campaigns"), limit(200))
+                    );
+                }
+
+                const campaigns = campaignSnap.docs
+                    .map((d) => ({ id: d.id, ...d.data() }))
+                    .filter(
+                        (c) =>
+                            campaignAcceptsMoney(c) &&
+                            campaignRaisedCentavos(c) > 0
+                    );
+
+                let history = [];
+                try {
+                    const historySnap = await getDocs(
+                        query(
+                            collection(db, "donation_settlements"),
+                            orderBy("settledAt", "desc"),
+                            limit(50)
+                        )
+                    );
+                    history = historySnap.docs.map((d) => ({
+                        id: d.id,
+                        ...d.data(),
+                    }));
+                } catch (historyErr) {
+                    console.warn(
+                        "[WARN] donation_settlements history unavailable:",
+                        historyErr
+                    );
+                    try {
+                        const fallbackSnap = await getDocs(
+                            query(collection(db, "donation_settlements"), limit(50))
+                        );
+                        history = fallbackSnap.docs
+                            .map((d) => ({ id: d.id, ...d.data() }))
+                            .sort((a, b) =>
+                                String(
+                                    b.settledAt?.toDate?.() ||
+                                        b.createdAt?.toDate?.() ||
+                                        b.createdAt ||
+                                        ""
+                                ).localeCompare(
+                                    String(
+                                        a.settledAt?.toDate?.() ||
+                                            a.createdAt?.toDate?.() ||
+                                            a.createdAt ||
+                                            ""
+                                    )
+                                )
+                            );
+                    } catch (fallbackErr) {
+                        console.warn(
+                            "[WARN] donation_settlements fallback failed:",
+                            fallbackErr
+                        );
+                        history = [];
+                    }
+                }
+
+                return { campaigns, history };
+            },
+            { force, maxAgeMs: ADMIN_FRESH_MS }
+        );
+
+        allSettlementCampaigns = Array.isArray(payload?.campaigns)
+            ? payload.campaigns
+            : [];
+        allSettlementHistory = Array.isArray(payload?.history)
+            ? payload.history
+            : [];
+        paintSettlementTotals(allSettlementCampaigns);
+        filterSettlements();
+        renderSettlementHistory(allSettlementHistory);
+    } catch (error) {
+        console.error("Error loading settlements:", error);
+        const tbody = document.getElementById("settlementsTableBody");
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="6" class="text-center text-danger">Error loading settlements</td></tr>';
+        }
+    }
+}
+
+function renderSettlementsTable(list) {
+    const tbody = document.getElementById("settlementsTableBody");
+    if (!tbody) return;
+    if (!list.length) {
+        tbody.innerHTML =
+            '<tr><td colspan="6" class="text-center">No campaigns match this filter</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list
+        .map((c) => {
+            const raised = campaignRaisedCentavos(c);
+            const settled = Math.min(campaignSettledCentavos(c), raised);
+            const outstanding = Math.max(0, raised - settled);
+            const settleBtn =
+                outstanding > 0
+                    ? `<button type="button" class="btn btn-sm btn-success" onclick="openSettlementModal('${c.id}')"><i class="ti ti-cash"></i> Record settlement</button>`
+                    : `<span class="badge bg-success">Settled</span>`;
+            return `<tr>
+        <td>
+          <strong>${escapeHtml(c.title || "Untitled")}</strong>
+          <div class="small text-muted">${escapeHtml(c.status || "")}</div>
+        </td>
+        <td>${escapeHtml(c.orgName || c.orgId || "—")}</td>
+        <td>${escapeHtml(formatCentavos(raised))}</td>
+        <td>${escapeHtml(formatCentavos(settled))}</td>
+        <td><strong>${escapeHtml(formatCentavos(outstanding))}</strong></td>
+        <td class="text-nowrap">${settleBtn}</td>
+      </tr>`;
+        })
+        .join("");
+}
+
+function filterSettlements() {
+    const q = (document.getElementById("settlementSearch")?.value || "")
+        .toLowerCase()
+        .trim();
+    const filterType =
+        document.getElementById("settlementFilter")?.value || "outstanding";
+    let filtered = allSettlementCampaigns.slice();
+
+    if (filterType === "outstanding") {
+        filtered = filtered.filter((c) => campaignOutstandingCentavos(c) > 0);
+    } else if (filterType === "settled") {
+        filtered = filtered.filter(
+            (c) =>
+                campaignRaisedCentavos(c) > 0 &&
+                campaignOutstandingCentavos(c) <= 0
+        );
+    }
+
+    if (q) {
+        filtered = filtered.filter((c) =>
+            [c.title, c.orgName, c.orgId]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(q)
+        );
+    }
+
+    filtered.sort(
+        (a, b) => campaignOutstandingCentavos(b) - campaignOutstandingCentavos(a)
+    );
+    renderSettlementsTable(filtered);
+}
+
+function renderSettlementHistory(list) {
+    const tbody = document.getElementById("settlementHistoryBody");
+    if (!tbody) return;
+    if (!list.length) {
+        tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">No settlements recorded yet</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list
+        .map((row) => {
+            return `<tr>
+        <td>${escapeHtml(settlementWhenLabel(row.settledAt || row.createdAt))}</td>
+        <td>${escapeHtml(row.campaignTitle || row.campaignId || "—")}</td>
+        <td>${escapeHtml(row.orgName || row.orgId || "—")}</td>
+        <td>${escapeHtml(formatCentavos(row.amountCentavos))}</td>
+        <td>${escapeHtml(settlementMethodLabel(row.method))}</td>
+        <td>${escapeHtml(row.reference || "—")}</td>
+        <td>${escapeHtml(row.settledByEmail || row.settledBy || "—")}</td>
+      </tr>`;
+        })
+        .join("");
+}
+
+function closeSettlementModal() {
+    const modal = document.getElementById("settlementModal");
+    if (modal) modal.hidden = true;
+    settlementModalCampaign = null;
+    const err = document.getElementById("settlementModalError");
+    if (err) err.textContent = "";
+}
+
+window.openSettlementModal = function (campaignId) {
+    const campaign = allSettlementCampaigns.find((c) => c.id === campaignId);
+    if (!campaign) {
+        alert("Campaign not found in settlements list.");
+        return;
+    }
+    const outstanding = campaignOutstandingCentavos(campaign);
+    if (outstanding <= 0) {
+        alert("This campaign has no outstanding balance.");
+        return;
+    }
+
+    settlementModalCampaign = campaign;
+    const modal = document.getElementById("settlementModal");
+    const help = document.getElementById("settlementModalHelp");
+    const amountInput = document.getElementById("settlementAmountPesos");
+    const method = document.getElementById("settlementMethod");
+    const reference = document.getElementById("settlementReference");
+    const notes = document.getElementById("settlementNotes");
+    const err = document.getElementById("settlementModalError");
+    const hiddenId = document.getElementById("settlementCampaignId");
+
+    if (hiddenId) hiddenId.value = campaign.id;
+    if (help) {
+        help.textContent = `Pay out to ${campaign.orgName || "organization"} for “${campaign.title || "campaign"}”. Outstanding: ${formatCentavos(outstanding)}.`;
+    }
+    if (amountInput) {
+        amountInput.value = (outstanding / 100).toFixed(2);
+        amountInput.max = (outstanding / 100).toFixed(2);
+    }
+    if (method) method.value = "bank";
+    if (reference) reference.value = "";
+    if (notes) notes.value = "";
+    if (err) err.textContent = "";
+    if (modal) modal.hidden = false;
+    amountInput?.focus();
+};
+
+async function confirmSettlementModal() {
+    const campaign = settlementModalCampaign;
+    const err = document.getElementById("settlementModalError");
+    const confirmBtn = document.getElementById("settlementModalConfirm");
+    if (!campaign) return;
+
+    const outstanding = campaignOutstandingCentavos(campaign);
+    const pesos = Number(document.getElementById("settlementAmountPesos")?.value || 0);
+    const amountCentavos = Math.round(pesos * 100);
+    const method = String(
+        document.getElementById("settlementMethod")?.value || "other"
+    ).trim();
+    const reference = String(
+        document.getElementById("settlementReference")?.value || ""
+    ).trim();
+    const notes = String(
+        document.getElementById("settlementNotes")?.value || ""
+    ).trim();
+
+    if (!Number.isFinite(pesos) || amountCentavos < 100) {
+        if (err) err.textContent = "Enter an amount of at least ₱1.00.";
+        return;
+    }
+    if (amountCentavos > outstanding) {
+        if (err) {
+            err.textContent = `Amount cannot exceed outstanding ${formatCentavos(outstanding)}.`;
+        }
+        return;
+    }
+
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (err) err.textContent = "";
+
+    try {
+        const adminUser = auth.currentUser;
+        const nextSettled = campaignSettledCentavos(campaign) + amountCentavos;
+        await addDoc(collection(db, "donation_settlements"), {
+            orgId: String(campaign.orgId || ""),
+            orgName: String(campaign.orgName || ""),
+            campaignId: String(campaign.id || ""),
+            campaignTitle: String(campaign.title || ""),
+            amountCentavos,
+            currency: "PHP",
+            method,
+            reference,
+            notes,
+            status: "completed",
+            settledAt: serverTimestamp(),
+            settledBy: adminUser?.uid || "",
+            settledByEmail: adminUser?.email || "",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+
+        await updateDoc(doc(db, "donation_campaigns", campaign.id), {
+            settledAmountCentavos: nextSettled,
+            lastSettledAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+
+        invalidateAdminCache(ADMIN_CACHE_KEYS.SETTLEMENTS);
+        invalidateAdminCache(ADMIN_CACHE_KEYS.CAMPAIGNS);
+        clearAdminTabLoaded("settlements");
+        clearAdminTabLoaded("campaigns");
+        closeSettlementModal();
+        await loadSettlementsData({ force: true });
+        alert("Settlement recorded.");
+    } catch (error) {
+        console.error(error);
+        if (err) {
+            err.textContent =
+                error?.message ||
+                "Could not save settlement. Check Firestore rules for donation_settlements.";
+        } else {
+            alert("Could not save settlement.");
+        }
+    } finally {
+        if (confirmBtn) confirmBtn.disabled = false;
+    }
+}
 
 // Filter functions
 function filterOrganizations() {

@@ -593,6 +593,10 @@
                 <strong id="donorCount">0</strong>
                 <span id="donorLabel">donors</span>
               </div>
+              <div class="stat">
+                <strong id="settledAmount">₱0</strong>
+                <span>settled by admin</span>
+              </div>
             </div>
           </div>
 

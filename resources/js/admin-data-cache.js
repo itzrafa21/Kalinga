@@ -11,6 +11,7 @@ export const ADMIN_CACHE_KEYS = {
     MISSIONS: "missions",
     VOLUNTEERS: "volunteers",
     CAMPAIGNS: "campaigns",
+    SETTLEMENTS: "settlements",
     MISSION_TYPES: "mission-types",
     ACTIVITY: "activity",
 };

@@ -74,7 +74,9 @@ html[data-theme="dark"][data-admin-tab="missions"] body.admin-app .nav-item[data
 html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"],
 html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"].is-hover,
 html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"],
-html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"].is-hover {
+html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"].is-hover,
+html[data-theme="dark"][data-admin-tab="settlements"] body.admin-app .nav-item[data-tab="settlements"],
+html[data-theme="dark"][data-admin-tab="settlements"] body.admin-app .nav-item[data-tab="settlements"].is-hover {
   background: #166534 !important;
   color: #ecfdf5 !important;
   font-weight: 500 !important;
@@ -83,8 +85,19 @@ html[data-theme="dark"][data-admin-tab="dashboard"] body.admin-app .nav-item[dat
 html[data-theme="dark"][data-admin-tab="organizations"] body.admin-app .nav-item[data-tab="organizations"] i,
 html[data-theme="dark"][data-admin-tab="missions"] body.admin-app .nav-item[data-tab="missions"] i,
 html[data-theme="dark"][data-admin-tab="volunteers"] body.admin-app .nav-item[data-tab="volunteers"] i,
-html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"] i {
+html[data-theme="dark"][data-admin-tab="campaigns"] body.admin-app .nav-item[data-tab="campaigns"] i,
+html[data-theme="dark"][data-admin-tab="settlements"] body.admin-app .nav-item[data-tab="settlements"] i {
   color: #ecfdf5 !important;
+}
+html[data-theme="dark"] body.admin-app .settlement-stat {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+html[data-theme="dark"] body.admin-app .settlement-stat .label {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.admin-app .settlement-stat .value {
+  color: #f1f5f9 !important;
 }
 html[data-theme="dark"] body.admin-app .sb-user {
   color: #94a3b8 !important;

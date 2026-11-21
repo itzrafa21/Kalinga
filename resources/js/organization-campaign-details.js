@@ -263,6 +263,11 @@ function paintMoneySummary(raisedCentavos, donorCount) {
     set("fundedPercent", `${pct}%`);
     set("donorCount", String(donors));
     set("donorLabel", donors === 1 ? "donor" : "donors");
+    const settled = Math.max(
+        0,
+        Math.round(Number(currentCampaign?.settledAmountCentavos) || 0)
+    );
+    set("settledAmount", formatCompactCentavos(Math.min(settled, raised)));
 
     const fill = document.getElementById("progressFill");
     if (fill) fill.style.width = `${pct}%`;

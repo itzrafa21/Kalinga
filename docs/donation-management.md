@@ -50,6 +50,12 @@ Money campaigns still use `targetAmountCentavos` / `raisedAmountCentavos`. No pe
 
 1. Dashboard → **Campaigns** tab.
 2. Approve (publishes) or Reject pending campaigns.
+3. Dashboard → **Settlements** tab — record manual payouts to organizations after transferring funds outside the app.
+
+### Settlements ledger
+- Collection `donation_settlements`: amount, method, reference, notes, org/campaign ids, settledBy.
+- Campaign fields: `settledAmountCentavos`, `lastSettledAt`.
+- Outstanding = `raisedAmountCentavos - settledAmountCentavos`.
 
 ## Backend payment endpoints
 

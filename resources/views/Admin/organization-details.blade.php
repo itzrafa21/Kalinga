@@ -417,6 +417,7 @@
       <a class="nav-item" href="/admin/dashboard#missions"><i class="ti ti-target"></i> Missions</a>
       <a class="nav-item" href="/admin/dashboard#volunteers"><i class="ti ti-users"></i> Volunteers</a>
       <a class="nav-item" href="/admin/dashboard#campaigns"><i class="ti ti-gift"></i> Campaigns</a>
+      <a class="nav-item" href="/admin/dashboard#settlements"><i class="ti ti-cash"></i> Settlements</a>
       <div class="sb-section">Admin</div>
       <a class="nav-item" href="/admin/config"><i class="ti ti-adjustments-horizontal"></i> Rules &amp; Rewards</a>
       <a class="nav-item" href="/admin/hotlines"><i class="ti ti-phone"></i> Hotlines</a>
@@ -440,7 +441,7 @@
           <i class="fas fa-building" aria-hidden="true"></i>
           <h1 id="orgDetailsTitle">ORGANIZATION DETAILS</h1>
         </header>
-        <div class="org-page__status" id="orgPageStatus">Loading organizationâ€¦</div>
+        <div class="org-page__status" id="orgPageStatus">Loading organization…</div>
         <div class="org-page__body" id="orgPageBody" hidden></div>
         <footer class="org-page__footer" id="orgPageFooter" hidden>
           <div class="org-page__actions" id="orgPageActions"></div>
@@ -465,7 +466,7 @@
     <h2 id="orgRejectModalTitle">Reject organization</h2>
     <p id="orgRejectModalHelp" class="reject-modal-help">Reject this organization registration? They will not be able to sign in until an administrator approves them again.</p>
     <label for="orgRejectReasonInput">Reason (optional)</label>
-    <textarea id="orgRejectReasonInput" rows="4" placeholder="e.g. Incomplete registration detailsâ€¦" autocomplete="off"></textarea>
+    <textarea id="orgRejectReasonInput" rows="4" placeholder="e.g. Incomplete registration details…" autocomplete="off"></textarea>
     <div class="reject-modal-actions">
       <button type="button" class="reject-modal-cancel" id="orgRejectCancel">Cancel</button>
       <button type="button" class="reject-modal-confirm" id="orgRejectConfirm">Reject organization</button>

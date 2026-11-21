@@ -480,6 +480,7 @@ async function saveCampaign(status) {
     const created = await addDoc(collection(db, "donation_campaigns"), {
         ...payload,
         raisedAmountCentavos: 0,
+        settledAmountCentavos: 0,
         donorCount: 0,
         rejectionReason: "",
         createdAt: serverTimestamp(),
