@@ -34,7 +34,7 @@
     <a href="/donation" class="{{ $isActive('donation') }}" data-access-module="donations"><i class="bi bi-gift"></i> Donation</a>
 
     <div class="org-sidebar-section sidebar-section">Account</div>
-    <a href="/organization/profile" class="{{ $isActive('profile') }}" data-access-module="account"><i class="bi bi-person"></i> Account</a>
+    <a href="/organization/profile" class="{{ $isActive('profile') }}" data-access-module="account"><i class="bi bi-person"></i> Account Profile</a>
     <a href="/organization/users" class="{{ $isActive('users') }}" id="orgNavUsers" data-owner-only="users"><i class="bi bi-person-gear"></i> Users</a>
 
     <button type="button" id="logoutBtn" class="org-sidebar-logout-link sidebar-logout-link">

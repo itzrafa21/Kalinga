@@ -652,7 +652,7 @@
 </head>
 <body class="org-app">
   @include('partials.org-sidebar', ['activeNav' => 'profile'])
-  @include('partials.org-topbar', ['pageTitle' => 'Account'])
+  @include('partials.org-topbar', ['pageTitle' => 'Account Profile'])
 
   <main class="org-main-content main-content profile-page" id="mainContent">
     <div class="profile-scroll">
