@@ -29,6 +29,29 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/organizations/$(orgId)/team/$(request.auth.uid));
     }
 
+    function ownsMission(missionId) {
+      return signedIn() && (
+        exists(/databases/$(database)/documents/organizations/$(request.auth.uid)/missions/$(missionId))
+        || (
+          exists(/databases/$(database)/documents/missions/$(missionId))
+          && (
+            get(/databases/$(database)/documents/missions/$(missionId)).data.get('orgId', '')
+              == request.auth.uid
+            || get(/databases/$(database)/documents/missions/$(missionId)).data.get('organizationId', '')
+              == request.auth.uid
+          )
+        )
+      );
+    }
+
+    function canReadMission(missionId) {
+      return signedIn() && (
+        isAdmin()
+        || ownsMission(missionId)
+        || exists(/databases/$(database)/documents/missions/$(missionId))
+      );
+    }
+
     match /donation_campaigns/{campaignId} {
       allow read: if resource.data.status == 'published' ||
         (signedIn() && (
@@ -155,6 +178,34 @@ service cloud.firestore {
     match /platform_config/{docId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
+
+    // Mission announcements (org host posts; volunteers can read).
+    match /missions/{missionId}/announcements/{announcementId} {
+      allow read: if canReadMission(missionId);
+      allow create: if ownsMission(missionId)
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.orgId == request.auth.uid;
+      allow update, delete: if ownsMission(missionId) || isAdmin();
+    }
+
+    // Mirror under the organization mission copy.
+    match /organizations/{orgId}/missions/{missionId}/announcements/{announcementId} {
+      allow read: if signedIn() && (
+        isAdmin()
+        || request.auth.uid == orgId
+        || isOrgTeamOf(orgId)
+        || canReadMission(missionId)
+      );
+      allow create: if signedIn()
+        && request.auth.uid == orgId
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.orgId == orgId;
+      allow update, delete: if signedIn() && (request.auth.uid == orgId || isAdmin());
     }
 
     // Team users for organization accounts:

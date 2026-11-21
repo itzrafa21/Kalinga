@@ -10,6 +10,7 @@ import {
   orderBy,
   limit,
   addDoc,
+  setDoc,
   updateDoc,
   deleteField,
   serverTimestamp,
@@ -224,28 +225,87 @@ function formatAnnouncementTime(ts) {
   });
 }
 
-async function loadMissionAnnouncements(missionId) {
-  if (!missionId) return [];
-  const col = collection(db, "missions", missionId, "announcements");
+function sortAnnouncementsNewestFirst(rows) {
+  return rows.slice().sort((a, b) => {
+    const am = a.createdAt?.toMillis?.() || a.createdAt?.seconds || Date.parse(a.createdAt) || 0;
+    const bm = b.createdAt?.toMillis?.() || b.createdAt?.seconds || Date.parse(b.createdAt) || 0;
+    return bm - am;
+  });
+}
+
+async function readAnnouncementsFromCollection(colRef) {
   try {
-    const q = query(col, orderBy("createdAt", "desc"), limit(30));
-    const snap = await getDocs(q);
+    const snap = await getDocs(query(colRef, orderBy("createdAt", "desc"), limit(30)));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (err) {
     try {
-      const snap = await getDocs(query(col, limit(30)));
-      return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => {
-          const am = a.createdAt?.toMillis?.() || a.createdAt?.seconds || 0;
-          const bm = b.createdAt?.toMillis?.() || b.createdAt?.seconds || 0;
-          return bm - am;
-        });
+      const snap = await getDocs(query(colRef, limit(30)));
+      return sortAnnouncementsNewestFirst(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      );
     } catch (err2) {
-      console.warn("[WARN] loadMissionAnnouncements:", err2 || err);
+      console.warn("[WARN] readAnnouncementsFromCollection:", err2 || err);
       return [];
     }
   }
+}
+
+async function loadMissionAnnouncements(missionId, orgId = "") {
+  if (!missionId) return [];
+
+  const primary = await readAnnouncementsFromCollection(
+    collection(db, "missions", missionId, "announcements")
+  );
+  if (primary.length) return primary;
+
+  const resolvedOrgId =
+    orgId ||
+    currentMissionContext?.mission?.orgId ||
+    currentMissionContext?.mission?.organizationId ||
+    "";
+  if (!resolvedOrgId) return primary;
+
+  return readAnnouncementsFromCollection(
+    collection(
+      db,
+      "organizations",
+      resolvedOrgId,
+      "missions",
+      missionId,
+      "announcements"
+    )
+  );
+}
+
+async function saveMissionAnnouncement(missionId, payload, orgId) {
+  const announceRef = doc(
+    collection(db, "missions", missionId, "announcements")
+  );
+  await setDoc(announceRef, payload);
+
+  if (orgId) {
+    try {
+      await setDoc(
+        doc(
+          db,
+          "organizations",
+          orgId,
+          "missions",
+          missionId,
+          "announcements",
+          announceRef.id
+        ),
+        payload
+      );
+    } catch (mirrorErr) {
+      console.warn(
+        "[WARN] Could not mirror announcement under organization mission:",
+        mirrorErr
+      );
+    }
+  }
+
+  return announceRef.id;
 }
 
 function announceFileExtension(name) {
@@ -2105,25 +2165,51 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
         const attachments = pendingFiles.length
           ? await uploadAnnouncementAttachments(pendingFiles, orgId, missionId)
           : [];
-        await addDoc(collection(db, "missions", missionId, "announcements"), {
+        if (!orgId) {
+          throw new Error(
+            "Missing organization id. Cannot store announcement in Firestore."
+          );
+        }
+        if (!user?.uid) {
+          throw new Error("You must be signed in to post an announcement.");
+        }
+        const payload = {
           title,
           description,
           attachments,
           images: attachments.filter((a) => a.kind === "image"),
           documents: attachments.filter((a) => a.kind === "document"),
           createdAt: serverTimestamp(),
-          createdBy: user?.uid || "",
+          createdBy: user.uid,
           authorName: hostName,
           orgId,
-        });
+        };
+        const announcementId = await saveMissionAnnouncement(
+          missionId,
+          payload,
+          orgId
+        );
         closeMissionAnnounceModal();
-        missionAnnouncementsCache = await loadMissionAnnouncements(missionId);
+        missionAnnouncementsCache = [
+          {
+            id: announcementId,
+            ...payload,
+            createdAt: new Date(),
+          },
+          ...(await loadMissionAnnouncements(missionId, orgId)).filter(
+            (row) => String(row.id) !== String(announcementId)
+          ),
+        ];
         await refreshMissionDetails({ refresh: true, background: true });
       } catch (e) {
-        console.error(e);
+        console.error("[ERROR] post announcement:", e);
         if (err) {
-          err.textContent =
-            e?.message || "Could not post announcement. Try again.";
+          const permissionDenied =
+            e?.code === "permission-denied" ||
+            /permission/i.test(String(e?.message || ""));
+          err.textContent = permissionDenied
+            ? "Firestore blocked this announcement. Deploy the updated firestore.rules for missions/.../announcements."
+            : e?.message || "Could not post announcement. Try again.";
         }
       } finally {
         saveBtn.disabled = false;
@@ -2648,7 +2734,7 @@ async function refreshMissionDetails({ refresh = true, background = false } = {}
       ? countApprovedVolunteers(volunteers)
       : await countMissionSignups(missionId, orgId);
 
-    const announcements = await loadMissionAnnouncements(missionId);
+    const announcements = await loadMissionAnnouncements(missionId, orgId);
     missionAnnouncementsCache = announcements;
 
     currentMissionContext = {
