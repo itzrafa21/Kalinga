@@ -287,7 +287,9 @@ async function autoClosePendingApplications(orgMissionById) {
 
         for (const volunteer of pending) {
             try {
-                await updateDoc(getApplicationDocRef(volunteer), {
+                const appRef = getApplicationDocRef(volunteer);
+                if (!appRef) continue;
+                await updateDoc(appRef, {
                     status: "closed",
                     closedAt: new Date(),
                     closeReason: AUTO_CLOSE_REASON,
@@ -326,14 +328,24 @@ async function syncApplicationStatusToCopies(volunteer, missionId, payload, orgI
             volunteer.storage === STORAGE_USERS_SUB ||
             volunteer.storage === STORAGE_ORG_ROSTER
         ) {
-            const missionSnap = await getDocs(
-                query(
-                    collection(db, "missions", missionId, "applications"),
-                    where("userId", "==", volunteer.userId)
-                )
-            );
-            for (const mDoc of missionSnap.docs) {
-                await updateDoc(mDoc.ref, payload);
+            const oid = orgId || volunteer.orgId || volunteer.organizationId || "";
+            if (oid) {
+                const missionSnap = await getDocs(
+                    query(
+                        collection(
+                            db,
+                            "organizations",
+                            oid,
+                            "missions",
+                            missionId,
+                            "applications"
+                        ),
+                        where("userId", "==", volunteer.userId)
+                    )
+                );
+                for (const mDoc of missionSnap.docs) {
+                    await updateDoc(mDoc.ref, payload);
+                }
             }
         } else {
             const userSnap = await getDocs(
@@ -386,7 +398,9 @@ async function autoAcceptPendingApplications(orgMissionById) {
                     updatedAt: new Date(),
                 };
 
-                await updateDoc(getApplicationDocRef(volunteer), payload);
+                const appRef = getApplicationDocRef(volunteer);
+                if (!appRef) continue;
+                await updateDoc(appRef, payload);
                 await syncApplicationStatusToCopies(
                     volunteer,
                     missionId,
@@ -875,19 +889,29 @@ function shouldSkipApplicationLoad(dedupe, missionId, userId) {
     return dedupe.has(key);
 }
 
-async function loadMissionSubcollectionApplications(orgMissionById, dedupe) {
+async function loadMissionSubcollectionApplications(orgId, orgMissionById, dedupe) {
+    if (!orgId) return;
     const missionEntries = [...orgMissionById.entries()];
 
     const applicationSnaps = await Promise.all(
         missionEntries.map(async ([missionId, mission]) => {
             try {
                 const applicationsSnapshot = await getDocs(
-                    collection(db, "missions", missionId, "applications")
+                    collection(
+                        db,
+                        "organizations",
+                        orgId,
+                        "missions",
+                        missionId,
+                        "applications"
+                    )
                 );
                 return { missionId, mission, applicationsSnapshot, error: null };
             } catch (missionError) {
                 console.error(
-                    "[ERROR] missions/",
+                    "[ERROR] organizations/",
+                    orgId,
+                    "/missions/",
                     missionId,
                     "/applications",
                     missionError
@@ -1026,7 +1050,7 @@ async function loadVolunteers({
 
         const [, , orgAppsResult] = await Promise.all([
             loadOrgMissionVolunteerRosters(orgId, orgMissionById, dedupe),
-            loadMissionSubcollectionApplications(orgMissionById, dedupe),
+            loadMissionSubcollectionApplications(orgId, orgMissionById, dedupe),
             loadOrgApplications(
                 orgMissionById,
                 (entry) => {
@@ -1249,7 +1273,11 @@ async function updateApplicationStatus(applicationId, missionId, newStatus, opti
             payload.approvedAt = new Date();
         }
 
-        await updateDoc(getApplicationDocRef(volunteer), payload);
+        const appRef = getApplicationDocRef(volunteer);
+        if (!appRef) {
+            throw new Error("Application document path could not be resolved.");
+        }
+        await updateDoc(appRef, payload);
 
         const resolvedOrgId =
             volunteer.orgId ||

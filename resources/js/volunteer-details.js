@@ -148,13 +148,14 @@ function normalizeMissionDoc(data, fallbackOrgId = "") {
 
 async function fetchMissionDoc(orgId, missionId) {
     const oid = String(orgId || "").trim();
-    const refs = [doc(db, "missions", missionId)];
+    const refs = [];
     if (oid) {
-        refs.unshift(
+        refs.push(
             doc(db, "organizations", oid, "missions", missionId),
             doc(db, "organizations", oid, "history", missionId)
         );
     }
+    refs.push(doc(db, "mission_submissions", missionId));
     for (const ref of refs) {
         try {
             const snap = await getDoc(ref);
@@ -172,7 +173,7 @@ async function fetchMissionDoc(orgId, missionId) {
     return null;
 }
 
-/** Try global mission + every known org (history/missions) — completed docs often live only under org. */
+/** Try submission + every known org (history/missions) — completed docs often live only under org. */
 async function fetchMissionDocExpanded(missionId, primaryOrgId, orgHints = []) {
     const hints = new Set();
     const addHint = (id) => {
@@ -183,16 +184,16 @@ async function fetchMissionDocExpanded(missionId, primaryOrgId, orgHints = []) {
     for (const h of orgHints) addHint(h);
 
     try {
-        const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (globalSnap.exists()) {
-            const data = globalSnap.data();
+        const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+        if (subSnap.exists()) {
+            const data = subSnap.data();
             addHint(data.orgId || data.organizationId);
             if (isMissionDataCompleted(data)) {
                 return normalizeMissionDoc(data);
             }
         }
     } catch (err) {
-        console.warn("[WARN] fetchMissionDocExpanded global:", missionId, err);
+        console.warn("[WARN] fetchMissionDocExpanded submission:", missionId, err);
     }
 
     for (const oid of hints) {
@@ -201,9 +202,9 @@ async function fetchMissionDocExpanded(missionId, primaryOrgId, orgHints = []) {
     }
 
     try {
-        const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (globalSnap.exists()) {
-            return normalizeMissionDoc(globalSnap.data());
+        const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+        if (subSnap.exists()) {
+            return normalizeMissionDoc(subSnap.data());
         }
     } catch {
         /* ignore */

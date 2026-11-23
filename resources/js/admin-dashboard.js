@@ -223,12 +223,17 @@ async function fetchMissionTypeCounts(configuredTypes) {
     }
 
     try {
-        const missionsSnap = await getDocs(collection(db, "missions"));
-        missionsSnap.docs.forEach((docSnap) =>
-            addMission(docSnap.data(), docSnap.id)
-        );
+        const orgsSnap = await getDocs(collection(db, "organizations"));
+        for (const orgDoc of orgsSnap.docs) {
+            const missionsSnap = await getDocs(
+                collection(db, "organizations", orgDoc.id, "missions")
+            );
+            missionsSnap.docs.forEach((docSnap) =>
+                addMission(docSnap.data(), docSnap.id)
+            );
+        }
     } catch (err) {
-        console.warn("[WARN] missions collection for type chart:", err);
+        console.warn("[WARN] org missions for type chart:", err);
     }
 
     return counts;
@@ -1619,26 +1624,6 @@ async function discoverVolunteersFromApplications() {
         }
     }
 
-    if (profileByUserId.size === 0) {
-        try {
-            const missionsSnap = await getDocs(collection(db, "missions"));
-            for (const missionDoc of missionsSnap.docs) {
-                const appsSnap = await getDocs(
-                    collection(db, "missions", missionDoc.id, "applications")
-                );
-                for (const appDoc of appsSnap.docs) {
-                    mergeApplicationVolunteerProfile(
-                        profileByUserId,
-                        appDoc.data().userId,
-                        appDoc.data()
-                    );
-                }
-            }
-        } catch (err) {
-            console.warn("[WARN] missions/*/applications scan for admin volunteers:", err);
-        }
-    }
-
   if (profileByUserId.size === 0) {
         try {
             const orgSnap = await getDocs(collection(db, "organizations"));
@@ -1747,7 +1732,7 @@ async function getMissionDurationHoursCached(missionId) {
 
     let hours = 0;
     try {
-        const snap = await getDoc(doc(db, "missions", missionId));
+        const snap = await getDoc(doc(db, "mission_submissions", missionId));
         if (snap.exists()) {
             const mission = snap.data();
             hours =
@@ -2094,8 +2079,11 @@ window.approveMission = async function(missionId) {
             approvedBy: auth.currentUser.email,
         };
 
-        // Publish to live collections
-        await setDoc(doc(db, "missions", missionId), approvedMissionData);
+        // Publish to the organization mission (canonical live path).
+        if (!submissionData.orgId) {
+            alert("Mission is missing an organization id.");
+            return;
+        }
         await setDoc(
             doc(db, "organizations", submissionData.orgId, "missions", missionId),
             approvedMissionData
@@ -3022,21 +3010,39 @@ async function syncMissionStatuses() {
                 const missionId = historyDoc.id;
                 const historyData = historyDoc.data();
                 
-                // Update global missions collection if it's not marked as completed
                 try {
-                    const globalMissionRef = doc(db, "missions", missionId);
-                    const globalMissionDoc = await getDoc(globalMissionRef);
+                    const orgMissionRef = doc(
+                        db,
+                        "organizations",
+                        orgId,
+                        "missions",
+                        missionId
+                    );
+                    const orgMissionDoc = await getDoc(orgMissionRef);
                     
-                    if (globalMissionDoc.exists()) {
-                        const globalData = globalMissionDoc.data();
-                        if (globalData.status !== "Completed") {
-                            await updateDoc(globalMissionRef, {
+                    if (orgMissionDoc.exists()) {
+                        const orgData = orgMissionDoc.data();
+                        if (orgData.status !== "Completed") {
+                            await updateDoc(orgMissionRef, {
                                 status: "Completed",
                                 completedAt: historyData.completedAt || historyData.movedToHistoryAt || new Date(),
                                 movedToHistoryAt: historyData.movedToHistoryAt || new Date()
                             });
                             console.log(`[SUCCESS] Synced mission ${missionId} to Completed status`);
                             updatedCount++;
+                        }
+                    }
+
+                    const submissionRef = doc(db, "mission_submissions", missionId);
+                    const submissionDoc = await getDoc(submissionRef);
+                    if (submissionDoc.exists()) {
+                        const subData = submissionDoc.data();
+                        if (subData.status !== "Completed") {
+                            await updateDoc(submissionRef, {
+                                status: "Completed",
+                                completedAt: historyData.completedAt || historyData.movedToHistoryAt || new Date(),
+                                movedToHistoryAt: historyData.movedToHistoryAt || new Date()
+                            });
                         }
                     }
                 } catch (error) {

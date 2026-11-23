@@ -106,12 +106,12 @@ async function resolveMissionCreatedAt(missionId, mission = {}) {
     const local = mission.createdAt ?? mission.submittedAt ?? null;
     if (getCreatedAtMs(local)) return local;
     try {
-        const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (!globalSnap.exists()) return local;
-        const data = globalSnap.data() || {};
+        const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+        if (!subSnap.exists()) return local;
+        const data = subSnap.data() || {};
         return data.createdAt ?? data.submittedAt ?? local;
     } catch (err) {
-        console.warn("[WARN] Could not read missions.createdAt:", missionId, err);
+        console.warn("[WARN] Could not read mission_submissions.createdAt:", missionId, err);
         return local;
     }
 }
@@ -295,15 +295,6 @@ if (isPending) {
         closedPayload
     );
 
-    try {
-        await updateDoc(doc(db, "missions", missionId), closedPayload);
-    } catch (error) {
-        console.log(
-            "[WARNING] Could not update global mission:",
-            error
-        );
-    }
-
     await moveMissionToHistory(user.uid, missionId, {
         ...mission,
         ...closedPayload,
@@ -331,15 +322,6 @@ if (isPending) {
                         lastStatusUpdate: new Date(),
                     }
                 );
-
-                try {
-                    await updateDoc(doc(db, "missions", missionId), {
-                        status: newStatus,
-                        lastStatusUpdate: new Date(),
-                    });
-                } catch (error) {
-                    console.log("[WARNING] Could not update global mission:", error);
-                }
 
                 updatedCount++;
             }
@@ -406,12 +388,22 @@ async function closePendingApplicationsForMission(missionId) {
     };
 
     try {
-        const subSnap = await getDocs(
-            collection(db, "missions", missionId, "applications")
-        );
-        for (const appDoc of subSnap.docs) {
-            if ((appDoc.data().status || "").toLowerCase() !== "pending") continue;
-            await updateDoc(appDoc.ref, payload);
+        const orgId = auth.currentUser?.uid;
+        if (orgId) {
+            const subSnap = await getDocs(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "applications"
+                )
+            );
+            for (const appDoc of subSnap.docs) {
+                if ((appDoc.data().status || "").toLowerCase() !== "pending") continue;
+                await updateDoc(appDoc.ref, payload);
+            }
         }
     } catch (e) {
         console.warn("[WARNING] close pending subcollection apps", missionId, e);
@@ -532,16 +524,23 @@ async function countApprovedForMission(missionId, orgId) {
         keys.add(u ? `u:${u}` : `d:${docId}`);
     };
 
-    try {
-        const sub = await getDocs(
-            collection(db, "missions", missionId, "applications")
-        );
-        sub.forEach((d) => addIfApproved(d.data(), d.id));
-    } catch {
-        /* ignore */
-    }
-
     if (orgId) {
+        try {
+            const sub = await getDocs(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "applications"
+                )
+            );
+            sub.forEach((d) => addIfApproved(d.data(), d.id));
+        } catch {
+            /* ignore */
+        }
+
         try {
             const rosterSnap = await getDocs(
                 collection(
@@ -949,24 +948,26 @@ async function moveMissionToHistory(orgId, missionId, mission) {
         };
 
         try {
-            const globalSnap = await getDoc(doc(db, "missions", missionId));
-            if (globalSnap.exists()) {
-                const globalData = globalSnap.data();
+            const orgSnap = await getDoc(
+                doc(db, "organizations", orgId, "missions", missionId)
+            );
+            if (orgSnap.exists()) {
+                const orgData = orgSnap.data();
                 payload = {
                     ...mission,
-                    ...globalData,
+                    ...orgData,
                     status:
                         mission.status === "Pending" ||
                         mission.status === "pending" ||
-                        globalData.status === "Pending" ||
-                        globalData.status === "pending"
+                        orgData.status === "Pending" ||
+                        orgData.status === "pending"
                             ? "Closed"
-                            : globalData.status || mission.status,
+                            : orgData.status || mission.status,
                     movedToHistoryAt: new Date(),
                 };
             }
         } catch (e) {
-            console.warn("[WARNING] Could not read global mission for merge:", missionId, e);
+            console.warn("[WARNING] Could not read org mission for merge:", missionId, e);
         }
 
         if (

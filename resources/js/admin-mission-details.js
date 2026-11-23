@@ -164,8 +164,16 @@ function closeOverlay(id) {
 
 async function loadMissionSnap() {
     let snap = await getDoc(doc(db, "mission_submissions", missionId));
-    if (!snap.exists()) {
-        snap = await getDoc(doc(db, "missions", missionId));
+    if (snap.exists()) return snap;
+
+    const orgId = String(
+        new URLSearchParams(window.location.search).get("orgId") || ""
+    ).trim();
+    if (orgId) {
+        snap = await getDoc(
+            doc(db, "organizations", orgId, "missions", missionId)
+        );
+        if (snap.exists()) return snap;
     }
     return snap;
 }
@@ -392,13 +400,15 @@ async function approveMission() {
             approvedBy: auth.currentUser?.email || "",
         };
 
-        await setDoc(doc(db, "missions", missionId), approvedMissionData);
-        if (submissionData.orgId) {
-            await setDoc(
-                doc(db, "organizations", submissionData.orgId, "missions", missionId),
-                approvedMissionData
-            );
+        if (!submissionData.orgId) {
+            alert("Mission is missing an organization id.");
+            if (button) button.disabled = false;
+            return;
         }
+        await setDoc(
+            doc(db, "organizations", submissionData.orgId, "missions", missionId),
+            approvedMissionData
+        );
         await updateDoc(submissionRef, {
             ...pointsFields,
             basePoints: deleteField(),

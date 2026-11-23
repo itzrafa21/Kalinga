@@ -37,9 +37,16 @@ export function resolveMissionIdFromApplication(data, refPath = "") {
         data?.missionId || data?.mission_id || data?.missionID || null;
     if (fromData) return String(fromData);
 
-    const parts = refPath.split("/");
+    const parts = String(refPath || "").split("/").filter(Boolean);
     if (parts[0] === "missions" && parts[2] === "applications") {
         return parts[1];
+    }
+    if (
+        parts[0] === "organizations" &&
+        parts[2] === "missions" &&
+        parts[4] === "applications"
+    ) {
+        return parts[3];
     }
     return null;
 }
@@ -76,7 +83,16 @@ export function inferMissionIdForOrg(
             ensureMissionStub(orgMissionById, fromRef, data);
             return fromRef;
         }
-        if (refPath.startsWith("missions/") && refPath.includes("/applications/")) {
+        if (
+            (refPath.startsWith("missions/") &&
+                refPath.includes("/applications/")) ||
+            (refPath.includes("/organizations/") &&
+                refPath.includes("/missions/") &&
+                refPath.includes("/applications/")) ||
+            (refPath.startsWith("organizations/") &&
+                refPath.includes("/missions/") &&
+                refPath.includes("/applications/"))
+        ) {
             return fromRef;
         }
     }
@@ -104,8 +120,11 @@ export function applicationBelongsToOrg(
     const mission = orgMissionById.get(missionId);
     if (mission && mission.orgId === orgId) return true;
     if (
-        refPath.startsWith("missions/") &&
-        refPath.includes("/applications/") &&
+        ((refPath.startsWith("missions/") &&
+            refPath.includes("/applications/")) ||
+            (refPath.startsWith("organizations/") &&
+                refPath.includes("/missions/") &&
+                refPath.includes("/applications/"))) &&
         orgMissionById.has(missionId)
     ) {
         return true;
@@ -122,7 +141,21 @@ export function getApplicationDocRef(volunteer) {
         const appId = volunteer.userApplicationId || id;
         return doc(db, "users", userId, "applications", appId);
     }
-    return doc(db, "missions", missionId, "applications", id);
+    const orgId = volunteer.orgId || volunteer.organizationId || "";
+    if (orgId && missionId) {
+        return doc(
+            db,
+            "organizations",
+            orgId,
+            "missions",
+            missionId,
+            "applications",
+            id
+        );
+    }
+    if (!missionId) return null;
+    // Prefer org path even when orgId was missing earlier — resolve via missionId callers.
+    return null;
 }
 
 /** Primary source for roster copy: users/{userId}/applications for this mission. */
@@ -232,11 +265,6 @@ export async function upsertMissionVolunteer(orgId, missionId, userId, applicati
             );
             if (orgSnap.exists()) {
                 missionPoints = resolveMissionPoints(orgSnap.data());
-            } else {
-                const globalSnap = await getDoc(doc(db, "missions", missionId));
-                if (globalSnap.exists()) {
-                    missionPoints = resolveMissionPoints(globalSnap.data());
-                }
             }
         } catch {
             /* ignore */
@@ -285,18 +313,27 @@ export async function syncMissionVolunteerRoster(
     }
 }
 
-export async function userHasApplicationForMission(missionId, userId) {
+export async function userHasApplicationForMission(missionId, userId, orgId = "") {
     if (!missionId || !userId) return false;
 
-    try {
-        const missionQ = query(
-            collection(db, "missions", missionId, "applications"),
-            where("userId", "==", userId)
-        );
-        const missionSnap = await getDocs(missionQ);
-        if (!missionSnap.empty) return true;
-    } catch {
-        /* ignore */
+    if (orgId) {
+        try {
+            const missionQ = query(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "applications"
+                ),
+                where("userId", "==", userId)
+            );
+            const missionSnap = await getDocs(missionQ);
+            if (!missionSnap.empty) return true;
+        } catch {
+            /* ignore */
+        }
     }
 
     try {

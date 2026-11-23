@@ -627,12 +627,6 @@ onAuthStateChanged(auth, async (user) => {
         await updateDoc(submissionRef, updatedData);
       }
 
-      const globalRef = doc(db, "missions", missionId);
-      const globalSnap = await getDoc(globalRef);
-      if (globalSnap.exists()) {
-        await updateDoc(globalRef, updatedData);
-      }
-
       invalidateOrgCache(user.uid, ORG_CACHE_KEYS.DASHBOARD);
       invalidateOrgCache(user.uid, ORG_CACHE_KEYS.HISTORY);
       invalidateOrgCache(user.uid, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
@@ -737,7 +731,6 @@ async function persistEditDonation(userId, missionId, details) {
     doc(db, "organizations", userId, "missions", missionId),
     doc(db, "organizations", userId, "history", missionId),
     doc(db, "mission_submissions", missionId),
-    doc(db, "missions", missionId),
   ];
 
   let saved = false;

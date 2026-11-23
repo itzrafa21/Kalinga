@@ -412,16 +412,6 @@ async function resolveHistoryCreatedAt(missionId, mission = {}) {
     if (!missionId) return local;
 
     try {
-        const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (globalSnap.exists()) {
-            const fromMissions = pickCreatedAtValue(globalSnap.data() || {});
-            if (getCreatedAtMs(fromMissions)) return fromMissions;
-        }
-    } catch (err) {
-        console.warn("[WARN] Could not read missions.createdAt:", missionId, err);
-    }
-
-    try {
         const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
         if (subSnap.exists()) {
             const fromSub = pickCreatedAtValue(subSnap.data() || {});
@@ -710,14 +700,18 @@ function processHistoryMissionLocal(docSnap, userId) {
     return item;
 }
 
-/** Non-blocking cleanup: drop history rows whose global mission was hard-deleted. */
+/** Non-blocking cleanup: drop history rows with no live org mission and no submission. */
 async function cleanupOrphanHistoryEntries(userId, missionIds = []) {
     if (!userId || !missionIds.length) return 0;
     const checks = await Promise.all(
         missionIds.map(async (missionId) => {
             try {
-                const snap = await getDoc(doc(db, "missions", missionId));
-                return { missionId, exists: snap.exists() };
+                const orgSnap = await getDoc(
+                    doc(db, "organizations", userId, "missions", missionId)
+                );
+                if (orgSnap.exists()) return { missionId, exists: true };
+                const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+                return { missionId, exists: subSnap.exists() };
             } catch (err) {
                 console.warn("[WARN] history orphan check:", missionId, err);
                 return { missionId, exists: true };
@@ -1197,23 +1191,34 @@ async function getActualVolunteerCount(missionId, orgId = null) {
         }
     }
 
-    try {
-        const applicationsSnapshot = await getDocs(
-            collection(db, "missions", missionId, "applications")
-        );
-        let approved = 0;
-        applicationsSnapshot.forEach((docSnap) => {
-            const st = String(docSnap.data()?.status || "").toLowerCase();
-            if (st === "approved" || st === "accepted") approved += 1;
-        });
-        return approved;
-    } catch (error) {
-        console.error(
-            `[ERROR] Error getting volunteer count for mission ${missionId}:`,
-            error
-        );
-        return 0;
+    if (orgId) {
+        try {
+            const applicationsSnapshot = await getDocs(
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "applications"
+                )
+            );
+            let approved = 0;
+            applicationsSnapshot.forEach((docSnap) => {
+                const st = String(docSnap.data()?.status || "").toLowerCase();
+                if (st === "approved" || st === "accepted") approved += 1;
+            });
+            return approved;
+        } catch (error) {
+            console.error(
+                `[ERROR] Error getting volunteer count for mission ${missionId}:`,
+                error
+            );
+            return 0;
+        }
     }
+
+    return 0;
 }
 
 

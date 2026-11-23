@@ -39,6 +39,13 @@ import {
   computeMissionDurationHours,
 } from "./mission-type-points.js";
 import {
+  loadOrgMissionDocument,
+  orgMissionAnnouncementsCol,
+  orgMissionAnnouncementDoc,
+  orgMissionApplicationsCol,
+  resolveMissionOrgId,
+} from "./mission-paths.js";
+import {
   readOrgCache,
   writeOrgCache,
   invalidateOrgCache,
@@ -82,6 +89,11 @@ let rosterDateSortDir = "asc";
 function getMissionIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get("id");
+}
+
+function getOrgIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return String(params.get("orgId") || "").trim();
 }
 
 function escapeHtml(text) {
@@ -253,58 +265,25 @@ async function readAnnouncementsFromCollection(colRef) {
 async function loadMissionAnnouncements(missionId, orgId = "") {
   if (!missionId) return [];
 
-  const primary = await readAnnouncementsFromCollection(
-    collection(db, "missions", missionId, "announcements")
-  );
-  if (primary.length) return primary;
-
   const resolvedOrgId =
     orgId ||
     currentMissionContext?.mission?.orgId ||
     currentMissionContext?.mission?.organizationId ||
+    (await resolveMissionOrgId(missionId)) ||
     "";
-  if (!resolvedOrgId) return primary;
+  if (!resolvedOrgId) return [];
 
   return readAnnouncementsFromCollection(
-    collection(
-      db,
-      "organizations",
-      resolvedOrgId,
-      "missions",
-      missionId,
-      "announcements"
-    )
+    orgMissionAnnouncementsCol(resolvedOrgId, missionId)
   );
 }
 
 async function saveMissionAnnouncement(missionId, payload, orgId) {
-  const announceRef = doc(
-    collection(db, "missions", missionId, "announcements")
-  );
-  await setDoc(announceRef, payload);
-
-  if (orgId) {
-    try {
-      await setDoc(
-        doc(
-          db,
-          "organizations",
-          orgId,
-          "missions",
-          missionId,
-          "announcements",
-          announceRef.id
-        ),
-        payload
-      );
-    } catch (mirrorErr) {
-      console.warn(
-        "[WARN] Could not mirror announcement under organization mission:",
-        mirrorErr
-      );
-    }
+  if (!orgId) {
+    throw new Error("Missing organization id. Cannot store announcement.");
   }
-
+  const announceRef = doc(orgMissionAnnouncementsCol(orgId, missionId));
+  await setDoc(announceRef, payload);
   return announceRef.id;
 }
 
@@ -637,13 +616,13 @@ async function countMissionSignups(missionId, orgId = null) {
     keys.add(u ? `u:${u}` : `d:${docId}`);
   };
 
-  try {
-    const sub = await getDocs(
-      collection(db, "missions", missionId, "applications")
-    );
-    sub.forEach((d) => addIfApproved(d.data(), d.id));
-  } catch {
-    /* ignore */
+  if (orgId) {
+    try {
+      const sub = await getDocs(orgMissionApplicationsCol(orgId, missionId));
+      sub.forEach((d) => addIfApproved(d.data(), d.id));
+    } catch {
+      /* ignore */
+    }
   }
 
   if (orgId) {
@@ -762,8 +741,15 @@ function mergeVolunteerEntries(existing, incoming, options = {}) {
 }
 
 function missionIdFromPath(refPath = "") {
-  const parts = String(refPath).split("/");
+  const parts = String(refPath || "").split("/").filter(Boolean);
   if (parts[0] === "missions" && parts[2] === "applications") return parts[1];
+  if (
+    parts[0] === "organizations" &&
+    parts[2] === "missions" &&
+    parts[4] === "applications"
+  ) {
+    return parts[3];
+  }
   return "";
 }
 
@@ -1050,22 +1036,22 @@ async function loadMissionVolunteers(missionId, orgId, mission = null) {
     );
   };
 
-  try {
-    const appSnap = await getDocs(
-      collection(db, "missions", missionId, "applications")
-    );
-    for (const docSnap of appSnap.docs) {
-      await pushApplicationRecord(
-        docSnap,
-        missionId,
-        orgId,
-        STORAGE_MISSIONS_SUB,
-        upsert,
-        mission
-      );
+  if (orgId) {
+    try {
+      const appSnap = await getDocs(orgMissionApplicationsCol(orgId, missionId));
+      for (const docSnap of appSnap.docs) {
+        await pushApplicationRecord(
+          docSnap,
+          missionId,
+          orgId,
+          STORAGE_MISSIONS_SUB,
+          upsert,
+          mission
+        );
+      }
+    } catch (err) {
+      console.warn("[WARN] mission applications:", err);
     }
-  } catch (err) {
-    console.warn("[WARN] mission applications:", err);
   }
 
   await loadRootApplicationsForMission(missionId, orgId, upsert, mission);
@@ -1087,8 +1073,22 @@ async function resolveApplicationDocRefs(volunteer, missionId) {
 
   const v = { ...volunteer, missionId };
 
+  const orgId = volunteer.orgId || volunteer.organizationId || "";
+
   if (volunteer.storage === STORAGE_MISSIONS_SUB && volunteer.id) {
-    addRef(doc(db, "missions", missionId, "applications", volunteer.id));
+    if (orgId) {
+      addRef(
+        doc(
+          db,
+          "organizations",
+          orgId,
+          "missions",
+          missionId,
+          "applications",
+          volunteer.id
+        )
+      );
+    }
     if (volunteer.userId && volunteer.userApplicationId) {
       addRef(
         doc(
@@ -1115,24 +1115,36 @@ async function resolveApplicationDocRefs(volunteer, missionId) {
       );
     }
     const missionAppId = volunteer.applicationId || "";
-    if (missionAppId) {
-      addRef(doc(db, "missions", missionId, "applications", missionAppId));
+    if (missionAppId && orgId) {
+      addRef(
+        doc(
+          db,
+          "organizations",
+          orgId,
+          "missions",
+          missionId,
+          "applications",
+          missionAppId
+        )
+      );
     }
   } else {
-    addRef(getApplicationDocRef(v));
+    addRef(getApplicationDocRef({ ...v, orgId }));
   }
 
   if (refs.length > 0) return refs;
 
   if (volunteer.userId) {
     try {
-      const missionSnap = await getDocs(
-        query(
-          collection(db, "missions", missionId, "applications"),
-          where("userId", "==", volunteer.userId)
-        )
-      );
-      missionSnap.docs.forEach((d) => addRef(d.ref));
+      if (orgId) {
+        const missionSnap = await getDocs(
+          query(
+            orgMissionApplicationsCol(orgId, missionId),
+            where("userId", "==", volunteer.userId)
+          )
+        );
+        missionSnap.docs.forEach((d) => addRef(d.ref));
+      }
 
       const userSnap = await getDocs(
         query(
@@ -1156,14 +1168,17 @@ async function syncApplicationStatusToCopies(volunteer, missionId, payload, orgI
         volunteer.storage === STORAGE_USERS_SUB ||
         volunteer.storage === STORAGE_ORG_ROSTER
       ) {
-        const missionSnap = await getDocs(
-          query(
-            collection(db, "missions", missionId, "applications"),
-            where("userId", "==", volunteer.userId)
-          )
-        );
-        for (const mDoc of missionSnap.docs) {
-          await updateDoc(mDoc.ref, payload);
+        const syncOrgId = orgId || volunteer.orgId || "";
+        if (syncOrgId) {
+          const missionSnap = await getDocs(
+            query(
+              orgMissionApplicationsCol(syncOrgId, missionId),
+              where("userId", "==", volunteer.userId)
+            )
+          );
+          for (const mDoc of missionSnap.docs) {
+            await updateDoc(mDoc.ref, payload);
+          }
         }
       } else {
         const userSnap = await getDocs(
@@ -2208,7 +2223,7 @@ function wireMissionAnnouncements(missionId, canAdd, user) {
             e?.code === "permission-denied" ||
             /permission/i.test(String(e?.message || ""));
           err.textContent = permissionDenied
-            ? "Firestore blocked this announcement. Deploy the updated firestore.rules for missions/.../announcements."
+            ? "Firestore blocked this announcement. Deploy the updated firestore.rules for organizations/.../missions/.../announcements."
             : e?.message || "Could not post announcement. Try again.";
         }
       } finally {
@@ -2428,7 +2443,10 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
   if (autoAccept) {
     applicationPayload.approvedAt = serverTimestamp();
   }
-  const applicationsCol = collection(db, "missions", missionId, "applications");
+  if (!orgId) {
+    throw new Error("Mission is missing an organization id.");
+  }
+  const applicationsCol = orgMissionApplicationsCol(orgId, missionId);
   const missionAppRef = await addDoc(applicationsCol, applicationPayload);
 
   let userAppId = null;
@@ -2461,77 +2479,29 @@ async function submitVolunteerApplication(missionId, user, mission = null) {
 }
 
 async function loadMissionDocument(missionId, user) {
-  const globalSnap = await getDoc(doc(db, "missions", missionId));
-  const globalData = globalSnap.exists() ? globalSnap.data() : null;
+  const urlOrgId = getOrgIdFromUrl();
 
   // Prefer the signed-in organization's own copy so owner roster checks stay correct.
-  let ownOrgData = null;
-  let ownHistoryData = null;
   if (user?.uid) {
-    const ownOrgSnap = await getDoc(
-      doc(db, "organizations", user.uid, "missions", missionId)
-    );
-    if (ownOrgSnap.exists()) ownOrgData = ownOrgSnap.data();
-
-    const ownHistorySnap = await getDoc(
-      doc(db, "organizations", user.uid, "history", missionId)
-    );
-    if (ownHistorySnap.exists()) ownHistoryData = ownHistorySnap.data();
+    const own = await loadOrgMissionDocument(missionId, user.uid);
+    if (own.mission) {
+      return {
+        mission: own.mission,
+        inHistory: own.inHistory,
+      };
+    }
   }
 
-  if (ownOrgData || ownHistoryData) {
+  const hintOrgId =
+    urlOrgId ||
+    currentMissionContext?.mission?.orgId ||
+    currentMissionContext?.mission?.organizationId ||
+    "";
+  const loaded = await loadOrgMissionDocument(missionId, hintOrgId);
+  if (loaded.mission) {
     return {
-      mission: {
-        ...(globalData || {}),
-        ...(ownOrgData || {}),
-        ...(ownHistoryData || {}),
-        orgId: user.uid,
-        organizationId: user.uid,
-      },
-      inHistory: Boolean(ownHistoryData) && !ownOrgData,
-    };
-  }
-
-  let orgData = null;
-  let historyData = null;
-  const orgId =
-    globalData?.orgId ||
-    globalData?.organizationId ||
-    user?.uid ||
-    null;
-
-  if (orgId) {
-    const orgSnap = await getDoc(
-      doc(db, "organizations", orgId, "missions", missionId)
-    );
-    if (orgSnap.exists()) orgData = orgSnap.data();
-
-    const historySnap = await getDoc(
-      doc(db, "organizations", orgId, "history", missionId)
-    );
-    if (historySnap.exists()) historyData = historySnap.data();
-  }
-
-  if (globalData || orgData || historyData) {
-    const resolvedOrgId =
-      globalData?.orgId ||
-      globalData?.organizationId ||
-      orgData?.orgId ||
-      orgData?.organizationId ||
-      historyData?.orgId ||
-      historyData?.organizationId ||
-      user?.uid ||
-      null;
-
-    return {
-      mission: {
-        ...globalData,
-        ...orgData,
-        ...historyData,
-        orgId: resolvedOrgId,
-        organizationId: resolvedOrgId,
-      },
-      inHistory: Boolean(historyData),
+      mission: loaded.mission,
+      inHistory: loaded.inHistory,
     };
   }
 
@@ -2539,7 +2509,16 @@ async function loadMissionDocument(missionId, user) {
   if (subSnap.exists()) {
     const data = subSnap.data();
     const resolvedOrgId =
-      data.orgId || data.organizationId || user?.uid || null;
+      data.orgId || data.organizationId || urlOrgId || user?.uid || null;
+    if (resolvedOrgId) {
+      const fromOrg = await loadOrgMissionDocument(missionId, resolvedOrgId);
+      if (fromOrg.mission) {
+        return {
+          mission: fromOrg.mission,
+          inHistory: fromOrg.inHistory,
+        };
+      }
+    }
     return {
       mission: {
         ...data,

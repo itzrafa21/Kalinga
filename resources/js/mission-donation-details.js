@@ -73,7 +73,7 @@ if (new URLSearchParams(window.location.search).get("view") === "1") {
     const refs = [
       doc(db, "organizations", user.uid, "missions", missionId),
       doc(db, "organizations", user.uid, "history", missionId),
-      doc(db, "missions", missionId),
+      doc(db, "mission_submissions", missionId),
     ];
 
     for (const ref of refs) {

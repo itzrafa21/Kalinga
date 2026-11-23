@@ -57,10 +57,7 @@ async function fetchMissionDoc(orgId, missionId) {
             doc(db, "organizations", oid, "history", missionId)
         );
     }
-    refs.push(
-        doc(db, "mission_submissions", missionId),
-        doc(db, "missions", missionId)
-    );
+    refs.push(doc(db, "mission_submissions", missionId));
 
     const results = await Promise.all(
         refs.map(async (ref) => {
@@ -89,18 +86,18 @@ async function fetchMissionDocExpanded(missionId, primaryOrgId, orgHints = []) {
     addHint(primaryOrgId);
     for (const h of orgHints) addHint(h);
 
-    let globalData = null;
+    let submissionData = null;
     try {
-        const globalSnap = await getDoc(doc(db, "missions", missionId));
-        if (globalSnap.exists()) {
-            globalData = globalSnap.data();
-            addHint(globalData.orgId || globalData.organizationId);
-            if (isMissionDataCompleted(globalData)) {
-                return normalizeMissionDoc(globalData);
+        const subSnap = await getDoc(doc(db, "mission_submissions", missionId));
+        if (subSnap.exists()) {
+            submissionData = subSnap.data();
+            addHint(submissionData.orgId || submissionData.organizationId);
+            if (isMissionDataCompleted(submissionData)) {
+                return normalizeMissionDoc(submissionData);
             }
         }
     } catch (err) {
-        console.warn("[WARN] volunteer-stats global:", missionId, err);
+        console.warn("[WARN] volunteer-stats submission:", missionId, err);
     }
 
     const hintList = [...hints];
@@ -112,7 +109,7 @@ async function fetchMissionDocExpanded(missionId, primaryOrgId, orgHints = []) {
         if (mission) return mission;
     }
 
-    return globalData ? normalizeMissionDoc(globalData) : null;
+    return submissionData ? normalizeMissionDoc(submissionData) : null;
 }
 
 function userIdFromApplicationPath(refPath = "") {

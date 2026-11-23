@@ -35,10 +35,17 @@ async function listApprovedVolunteerUserIds(orgId, missionId) {
         }
     }
 
-    if (userIds.size === 0) {
+    if (userIds.size === 0 && orgId) {
         try {
             const appsSnap = await getDocs(
-                collection(db, "missions", missionId, "applications")
+                collection(
+                    db,
+                    "organizations",
+                    orgId,
+                    "missions",
+                    missionId,
+                    "applications"
+                )
             );
             appsSnap.forEach((d) => {
                 const data = d.data();
@@ -149,9 +156,20 @@ export async function awardMissionPoints(orgId, missionId, mission) {
         }
     }
 
+    if (orgId) {
+        try {
+            await updateDoc(
+                doc(db, "organizations", orgId, "missions", missionId),
+                awardedUpdate
+            );
+        } catch {
+            /* live mission may already be in history */
+        }
+    }
+
     try {
-        await updateDoc(doc(db, "missions", missionId), awardedUpdate);
+        await updateDoc(doc(db, "mission_submissions", missionId), awardedUpdate);
     } catch {
-        /* global mission may not exist */
+        /* submission may not exist */
     }
 }
