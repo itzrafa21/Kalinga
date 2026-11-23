@@ -372,7 +372,172 @@
       padding: 0.85rem 0 0.35rem;
     }
     .updates-panel {
-      margin-top: 1rem;
+      margin-top: 1.25rem;
+      padding-top: 1.15rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    .updates-panel__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    .updates-panel__head h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    .updates-panel__count {
+      font-size: 0.82rem;
+      color: #6b7280;
+    }
+    .updates-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .updates-empty {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.92rem;
+      background: #f8fafc;
+      border: 1px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 0.95rem 1rem;
+    }
+    .update-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .update-row:hover {
+      background: #f8fafc;
+      border-color: #86efac;
+    }
+    .update-row__copy {
+      min-width: 0;
+      flex: 1;
+    }
+    .update-row__when {
+      display: block;
+      margin: 0 0 0.2rem;
+      font-size: 0.78rem;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .update-row__preview {
+      display: block;
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .update-row__meta {
+      display: block;
+      margin-top: 0.2rem;
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+    .update-row__action {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      border: 1px solid #bbf7d0;
+      background: #ecfdf3;
+      color: #166534;
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    .update-view-modal {
+      width: min(720px, 100%);
+    }
+    .update-view-when {
+      margin: 0 0 0.75rem;
+      font-size: 0.82rem;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .update-view-body {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.98rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .update-view-photos {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+    }
+    .update-view-photos a {
+      display: block;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      aspect-ratio: 1;
+      background: #f8fafc;
+    }
+    .update-view-photos img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .update-view-docs {
+      list-style: none;
+      margin: 0.9rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .update-doc-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 0.55rem 0.75rem;
+      color: #166534;
+      text-align: left;
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .update-doc-btn span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .update-doc-btn:hover {
+      background: #ecfdf3;
+      border-color: #86efac;
     }
     .update-modal-overlay {
       position: fixed;
@@ -667,6 +832,15 @@
             <p class="mission-line">Related mission: <span id="campaignMission">none</span></p>
           </div>
 
+          <section class="updates-panel" aria-label="Campaign updates">
+            <div class="updates-panel__head">
+              <h2>Updates</h2>
+              <span class="updates-panel__count" id="campaignUpdatesCount"></span>
+            </div>
+            <p class="updates-empty" id="campaignUpdatesEmpty">Loading updates…</p>
+            <ul class="updates-list" id="campaignUpdatesList" hidden></ul>
+          </section>
+
           <div class="actions" id="campaignActions" hidden></div>
         </section>
 
@@ -684,6 +858,23 @@
       </div>
     </div>
   </main>
+
+  <div
+    id="campaignUpdateViewModal"
+    class="update-modal-overlay"
+    hidden
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="campaignUpdateViewTitle"
+  >
+    <div class="update-modal update-view-modal" role="document">
+      <h2 id="campaignUpdateViewTitle">Campaign update</h2>
+      <div id="campaignUpdateViewContent"></div>
+      <div class="update-modal-actions" style="margin-top:1rem">
+        <button type="button" class="update-modal-cancel" id="campaignUpdateViewClose">Close</button>
+      </div>
+    </div>
+  </div>
 
   <div
     id="campaignUpdateModal"

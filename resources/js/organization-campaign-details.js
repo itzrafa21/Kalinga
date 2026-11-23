@@ -7,6 +7,7 @@ import {
     getDoc,
     getDocs,
     limit,
+    orderBy,
     query,
     serverTimestamp,
     updateDoc,
@@ -33,6 +34,8 @@ import {
 import {
     buildMissionDocumentPublicId,
     isCloudinaryConfigured,
+    openDocumentForView,
+    preferredDocumentViewUrl,
     uploadFileToCloudinary,
     uploadImageToCloudinary,
 } from "./cloudinary-upload.js";
@@ -51,7 +54,10 @@ let currentCampaign = null;
 let pendingUpdatePhotos = [];
 /** @type {File[]} */
 let pendingUpdateDocs = [];
+/** @type {Array<Record<string, any>>} */
+let campaignUpdatesCache = [];
 let updateModalWired = false;
+let updateViewModalWired = false;
 
 function updateDocExtension(name) {
     const parts = String(name || "").toLowerCase().split(".");
@@ -537,7 +543,283 @@ async function loadCampaign() {
     }
 
     wireUpdateModal();
-    await loadTransactions();
+    await Promise.all([loadTransactions(), loadCampaignUpdates()]);
+}
+
+function formatUpdateWhen(value) {
+    if (!value) return "Just now";
+    try {
+        const date =
+            typeof value?.toDate === "function"
+                ? value.toDate()
+                : value instanceof Date
+                  ? value
+                  : new Date(value);
+        if (Number.isNaN(date.getTime())) return "Just now";
+        return date.toLocaleString("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+        });
+    } catch {
+        return "Just now";
+    }
+}
+
+function sortUpdatesNewestFirst(rows) {
+    return rows.slice().sort((a, b) => {
+        const am =
+            a.createdAt?.toMillis?.() ||
+            a.createdAt?.seconds * 1000 ||
+            Date.parse(a.createdAt) ||
+            0;
+        const bm =
+            b.createdAt?.toMillis?.() ||
+            b.createdAt?.seconds * 1000 ||
+            Date.parse(b.createdAt) ||
+            0;
+        return bm - am;
+    });
+}
+
+function updateAttachmentSummary(update = {}) {
+    const photos = Array.isArray(update.imageUrls)
+        ? update.imageUrls.filter(Boolean).length
+        : 0;
+    const docs = Array.isArray(update.documents)
+        ? update.documents.filter((d) => d && d.url).length
+        : 0;
+    const bits = [];
+    if (photos) bits.push(`${photos} photo${photos === 1 ? "" : "s"}`);
+    if (docs) bits.push(`${docs} document${docs === 1 ? "" : "s"}`);
+    return bits.join(" · ");
+}
+
+function previewUpdateBody(body, max = 90) {
+    const text = String(body || "").replace(/\s+/g, " ").trim();
+    if (!text) return "Campaign update";
+    if (text.length <= max) return text;
+    return `${text.slice(0, max - 1)}…`;
+}
+
+function renderUpdateDocumentsHtml(documents = []) {
+    const docs = Array.isArray(documents) ? documents.filter((d) => d && d.url) : [];
+    if (!docs.length) return "";
+    const items = docs
+        .map((docItem) => {
+            const name = String(docItem.name || "Document");
+            const sourceUrl = preferredDocumentViewUrl(docItem.url) || docItem.url;
+            if (!sourceUrl) return "";
+            const size =
+                Number(docItem.size) > 0
+                    ? ` · ${formatUpdateDocSize(docItem.size)}`
+                    : "";
+            return `<li>
+        <button
+          type="button"
+          class="update-doc-btn"
+          data-doc-url="${escapeHtml(sourceUrl)}"
+          data-doc-name="${escapeHtml(name)}"
+        >
+          <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+          <span>${escapeHtml(name)}${escapeHtml(size)}</span>
+        </button>
+      </li>`;
+        })
+        .filter(Boolean)
+        .join("");
+    return items ? `<ul class="update-view-docs">${items}</ul>` : "";
+}
+
+function renderUpdatePhotosHtml(imageUrls = []) {
+    const urls = Array.isArray(imageUrls)
+        ? imageUrls.map((u) => String(u || "").trim()).filter(Boolean)
+        : [];
+    if (!urls.length) return "";
+    return `<div class="update-view-photos">${urls
+        .map(
+            (url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+        <img src="${escapeHtml(url)}" alt="Campaign update photo" loading="lazy">
+      </a>`
+        )
+        .join("")}</div>`;
+}
+
+function closeCampaignUpdateViewModal() {
+    const modal = document.getElementById("campaignUpdateViewModal");
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    modal.hidden = true;
+}
+
+function openCampaignUpdateViewModal(update) {
+    const modal = document.getElementById("campaignUpdateViewModal");
+    const content = document.getElementById("campaignUpdateViewContent");
+    if (!modal || !content || !update) return;
+
+    const body = String(update.body || "").trim() || "—";
+    content.innerHTML = `
+      <p class="update-view-when">${escapeHtml(formatUpdateWhen(update.createdAt))}</p>
+      <p class="update-view-body">${escapeHtml(body)}</p>
+      ${renderUpdatePhotosHtml(update.imageUrls)}
+      ${renderUpdateDocumentsHtml(update.documents)}
+    `;
+
+    modal.hidden = false;
+    modal.classList.add("is-open");
+    wireCampaignUpdateViewModal();
+}
+
+function wireCampaignUpdateViewModal() {
+    const modal = document.getElementById("campaignUpdateViewModal");
+    const content = document.getElementById("campaignUpdateViewContent");
+    if (!modal) return;
+
+    if (!updateViewModalWired) {
+        updateViewModalWired = true;
+        document
+            .getElementById("campaignUpdateViewClose")
+            ?.addEventListener("click", closeCampaignUpdateViewModal);
+        modal.addEventListener("click", (event) => {
+            if (event.target?.id === "campaignUpdateViewModal") {
+                closeCampaignUpdateViewModal();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape" &&
+                modal.classList.contains("is-open") &&
+                !modal.hidden
+            ) {
+                closeCampaignUpdateViewModal();
+            }
+        });
+    }
+
+    if (content && content.dataset.docViewWired !== "1") {
+        content.dataset.docViewWired = "1";
+        content.addEventListener("click", (event) => {
+            const btn = event.target.closest(".update-doc-btn");
+            if (!btn || !content.contains(btn)) return;
+            const sourceUrl = String(btn.getAttribute("data-doc-url") || "").trim();
+            if (!sourceUrl) return;
+            event.preventDefault();
+            const name = String(
+                btn.getAttribute("data-doc-name") ||
+                    btn.querySelector("span")?.textContent ||
+                    "document"
+            ).trim();
+            void openDocumentForView(sourceUrl, name);
+        });
+    }
+}
+
+function wireCampaignUpdatesList() {
+    const list = document.getElementById("campaignUpdatesList");
+    if (!list || list.dataset.updateViewWired === "1") return;
+    list.dataset.updateViewWired = "1";
+    list.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-view-update]");
+        if (!btn || !list.contains(btn)) return;
+        const id = String(btn.getAttribute("data-view-update") || "");
+        const update =
+            campaignUpdatesCache.find((item) => String(item.id) === id) ||
+            campaignUpdatesCache[Number(id)];
+        if (!update) return;
+        openCampaignUpdateViewModal(update);
+    });
+}
+
+function renderCampaignUpdates(rows) {
+    const list = document.getElementById("campaignUpdatesList");
+    const empty = document.getElementById("campaignUpdatesEmpty");
+    const countEl = document.getElementById("campaignUpdatesCount");
+    if (!list || !empty) return;
+
+    const updates = Array.isArray(rows) ? rows : [];
+    campaignUpdatesCache = updates;
+    if (countEl) {
+        countEl.textContent = updates.length
+            ? `${updates.length} post${updates.length === 1 ? "" : "s"}`
+            : "";
+    }
+
+    if (!updates.length) {
+        list.hidden = true;
+        list.innerHTML = "";
+        empty.hidden = false;
+        empty.textContent =
+            "No updates yet. Use Add update to share progress, photos, or documents.";
+        return;
+    }
+
+    empty.hidden = true;
+    list.hidden = false;
+    list.innerHTML = updates
+        .map((update, index) => {
+            const body = String(update.body || "").trim();
+            const meta = updateAttachmentSummary(update);
+            const key = update.id || String(index);
+            return `<li>
+        <button type="button" class="update-row" data-view-update="${escapeHtml(String(key))}">
+          <span class="update-row__copy">
+            <span class="update-row__when">${escapeHtml(formatUpdateWhen(update.createdAt))}</span>
+            <span class="update-row__preview">${escapeHtml(previewUpdateBody(body))}</span>
+            ${meta ? `<span class="update-row__meta">${escapeHtml(meta)}</span>` : ""}
+          </span>
+          <span class="update-row__action"><i class="bi bi-eye" aria-hidden="true"></i> View</span>
+        </button>
+      </li>`;
+        })
+        .join("");
+    wireCampaignUpdatesList();
+}
+
+async function loadCampaignUpdates() {
+    const empty = document.getElementById("campaignUpdatesEmpty");
+    if (empty) {
+        empty.hidden = false;
+        empty.textContent = "Loading updates…";
+    }
+
+    if (!campaignId) {
+        renderCampaignUpdates([]);
+        return;
+    }
+
+    const col = collection(db, "donation_campaigns", campaignId, "updates");
+    try {
+        let rows = [];
+        try {
+            const snap = await getDocs(
+                query(col, orderBy("createdAt", "desc"), limit(50))
+            );
+            rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (orderErr) {
+            console.warn("[WARN] updates orderBy unavailable:", orderErr);
+            const snap = await getDocs(query(col, limit(50)));
+            rows = sortUpdatesNewestFirst(
+                snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+            );
+        }
+        renderCampaignUpdates(rows);
+    } catch (error) {
+        console.error("[ERROR] loadCampaignUpdates:", error);
+        if (empty) {
+            empty.hidden = false;
+            empty.textContent =
+                error?.code === "permission-denied"
+                    ? "Could not load updates (permission denied)."
+                    : "Could not load updates.";
+        }
+        const list = document.getElementById("campaignUpdatesList");
+        if (list) {
+            list.hidden = true;
+            list.innerHTML = "";
+        }
+    }
 }
 
 function setUpdateModalError(message = "") {
@@ -732,6 +1014,7 @@ async function saveCampaignUpdate() {
 
         closeUpdateModal();
         setMessage("Campaign update posted.", false);
+        await loadCampaignUpdates();
     } catch (error) {
         console.error("[ERROR] saveCampaignUpdate:", error);
         setUpdateModalError(

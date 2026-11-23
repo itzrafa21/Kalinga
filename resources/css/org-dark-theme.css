@@ -519,6 +519,50 @@ html[data-theme="dark"] body.org-app .md-btn-add-announce {
   color: #e2e8f0 !important;
 }
 
+html[data-theme="dark"] body.org-app .updates-panel {
+  border-top-color: #334155 !important;
+}
+html[data-theme="dark"] body.org-app .updates-panel__head h2 {
+  color: #f8fafc !important;
+}
+html[data-theme="dark"] body.org-app .updates-panel__count,
+html[data-theme="dark"] body.org-app .updates-empty,
+html[data-theme="dark"] body.org-app .update-card__when {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .updates-empty,
+html[data-theme="dark"] body.org-app .update-row,
+html[data-theme="dark"] body.org-app .update-doc-btn,
+html[data-theme="dark"] body.org-app .update-view-photos a {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+html[data-theme="dark"] body.org-app .update-row:hover {
+  background: #1e293b !important;
+  border-color: #166534 !important;
+}
+html[data-theme="dark"] body.org-app .update-row__preview,
+html[data-theme="dark"] body.org-app .update-view-body {
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] body.org-app .update-row__when,
+html[data-theme="dark"] body.org-app .update-row__meta,
+html[data-theme="dark"] body.org-app .update-view-when {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .update-row__action {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #bbf7d0 !important;
+}
+html[data-theme="dark"] body.org-app .update-doc-btn {
+  color: #86efac !important;
+}
+html[data-theme="dark"] body.org-app .update-doc-btn:hover {
+  background: #14532d !important;
+  border-color: #166534 !important;
+}
+
 html[data-theme="dark"] body.org-app .update-modal {
   background: #1e293b !important;
   border-color: #334155 !important;
