@@ -31,7 +31,9 @@ import {
     resolveDonationMode,
 } from "./donation-shared.js";
 import {
+    buildMissionDocumentPublicId,
     isCloudinaryConfigured,
+    uploadFileToCloudinary,
     uploadImageToCloudinary,
 } from "./cloudinary-upload.js";
 
@@ -40,11 +42,41 @@ const campaignId =
     window.location.pathname.match(/\/donation\/campaigns\/([^/]+)/)?.[1] ||
     "";
 
+const UPDATE_DOC_EXT = new Set(["pdf", "doc", "docx", "xls", "xlsx"]);
+const UPDATE_DOC_MAX_BYTES = 50 * 1024 * 1024;
+
 let orgId = null;
 let currentCampaign = null;
 /** @type {File[]} */
 let pendingUpdatePhotos = [];
+/** @type {File[]} */
+let pendingUpdateDocs = [];
 let updateModalWired = false;
+
+function updateDocExtension(name) {
+    const parts = String(name || "").toLowerCase().split(".");
+    return parts.length > 1 ? parts.pop() : "";
+}
+
+function isUpdateDocFile(file) {
+    const ext = updateDocExtension(file?.name);
+    if (UPDATE_DOC_EXT.has(ext)) return true;
+    const type = String(file?.type || "").toLowerCase();
+    return (
+        type.includes("pdf") ||
+        type.includes("msword") ||
+        type.includes("officedocument") ||
+        type.includes("excel") ||
+        type.includes("spreadsheet")
+    );
+}
+
+function formatUpdateDocSize(bytes) {
+    const size = Number(bytes) || 0;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function setMessage(message, isError = false) {
     const el = document.getElementById("campaignDetailsStatus");
@@ -531,15 +563,67 @@ function renderUpdatePhotoPreviews() {
         .join("");
 }
 
+function renderUpdateDocList() {
+    const root = document.getElementById("campaignUpdateDocList");
+    if (!root) return;
+    if (!pendingUpdateDocs.length) {
+        root.innerHTML = "";
+        return;
+    }
+    root.innerHTML = pendingUpdateDocs
+        .map((file, index) => {
+            return `<li>
+        <span class="doc-meta">
+          <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+          ${escapeHtml(file.name || "Document")}
+          <small>· ${escapeHtml(formatUpdateDocSize(file.size))}</small>
+        </span>
+        <button type="button" data-remove-doc="${index}" aria-label="Remove document">Remove</button>
+      </li>`;
+        })
+        .join("");
+}
+
+function addPendingUpdateDocs(fileList) {
+    const incoming = Array.from(fileList || []);
+    let error = "";
+    for (const file of incoming) {
+        if (!isUpdateDocFile(file)) {
+            error = `${file.name || "File"} is not a supported document.`;
+            continue;
+        }
+        if (file.size > UPDATE_DOC_MAX_BYTES) {
+            error = `${file.name || "File"} must be smaller than 50MB.`;
+            continue;
+        }
+        const duplicate = pendingUpdateDocs.some(
+            (existing) =>
+                existing.name === file.name && existing.size === file.size
+        );
+        if (duplicate) continue;
+        if (pendingUpdateDocs.length >= 8) {
+            error = "You can attach up to 8 documents.";
+            break;
+        }
+        pendingUpdateDocs.push(file);
+    }
+    renderUpdateDocList();
+    return error;
+}
+
 function openUpdateModal() {
     const modal = document.getElementById("campaignUpdateModal");
     const text = document.getElementById("campaignUpdateText");
     const fileInput = document.getElementById("campaignUpdatePhotos");
+    const docsInput = document.getElementById("campaignUpdateDocs");
     pendingUpdatePhotos = [];
+    pendingUpdateDocs = [];
     if (text) text.value = "";
     if (fileInput) fileInput.value = "";
+    if (docsInput) docsInput.value = "";
     setUpdateModalError("");
     renderUpdatePhotoPreviews();
+    renderUpdateDocList();
     if (modal) {
         modal.hidden = false;
         modal.classList.add("is-open");
@@ -554,9 +638,13 @@ function closeUpdateModal() {
         modal.hidden = true;
     }
     pendingUpdatePhotos = [];
+    pendingUpdateDocs = [];
     const fileInput = document.getElementById("campaignUpdatePhotos");
+    const docsInput = document.getElementById("campaignUpdateDocs");
     if (fileInput) fileInput.value = "";
+    if (docsInput) docsInput.value = "";
     renderUpdatePhotoPreviews();
+    renderUpdateDocList();
     setUpdateModalError("");
 }
 
@@ -573,35 +661,70 @@ async function saveCampaignUpdate() {
         textEl?.focus();
         return;
     }
-    if (!pendingUpdatePhotos.length) {
-        setUpdateModalError("Please add at least one picture from the campaign.");
+    if (!pendingUpdatePhotos.length && !pendingUpdateDocs.length) {
+        setUpdateModalError(
+            "Please add at least one picture or document from the campaign."
+        );
         return;
     }
     if (!isCloudinaryConfigured()) {
-        setUpdateModalError("Image upload is not configured.");
+        setUpdateModalError("File upload is not configured.");
         return;
     }
 
     if (saveBtn) saveBtn.disabled = true;
-    setUpdateModalError("Uploading photos…");
+    const uploadingLabel = [
+        pendingUpdatePhotos.length ? "photos" : "",
+        pendingUpdateDocs.length ? "documents" : "",
+    ]
+        .filter(Boolean)
+        .join(" & ");
+    setUpdateModalError(`Uploading ${uploadingLabel}…`);
 
     try {
+        const folder = `kalinga/campaigns/${campaignId}/updates`;
         const imageUrls = [];
         for (const file of pendingUpdatePhotos) {
             const url = await uploadImageToCloudinary(file, {
-                folder: `kalinga/campaigns/${campaignId}/updates`,
+                folder,
                 tags: ["campaign-update", campaignId],
             });
             if (url) imageUrls.push(url);
         }
-        if (!imageUrls.length) {
-            throw new Error("Could not upload photos. Please try again.");
+
+        const documents = [];
+        for (let i = 0; i < pendingUpdateDocs.length; i += 1) {
+            const file = pendingUpdateDocs[i];
+            const result = await uploadFileToCloudinary(file, {
+                folder,
+                publicId: buildMissionDocumentPublicId(file, i),
+                maxBytes: UPDATE_DOC_MAX_BYTES,
+                resourceType: "raw",
+                tags: ["campaign-update", campaignId, "document"],
+            });
+            if (!result?.url) continue;
+            documents.push({
+                name: file.name || `document-${i + 1}`,
+                size: file.size || result.bytes || 0,
+                type: file.type || "",
+                url: result.url,
+                publicId: result.publicId || "",
+                format: result.format || updateDocExtension(file.name),
+                kind: "document",
+                resourceType: result.resourceType || "raw",
+                uploadedAt: new Date().toISOString(),
+            });
+        }
+
+        if (!imageUrls.length && !documents.length) {
+            throw new Error("Could not upload attachments. Please try again.");
         }
 
         setUpdateModalError("Saving update…");
         await addDoc(collection(db, "donation_campaigns", campaignId, "updates"), {
             body,
             imageUrls,
+            documents,
             orgId: orgId || "",
             createdBy: auth.currentUser?.uid || "",
             createdAt: serverTimestamp(),
@@ -651,6 +774,13 @@ function wireUpdateModal() {
             event.target.value = "";
         });
     document
+        .getElementById("campaignUpdateDocs")
+        ?.addEventListener("change", (event) => {
+            const error = addPendingUpdateDocs(event.target.files);
+            setUpdateModalError(error || "");
+            event.target.value = "";
+        });
+    document
         .getElementById("campaignUpdatePhotoPreviews")
         ?.addEventListener("click", (event) => {
             const btn = event.target.closest("[data-remove-photo]");
@@ -659,6 +789,16 @@ function wireUpdateModal() {
             if (!Number.isFinite(index)) return;
             pendingUpdatePhotos.splice(index, 1);
             renderUpdatePhotoPreviews();
+        });
+    document
+        .getElementById("campaignUpdateDocList")
+        ?.addEventListener("click", (event) => {
+            const btn = event.target.closest("[data-remove-doc]");
+            if (!btn) return;
+            const index = Number(btn.getAttribute("data-remove-doc"));
+            if (!Number.isFinite(index)) return;
+            pendingUpdateDocs.splice(index, 1);
+            renderUpdateDocList();
         });
 }
 

@@ -430,10 +430,18 @@
       border-color: #16a34a;
       box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
     }
-    .update-photos-input {
+    .update-photos-input,
+    .update-docs-input {
       display: none;
     }
-    .update-photo-picker {
+    .update-attach-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-bottom: 0.75rem;
+    }
+    .update-photo-picker,
+    .update-doc-picker {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
@@ -445,16 +453,64 @@
       font-weight: 600;
       font-size: 0.9rem;
       cursor: pointer;
-      margin-bottom: 0.75rem;
+      margin: 0;
+    }
+    .update-doc-picker {
+      border-color: #93c5fd;
+      background: #eff6ff;
+      color: #1d4ed8;
     }
     .update-photo-picker:hover {
       background: #dcfce7;
+    }
+    .update-doc-picker:hover {
+      background: #dbeafe;
+    }
+    .update-attach-hint {
+      width: 100%;
+      margin: 0;
+      font-size: 0.8rem;
+      color: #64748b;
     }
     .update-photo-previews {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
       gap: 0.5rem;
       margin-bottom: 0.85rem;
+    }
+    .update-doc-list {
+      list-style: none;
+      margin: 0 0 0.85rem;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .update-doc-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.86rem;
+      color: #334155;
+    }
+    .update-doc-list .doc-meta {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .update-doc-list button {
+      border: none;
+      background: transparent;
+      color: #b91c1c;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
     }
     .update-photo-previews .preview {
       position: relative;
@@ -640,7 +696,7 @@
     <div class="update-modal" role="document">
       <h2 id="campaignUpdateModalTitle">Add Update</h2>
       <p class="update-modal__help">
-        Share how the campaign went — add a short story and photos from the field.
+        Share how the campaign went — add a short story, photos, and supporting documents.
       </p>
       <label for="campaignUpdateText">What happened?</label>
       <textarea
@@ -648,9 +704,15 @@
         placeholder="Describe how the campaign went, what was delivered, and the impact…"
         maxlength="4000"
       ></textarea>
-      <label class="update-photo-picker" for="campaignUpdatePhotos">
-        <i class="bi bi-image" aria-hidden="true"></i> Add pictures
-      </label>
+      <div class="update-attach-row">
+        <label class="update-photo-picker" for="campaignUpdatePhotos">
+          <i class="bi bi-image" aria-hidden="true"></i> Add pictures
+        </label>
+        <label class="update-doc-picker" for="campaignUpdateDocs">
+          <i class="bi bi-paperclip" aria-hidden="true"></i> Add documents
+        </label>
+        <p class="update-attach-hint">Photos: JPG/PNG. Documents: PDF, Word, or Excel (up to 8 each).</p>
+      </div>
       <input
         id="campaignUpdatePhotos"
         class="update-photos-input"
@@ -658,7 +720,15 @@
         accept="image/*"
         multiple
       >
+      <input
+        id="campaignUpdateDocs"
+        class="update-docs-input"
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        multiple
+      >
       <div class="update-photo-previews" id="campaignUpdatePhotoPreviews"></div>
+      <ul class="update-doc-list" id="campaignUpdateDocList"></ul>
       <p id="campaignUpdateError" class="update-modal-error" role="alert"></p>
       <div class="update-modal-actions">
         <button type="button" class="update-modal-cancel" id="campaignUpdateCancel">Cancel</button>

@@ -540,6 +540,19 @@ html[data-theme="dark"] body.org-app .update-photo-picker {
   border-color: #166534 !important;
   color: #bbf7d0 !important;
 }
+html[data-theme="dark"] body.org-app .update-doc-picker {
+  background: #1e3a5f !important;
+  border-color: #2563eb !important;
+  color: #bfdbfe !important;
+}
+html[data-theme="dark"] body.org-app .update-attach-hint {
+  color: #94a3b8 !important;
+}
+html[data-theme="dark"] body.org-app .update-doc-list li {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
 html[data-theme="dark"] body.org-app .update-modal-cancel {
   background: #334155 !important;
   border-color: #475569 !important;
