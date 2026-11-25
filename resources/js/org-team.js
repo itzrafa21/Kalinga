@@ -7,11 +7,17 @@ import {
 } from "firebase/auth";
 import {
     collection,
+    collectionGroup,
+    deleteField,
     doc,
     getDoc,
     getDocs,
+    limit,
+    query,
     setDoc,
     updateDoc,
+    where,
+    writeBatch,
 } from "firebase/firestore";
 import { app, db } from "./firebase.js";
 
@@ -192,13 +198,104 @@ function teamAuth() {
     return getAuth(secondary);
 }
 
+function orgMemberDoc(orgId, memberId) {
+    return doc(db, "organizations", orgId, "org_members", memberId);
+}
+
+function accessRightsCol(orgId, memberId) {
+    return collection(
+        db,
+        "organizations",
+        orgId,
+        "org_members",
+        memberId,
+        "access_rights"
+    );
+}
+
+function accessRightDoc(orgId, memberId, moduleId) {
+    return doc(
+        db,
+        "organizations",
+        orgId,
+        "org_members",
+        memberId,
+        "access_rights",
+        moduleId
+    );
+}
+
+/** Read organizations/{orgId}/org_members/{memberId}/access_rights/{moduleId}. */
+export async function loadMemberAccessRights(orgId, memberId, fallback = null) {
+    if (!orgId || !memberId) return null;
+    const snap = await getDocs(accessRightsCol(orgId, memberId));
+    if (!snap.empty) {
+        const raw = {};
+        snap.forEach((entry) => {
+            raw[entry.id] = entry.data();
+        });
+        return normalizeAccessRights(raw);
+    }
+    if (fallback && typeof fallback === "object" && Object.keys(fallback).length) {
+        return normalizeAccessRights(fallback);
+    }
+    return null;
+}
+
+async function writeAccessRightsDocs(orgId, memberId, rights) {
+    const normalized = normalizeAccessRights(rights);
+    const batch = writeBatch(db);
+    ACCESS_MODULES.forEach((mod) => {
+        const payload = {};
+        mod.permissions.forEach((perm) => {
+            payload[perm.id] = normalized[mod.id][perm.id] === true;
+        });
+        batch.set(accessRightDoc(orgId, memberId, mod.id), payload);
+    });
+    await batch.commit();
+    return normalized;
+}
+
+async function attachAccessRights(orgId, member) {
+    if (!member) return member;
+    const loaded = await loadMemberAccessRights(
+        orgId,
+        member.id,
+        member.accessRights
+    );
+    if (loaded) member.accessRights = loaded;
+    return member;
+}
+
+/** Username lookup across organizations/{orgId}/org_members. */
+export async function findMemberByUsername(username) {
+    const clean = sanitizeUsername(username);
+    if (!clean) return null;
+    const snap = await getDocs(
+        query(
+            collectionGroup(db, "org_members"),
+            where("username", "==", clean),
+            limit(1)
+        )
+    );
+    if (snap.empty) return null;
+    const entry = snap.docs[0];
+    const data = entry.data() || {};
+    const orgId = data.orgId || entry.ref.parent.parent?.id || "";
+    return attachAccessRights(orgId, {
+        id: data.authUid || entry.id,
+        ...data,
+        orgId,
+    });
+}
+
 export async function listOrgTeam(orgId) {
-    const snap = await getDocs(collection(db, "organizations", orgId, "team"));
-    return snap.docs
-        .map((entry) => ({ id: entry.id, ...entry.data() }))
-        .sort((a, b) =>
-            String(a.name || a.username).localeCompare(String(b.name || b.username))
-        );
+    const snap = await getDocs(collection(db, "organizations", orgId, "org_members"));
+    const members = snap.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+    await Promise.all(members.map((member) => attachAccessRights(orgId, member)));
+    return members.sort((a, b) =>
+        String(a.name || a.username).localeCompare(String(b.name || b.username))
+    );
 }
 
 export async function createOrgTeamMember(
@@ -226,9 +323,8 @@ export async function createOrgTeamMember(
         throw new Error("Password must be at least 6 characters.");
     }
 
-    const usernameRef = doc(db, "org_team_usernames", cleanUsername);
-    const usernameSnap = await getDoc(usernameRef);
-    if (usernameSnap.exists()) {
+    const existingUsername = await findMemberByUsername(cleanUsername);
+    if (existingUsername) {
         throw new Error("That username is already taken.");
     }
 
@@ -265,7 +361,6 @@ export async function createOrgTeamMember(
         email,
         role: cleanRole,
         status: "active",
-        accessRights: rights,
         authUid,
         orgId,
         createdBy: createdBy || orgId,
@@ -273,81 +368,40 @@ export async function createOrgTeamMember(
         updatedAt: now,
     };
 
-    await setDoc(doc(db, "organizations", orgId, "team", authUid), record);
-    await setDoc(usernameRef, {
-        username: cleanUsername,
-        email,
-        orgId,
-        authUid,
-        status: "active",
-        role: cleanRole,
-        name: cleanName,
-        accessRights: rights,
-        updatedAt: now,
-    });
+    await setDoc(orgMemberDoc(orgId, authUid), record);
+    await writeAccessRightsDocs(orgId, authUid, rights);
 
-    return { id: authUid, ...record };
+    return { id: authUid, ...record, accessRights: rights };
 }
 
 export async function updateOrgTeamAccessRights(orgId, memberId, accessRights) {
-    const rights = normalizeAccessRights(accessRights);
-    const memberRef = doc(db, "organizations", orgId, "team", memberId);
+    const memberRef = orgMemberDoc(orgId, memberId);
     const memberSnap = await getDoc(memberRef);
     if (!memberSnap.exists()) throw new Error("User not found.");
 
-    const member = memberSnap.data() || {};
-    const now = new Date().toISOString();
-    await updateDoc(memberRef, { accessRights: rights, updatedAt: now });
+    const saved = await writeAccessRightsDocs(orgId, memberId, accessRights);
+    await updateDoc(memberRef, {
+        accessRights: deleteField(),
+        updatedAt: new Date().toISOString(),
+    });
 
-    if (member.username) {
-        const usernameRef = doc(
-            db,
-            "org_team_usernames",
-            sanitizeUsername(member.username)
-        );
-        const usernameSnap = await getDoc(usernameRef);
-        if (usernameSnap.exists() && usernameSnap.data()?.orgId === orgId) {
-            await updateDoc(usernameRef, {
-                accessRights: rights,
-                updatedAt: now,
-            });
-        }
-    }
-
-    return rights;
+    return saved;
 }
 
 export async function setOrgTeamMemberStatus(orgId, memberId, status) {
     const next = status === "active" ? "active" : "disabled";
-    const memberRef = doc(db, "organizations", orgId, "team", memberId);
+    const memberRef = orgMemberDoc(orgId, memberId);
     const memberSnap = await getDoc(memberRef);
     if (!memberSnap.exists()) throw new Error("User not found.");
 
-    const member = memberSnap.data() || {};
     const now = new Date().toISOString();
     await updateDoc(memberRef, { status: next, updatedAt: now });
-
-    if (member.username) {
-        const usernameRef = doc(
-            db,
-            "org_team_usernames",
-            sanitizeUsername(member.username)
-        );
-        const usernameSnap = await getDoc(usernameRef);
-        if (usernameSnap.exists() && usernameSnap.data()?.orgId === orgId) {
-            await updateDoc(usernameRef, { status: next, updatedAt: now });
-        }
-    }
 
     return next;
 }
 
 export async function lookupTeamUsername(username) {
-    const clean = sanitizeUsername(username);
-    if (!clean) return null;
-    const snap = await getDoc(doc(db, "org_team_usernames", clean));
-    if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() };
+    return findMemberByUsername(username);
 }
 
 export async function findTeamMembership(user) {
@@ -364,13 +418,15 @@ export async function findTeamMembership(user) {
     if (!indexed?.orgId) return null;
 
     const memberId = indexed.authUid || user.uid;
-    const memberSnap = await getDoc(
-        doc(db, "organizations", indexed.orgId, "team", memberId)
-    );
+    const memberSnap = await getDoc(orgMemberDoc(indexed.orgId, memberId));
     if (memberSnap.exists()) {
+        const member = await attachAccessRights(indexed.orgId, {
+            id: memberSnap.id,
+            ...memberSnap.data(),
+        });
         return {
             orgId: indexed.orgId,
-            member: { id: memberSnap.id, ...memberSnap.data() },
+            member,
         };
     }
 

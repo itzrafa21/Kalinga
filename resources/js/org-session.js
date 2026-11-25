@@ -137,7 +137,7 @@ export function revealOrgPageContent() {
 /**
  * Resolve the organization context for the signed-in user.
  * Owners: orgId === auth uid, full access.
- * Team users: orgId === owner uid, accessRights from their team record.
+ * Team users: orgId === owner uid, accessRights from org_members/{id}/access_rights.
  * Cache-first by default. Pass force:true only when rights must be revalidated.
  */
 export async function resolveOrgSession(user, { force = false } = {}) {

@@ -241,7 +241,7 @@ async function refreshUsers() {
         console.error(error);
         showToast(
             error?.code === "permission-denied"
-                ? "Firestore blocked loading users. Allow reads on organizations/{orgId}/team."
+                ? "Firestore blocked loading users. Allow reads on organizations/{orgId}/org_members."
                 : error?.message || "Could not load users."
         );
     } finally {
@@ -295,7 +295,7 @@ function wireUi() {
             console.error(error);
             setAccessError(
                 error?.code === "permission-denied"
-                    ? "Firestore blocked this save. Allow updates on organizations/{orgId}/team."
+                    ? "Firestore blocked this save. Allow writes on organizations/{orgId}/org_members/{memberId}/access_rights."
                     : error?.message || "Could not save access rights."
             );
         } finally {
@@ -326,7 +326,7 @@ function wireUi() {
             console.error(error);
             setFormError(
                 error?.code === "permission-denied"
-                    ? "Firestore blocked this save. Allow writes on organizations/{orgId}/team and org_team_usernames."
+                    ? "Firestore blocked this save. Allow writes on organizations/{orgId}/org_members."
                     : error?.message || "Could not add user."
             );
         } finally {
