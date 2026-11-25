@@ -110,41 +110,8 @@ export function normalizeAccessRights(raw) {
     return base;
 }
 
-export function accessRightsForRole(role) {
-    const rights = emptyAccessRights();
-    const mark = (moduleId, permIds) => {
-        permIds.forEach((permId) => {
-            if (rights[moduleId]?.[permId] !== undefined) {
-                rights[moduleId][permId] = true;
-            }
-        });
-    };
-
-    if (role === "viewer") {
-        mark("missions", ["view", "details"]);
-        mark("history", ["view", "details"]);
-        mark("volunteers", ["view", "details"]);
-        mark("donations", ["view", "details"]);
-        mark("account", ["view"]);
-        return rights;
-    }
-
-    if (role === "staff") {
-        mark("missions", ["view", "create", "edit", "details"]);
-        mark("history", ["view", "details"]);
-        mark("volunteers", ["view", "details"]);
-        mark("donations", ["view", "details"]);
-        mark("account", ["view"]);
-        return rights;
-    }
-
-    // coordinator / default: broad access except users management
-    ACCESS_MODULES.forEach((mod) => {
-        mod.permissions.forEach((perm) => {
-            rights[mod.id][perm.id] = true;
-        });
-    });
-    return rights;
+export function accessRightsForRole() {
+    return emptyAccessRights();
 }
 
 export function countModulePermissions(rights, moduleId) {
@@ -300,17 +267,22 @@ export async function listOrgTeam(orgId) {
 
 export async function createOrgTeamMember(
     orgId,
-    { name, username, password, role, createdBy, accessRights }
+    { name, username, password, role, emailAddress, createdBy, accessRights }
 ) {
     const cleanName = String(name || "").trim();
     const cleanUsername = sanitizeUsername(username);
     const cleanPassword = String(password || "");
-    const cleanRole = TEAM_ROLES.some((item) => item.id === role) ? role : "staff";
+    const cleanRole = String(role || "").trim();
+    const cleanEmail = String(emailAddress || "").trim().toLowerCase();
     const rights = normalizeAccessRights(
-        accessRights || accessRightsForRole(cleanRole)
+        accessRights || accessRightsForRole()
     );
 
     if (!cleanName) throw new Error("Enter the person's name.");
+    if (!cleanRole) throw new Error("Enter a role.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        throw new Error("Enter a valid email address.");
+    }
     if (cleanUsername.length < 3) {
         throw new Error("Username must be at least 3 characters.");
     }
@@ -359,6 +331,7 @@ export async function createOrgTeamMember(
         name: cleanName,
         username: cleanUsername,
         email,
+        emailAddress: cleanEmail,
         role: cleanRole,
         status: "active",
         authUid,

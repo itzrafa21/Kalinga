@@ -4,7 +4,6 @@ import { doc, getDoc } from "firebase/firestore";
 import { assertOrgVerified } from "./org-verification.js";
 import {
     ACCESS_MODULES,
-    TEAM_ROLES,
     accessRightsForRole,
     countModulePermissions,
     createOrgTeamMember,
@@ -58,8 +57,15 @@ function openAddModal() {
     if (!overlay) return;
     setFormError("");
     document.getElementById("addUserForm")?.reset();
-    const role = document.getElementById("userRole");
-    if (role) role.value = "staff";
+    const password = document.getElementById("userPassword");
+    const passwordToggle = document.getElementById("userPasswordToggle");
+    if (password) password.type = "password";
+    if (passwordToggle) {
+        passwordToggle.setAttribute("aria-pressed", "false");
+        passwordToggle.setAttribute("aria-label", "Show password");
+        passwordToggle.querySelector("i")?.classList.add("bi-eye");
+        passwordToggle.querySelector("i")?.classList.remove("bi-eye-slash");
+    }
     overlay.removeAttribute("hidden");
     overlay.classList.add("is-open");
     document.getElementById("userName")?.focus();
@@ -201,6 +207,7 @@ function renderUsers() {
                   <div>
                     <h3>${escapeHtml(member.name || "Unnamed")}</h3>
                     <p>@${escapeHtml(member.username || "—")}</p>
+                    ${member.emailAddress ? `<p>${escapeHtml(member.emailAddress)}</p>` : ""}
                     <div class="users-meta">
                       <span class="users-chip">${escapeHtml(roleLabel(member.role))}</span>
                       <span class="users-status ${disabled ? "is-off" : "is-on"}">${disabled ? "Disabled" : "Active"}</span>
@@ -254,6 +261,19 @@ function wireUi() {
     document.getElementById("emptyAddUserBtn")?.addEventListener("click", openAddModal);
     document.getElementById("closeAddUserBtn")?.addEventListener("click", closeAddModal);
     document.getElementById("cancelAddUserBtn")?.addEventListener("click", closeAddModal);
+    document.getElementById("userPasswordToggle")?.addEventListener("click", () => {
+        const input = document.getElementById("userPassword");
+        const toggle = document.getElementById("userPasswordToggle");
+        const icon = toggle?.querySelector("i");
+        if (!input || !toggle || !icon) return;
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        icon.classList.toggle("bi-eye", showing);
+        icon.classList.toggle("bi-eye-slash", !showing);
+        toggle.setAttribute("aria-pressed", showing ? "false" : "true");
+        toggle.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+        input.focus();
+    });
     document.getElementById("cancelAccessRightsBtn")?.addEventListener("click", closeAccessRightsModal);
 
     const addOverlay = document.getElementById("addUserModal");
@@ -310,14 +330,15 @@ function wireUi() {
         const submitBtn = document.getElementById("submitAddUserBtn");
         if (submitBtn) submitBtn.disabled = true;
         try {
-            const role = document.getElementById("userRole")?.value || "staff";
+            const role = document.getElementById("userRole")?.value || "";
             await createOrgTeamMember(orgId, {
                 name: document.getElementById("userName")?.value,
+                emailAddress: document.getElementById("userEmail")?.value,
                 username: document.getElementById("userUsername")?.value,
                 password: document.getElementById("userPassword")?.value,
                 role,
                 createdBy: orgId,
-                accessRights: accessRightsForRole(role),
+                accessRights: accessRightsForRole(),
             });
             closeAddModal();
             await refreshUsers();
@@ -375,15 +396,6 @@ function wireUi() {
     });
 }
 
-function fillRoleOptions() {
-    const select = document.getElementById("userRole");
-    if (!select) return;
-    select.innerHTML = TEAM_ROLES.map(
-        (role) => `<option value="${role.id}">${role.label}</option>`
-    ).join("");
-    select.value = "staff";
-}
-
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.href = "/organization/login";
@@ -404,7 +416,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     orgId = user.uid;
-    fillRoleOptions();
     wireUi();
     await refreshUsers();
 });

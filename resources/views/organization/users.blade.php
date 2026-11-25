@@ -144,6 +144,9 @@
       color: #64748b;
       font-size: 0.88rem;
     }
+    .users-card p + p {
+      margin-top: 0.1rem;
+    }
     .users-meta {
       display: flex;
       flex-wrap: wrap;
@@ -388,6 +391,33 @@
       border-color: #28a745;
       box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
     }
+    .users-password-field {
+      position: relative;
+    }
+    .users-password-field input {
+      width: 100%;
+      padding-right: 2.6rem;
+    }
+    .users-password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 0.35rem;
+      transform: translateY(-50%);
+      width: 2rem;
+      height: 2rem;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #64748b;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .users-password-toggle:hover,
+    .users-password-toggle:focus-visible {
+      color: #166534;
+      outline: none;
+    }
     .users-form-hint {
       font-size: 0.76rem;
       color: #94a3b8;
@@ -484,6 +514,13 @@
       border-color: #334155 !important;
       color: #e2e8f0 !important;
     }
+    html[data-theme="dark"] .users-password-toggle {
+      color: #94a3b8 !important;
+    }
+    html[data-theme="dark"] .users-password-toggle:hover,
+    html[data-theme="dark"] .users-password-toggle:focus-visible {
+      color: #86efac !important;
+    }
     html[data-theme="dark"] .btn-users-secondary {
       background: #334155 !important;
       color: #e2e8f0 !important;
@@ -546,12 +583,16 @@
       <form id="addUserForm">
         <div class="users-form-grid">
           <div class="users-form-group">
-            <label for="userRole">Role</label>
-            <select id="userRole" name="role" required></select>
+            <label for="userRole">Role / Position</label>
+            <input id="userRole" name="role" type="text" required maxlength="40" placeholder="e.g. Coordinator" autocomplete="off">
           </div>
           <div class="users-form-group">
             <label for="userName">Name</label>
             <input id="userName" name="name" type="text" required maxlength="80" placeholder="Full name" autocomplete="name">
+          </div>
+          <div class="users-form-group">
+            <label for="userEmail">Email address</label>
+            <input id="userEmail" name="email" type="email" required maxlength="120" placeholder="name@organization.org" autocomplete="email">
           </div>
           <div class="users-form-group">
             <label for="userUsername">Username</label>
@@ -560,7 +601,12 @@
           </div>
           <div class="users-form-group">
             <label for="userPassword">Password</label>
-            <input id="userPassword" name="password" type="password" required minlength="6" placeholder="At least 6 characters" autocomplete="new-password">
+            <div class="users-password-field">
+              <input id="userPassword" name="password" type="password" required minlength="6" placeholder="At least 6 characters" autocomplete="new-password">
+              <button type="button" class="users-password-toggle" id="userPasswordToggle" aria-label="Show password" aria-pressed="false" aria-controls="userPassword">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
         </div>
         <p class="users-form-error" id="addUserError" role="alert"></p>
