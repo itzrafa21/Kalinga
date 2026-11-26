@@ -595,6 +595,38 @@
       border-color: #16a34a;
       box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
     }
+    .update-modal input[type="text"] {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 0.7rem 1rem;
+      font: inherit;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      box-sizing: border-box;
+    }
+    .update-modal input[type="text"]:focus {
+      outline: none;
+      border-color: #16a34a;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+    }
+    .update-row__title {
+      display: block;
+      margin: 0 0 0.15rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .update-view-title {
+      margin: 0 0 0.35rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #111827;
+      word-break: break-word;
+    }
     .update-photos-input,
     .update-docs-input {
       display: none;
@@ -785,7 +817,7 @@
             <span id="campaignDates"></span>
           </div>
         </div>
-        <button type="button" class="btn btn-add-update" id="addCampaignUpdateBtn" hidden>Add update</button>
+        <button type="button" class="btn btn-add-update" id="addCampaignUpdateBtn" title="Post a new update for this campaign" hidden>Add update</button>
       </div>
 
       <div class="details-layout">
@@ -889,6 +921,14 @@
       <p class="update-modal__help">
         Share how the campaign went — add a short story, photos, and supporting documents.
       </p>
+      <label for="campaignUpdateTitle">Title</label>
+      <input
+        id="campaignUpdateTitle"
+        type="text"
+        placeholder="e.g. Feeding day completed in Barangay 5"
+        maxlength="120"
+        autocomplete="off"
+      >
       <label for="campaignUpdateText">What happened?</label>
       <textarea
         id="campaignUpdateText"

@@ -671,8 +671,10 @@ function openCampaignUpdateViewModal(update) {
     if (!modal || !content || !update) return;
 
     const body = String(update.body || "").trim() || "—";
+    const title = String(update.title || "").trim();
     content.innerHTML = `
       <p class="update-view-when">${escapeHtml(formatUpdateWhen(update.createdAt))}</p>
+      ${title ? `<h3 class="update-view-title">${escapeHtml(title)}</h3>` : ""}
       <p class="update-view-body">${escapeHtml(body)}</p>
       ${renderUpdatePhotosHtml(update.imageUrls)}
       ${renderUpdateDocumentsHtml(update.documents)}
@@ -771,12 +773,14 @@ function renderCampaignUpdates(rows) {
     list.innerHTML = updates
         .map((update, index) => {
             const body = String(update.body || "").trim();
+            const title = String(update.title || "").trim();
             const meta = updateAttachmentSummary(update);
             const key = update.id || String(index);
             return `<li>
         <button type="button" class="update-row" data-view-update="${escapeHtml(String(key))}">
           <span class="update-row__copy">
             <span class="update-row__when">${escapeHtml(formatUpdateWhen(update.createdAt))}</span>
+            ${title ? `<span class="update-row__title">${escapeHtml(title)}</span>` : ""}
             <span class="update-row__preview">${escapeHtml(previewUpdateBody(body))}</span>
             ${meta ? `<span class="update-row__meta">${escapeHtml(meta)}</span>` : ""}
           </span>
@@ -907,10 +911,12 @@ function addPendingUpdateDocs(fileList) {
 function openUpdateModal() {
     const modal = document.getElementById("campaignUpdateModal");
     const text = document.getElementById("campaignUpdateText");
+    const titleInput = document.getElementById("campaignUpdateTitle");
     const fileInput = document.getElementById("campaignUpdatePhotos");
     const docsInput = document.getElementById("campaignUpdateDocs");
     pendingUpdatePhotos = [];
     pendingUpdateDocs = [];
+    if (titleInput) titleInput.value = "";
     if (text) text.value = "";
     if (fileInput) fileInput.value = "";
     if (docsInput) docsInput.value = "";
@@ -946,9 +952,16 @@ function onAddCampaignUpdate() {
 }
 
 async function saveCampaignUpdate() {
+    const titleEl = document.getElementById("campaignUpdateTitle");
     const textEl = document.getElementById("campaignUpdateText");
     const saveBtn = document.getElementById("campaignUpdateSave");
+    const title = String(titleEl?.value || "").trim();
     const body = String(textEl?.value || "").trim();
+    if (!title) {
+        setUpdateModalError("Please add a title for this update.");
+        titleEl?.focus();
+        return;
+    }
     if (!body) {
         setUpdateModalError("Please write a short update about the campaign.");
         textEl?.focus();
@@ -1015,6 +1028,7 @@ async function saveCampaignUpdate() {
 
         setUpdateModalError("Saving update…");
         await addDoc(collection(db, "donation_campaigns", campaignId, "updates"), {
+            title,
             body,
             imageUrls,
             documents,
