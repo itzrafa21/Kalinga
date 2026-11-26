@@ -1250,6 +1250,52 @@ function filterAdminMissionsTable() {
     applyAdminMissionsPagination();
 }
 
+function getMissionTypeBadgeStyle(type) {
+    const raw = String(type || "General").trim();
+    const key = raw.toLowerCase().replace(/\s+/g, " ");
+
+    if (key.includes("health") || key.includes("medical")) {
+        return "background-color: #e11d48; color: #ffffff;";
+    }
+    if (key.includes("environment") || key.includes("eco") || key.includes("tree")) {
+        return "background-color: #16a34a; color: #ffffff;";
+    }
+    if (key.includes("education") || key.includes("tutor") || key.includes("school")) {
+        return "background-color: #2563eb; color: #ffffff;";
+    }
+    if (key.includes("disaster") || key.includes("relief") || key.includes("emergency")) {
+        return "background-color: #ea580c; color: #ffffff;";
+    }
+    if (key.includes("community") || key.includes("outreach")) {
+        return "background-color: #7c3aed; color: #ffffff;";
+    }
+    if (key.includes("food") || key.includes("feeding") || key.includes("hunger")) {
+        return "background-color: #d97706; color: #ffffff;";
+    }
+    if (key.includes("animal")) {
+        return "background-color: #0d9488; color: #ffffff;";
+    }
+    if (key === "general" || key === "") {
+        return "background-color: #64748b; color: #ffffff;";
+    }
+
+    const palette = [
+        "#0891b2",
+        "#9333ea",
+        "#db2777",
+        "#4f46e5",
+        "#059669",
+        "#ca8a04",
+        "#dc2626",
+        "#0284c7",
+    ];
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+        hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    }
+    return `background-color: ${palette[hash % palette.length]}; color: #ffffff;`;
+}
+
 function renderAdminMissionsTable(missions) {
     const tbody = document.getElementById("missionsTableBody");
     if (!tbody) return;
@@ -1275,7 +1321,7 @@ function renderAdminMissionsTable(missions) {
                         ${normalizedStatus === "pending" ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ""}
                     </td>
                     <td>${escapeHtml(mission.displayOrgName || mission.orgName || "Unknown")}</td>
-                    <td><span class="badge bg-info">${mission.type || "General"}</span></td>
+                    <td><span class="badge" style="${getMissionTypeBadgeStyle(mission.type)}">${escapeHtml(mission.type || "General")}</span></td>
                     <td>${mission.date || "Not set"}</td>
                     <td>${mission.location || "Not specified"}</td>
                     <td><span class="badge ${statusBadge}">${mission.status || "pending"}</span></td>
@@ -3145,13 +3191,35 @@ function filterVolunteers() {
 }
 
 function getStatusBadgeClass(status) {
-    switch(status) {
-        case 'Approved': return 'bg-success';
-        case 'Pending': return 'bg-warning';
-        case 'Rejected': return 'bg-danger';
-        case 'Active': return 'bg-primary';
-        case 'Completed': return 'bg-info';
-        default: return 'bg-secondary';
+    const normalized = String(status || "").trim().toLowerCase();
+    switch (normalized) {
+        case "open":
+        case "approved":
+        case "published":
+            return "bg-success";
+        case "pending":
+        case "pending_approval":
+        case "submitted":
+            return "bg-warning text-dark";
+        case "rejected":
+        case "cancelled":
+        case "canceled":
+            return "bg-danger";
+        case "active":
+        case "ongoing":
+        case "in progress":
+        case "in_progress":
+        case "upcoming":
+        case "scheduled":
+            return "bg-primary";
+        case "completed":
+        case "done":
+            return "bg-info text-dark";
+        case "closed":
+        case "full":
+            return "bg-dark";
+        default:
+            return "bg-secondary";
     }
 }
 
