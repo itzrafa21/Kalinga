@@ -1704,7 +1704,7 @@ function mergeApplicationVolunteerProfile(map, userId, appData) {
     });
 }
 
-async function discoverVolunteersFromApplications() {
+async function discoverVolunteersFromApplications(knownUsersById = null) {
     const profileByUserId = new Map();
 
     try {
@@ -1780,24 +1780,38 @@ async function discoverVolunteersFromApplications() {
         }
     }
 
-    const entries = [];
-    for (const [userId, profile] of profileByUserId) {
-        let data = { ...profile };
-        try {
-            const userSnap = await getDoc(doc(db, "users", userId));
-            if (userSnap.exists()) {
-                data = { ...userSnap.data(), ...profile };
+    const entries = await Promise.all(
+        [...profileByUserId.entries()].map(async ([userId, profile]) => {
+            const known = knownUsersById?.get(userId);
+            if (known?.data) {
+                return { id: userId, data: { ...known.data, ...profile } };
             }
-        } catch {
-            /* use application profile only */
-        }
-        entries.push({ id: userId, data });
-    }
+            let data = { ...profile };
+            try {
+                const userSnap = await getDoc(doc(db, "users", userId));
+                if (userSnap.exists()) {
+                    data = { ...userSnap.data(), ...profile };
+                }
+            } catch {
+                /* use application profile only */
+            }
+            return { id: userId, data };
+        })
+    );
     return entries;
 }
 
 async function loadVolunteerUserEntries() {
-    const orgUserIds = await getOrganizationUserIds();
+    const [orgUserIds, roleSnap] = await Promise.all([
+        getOrganizationUserIds(),
+        getDocs(
+            query(collection(db, "users"), where("role", "==", "volunteer"))
+        ).catch((err) => {
+            console.warn("[WARN] role=volunteer query:", err);
+            return null;
+        }),
+    ]);
+
     const entries = [];
     const entriesById = new Map();
 
@@ -1819,13 +1833,8 @@ async function loadVolunteerUserEntries() {
         entries.push(entry);
     };
 
-    try {
-        const roleSnap = await getDocs(
-            query(collection(db, "users"), where("role", "==", "volunteer"))
-        );
+    if (roleSnap) {
         roleSnap.docs.forEach((d) => addEntry(d.id, d.data()));
-    } catch (err) {
-        console.warn("[WARN] role=volunteer query:", err);
     }
 
     if (entries.length === 0) {
@@ -1844,7 +1853,7 @@ async function loadVolunteerUserEntries() {
         }
     }
 
-    const fromApplications = await discoverVolunteersFromApplications();
+    const fromApplications = await discoverVolunteersFromApplications(entriesById);
     fromApplications.forEach(({ id, data }) => addEntry(id, data));
     if (fromApplications.length > 0) {
         console.log(
@@ -2009,57 +2018,92 @@ function statusString(status) {
     return String(status || "").toLowerCase().replace(/\s+/g, "-");
 }
 
+let volunteersRefreshInFlight = null;
+
 async function loadVolunteersData({ force = false } = {}) {
     const tbody = document.getElementById("volunteersTableBody");
     if (!tbody) return;
 
-    if (
-        !force &&
-        isAdminCacheFresh(ADMIN_CACHE_KEYS.VOLUNTEERS) &&
-        Array.isArray(readAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS)?.payload)
-    ) {
-        allAdminVolunteers = readAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS).payload;
+    const cached = readAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS);
+    const hasCachedRows = Array.isArray(cached?.payload);
+
+    // Paint cached rows immediately (even if stale) so the tab opens instantaneously.
+    if (hasCachedRows) {
+        allAdminVolunteers = cached.payload;
         filterVolunteers();
-        return;
+        if (!force && isAdminCacheFresh(ADMIN_CACHE_KEYS.VOLUNTEERS)) {
+            return;
+        }
+    } else {
+        tbody.innerHTML =
+            '<tr><td colspan="8" class="text-center text-muted">Loading volunteers…</td></tr>';
     }
 
-    tbody.innerHTML =
-        '<tr><td colspan="7" class="text-center text-muted">Loading volunteers…</td></tr>';
+    if (volunteersRefreshInFlight) {
+        return volunteersRefreshInFlight;
+    }
 
-    try {
-        await loadPlatformConfig();
-
-        const volunteers = await adminCachedFetch(
-            ADMIN_CACHE_KEYS.VOLUNTEERS,
-            async () => {
-                const userEntries = await loadVolunteerUserEntries();
-                const userIds = userEntries.map(({ id }) => id);
-                const statsIndex = await buildGlobalVolunteerStatsIndex(userIds);
-
-                const rows = await Promise.all(
-                    userEntries.map(({ id, data }) =>
-                        createVolunteerRow(id, data, statsIndex.get(id))
-                    )
-                );
-
-                rows.sort((a, b) =>
-                    String(a.name).localeCompare(String(b.name), undefined, {
-                        sensitivity: "base",
-                    })
-                );
-                return rows;
-            },
-            { force, maxAgeMs: ADMIN_FRESH_MS }
+    const EMPTY_STATS = { missionsCompleted: 0, totalHours: 0 };
+    const sortVolunteerRows = (rows) =>
+        rows.sort((a, b) =>
+            String(a.name).localeCompare(String(b.name), undefined, {
+                sensitivity: "base",
+            })
         );
 
-        allAdminVolunteers = Array.isArray(volunteers) ? volunteers : [];
-        filterVolunteers();
-        console.log("[SUCCESS] Volunteers loaded:", allAdminVolunteers.length);
-    } catch (error) {
-        console.error("[ERROR] Error loading volunteers:", error);
-        tbody.innerHTML =
-            '<tr><td colspan="7" class="text-center text-danger">Failed to load volunteers. Please try again.</td></tr>';
-    }
+    volunteersRefreshInFlight = (async () => {
+        try {
+            const [, userEntries] = await Promise.all([
+                loadPlatformConfig(),
+                loadVolunteerUserEntries(),
+            ]);
+
+            // Stage 1: build & paint immediately from user docs + stored stats (no per-user scans).
+            const initialRows = sortVolunteerRows(
+                await Promise.all(
+                    userEntries.map(({ id, data }) =>
+                        createVolunteerRow(id, data, EMPTY_STATS)
+                    )
+                )
+            );
+
+            allAdminVolunteers = initialRows;
+            if (!hasCachedRows || initialRows.length > 0) {
+                writeAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS, initialRows);
+                filterVolunteers();
+            }
+
+            // Stage 2: refine mission/hour totals via batch index in the background.
+            const userIds = userEntries.map(({ id }) => id);
+            const statsIndex = await buildGlobalVolunteerStatsIndex(userIds);
+            const refinedRows = sortVolunteerRows(
+                await Promise.all(
+                    userEntries.map(({ id, data }) =>
+                        createVolunteerRow(
+                            id,
+                            data,
+                            statsIndex.get(id) || EMPTY_STATS
+                        )
+                    )
+                )
+            );
+
+            allAdminVolunteers = refinedRows;
+            writeAdminCache(ADMIN_CACHE_KEYS.VOLUNTEERS, refinedRows);
+            filterVolunteers();
+            console.log("[SUCCESS] Volunteers loaded:", allAdminVolunteers.length);
+        } catch (error) {
+            console.error("[ERROR] Error loading volunteers:", error);
+            if (!hasCachedRows) {
+                tbody.innerHTML =
+                    '<tr><td colspan="8" class="text-center text-danger">Failed to load volunteers. Please try again.</td></tr>';
+            }
+        } finally {
+            volunteersRefreshInFlight = null;
+        }
+    })();
+
+    return volunteersRefreshInFlight;
 }
 
 function setupEventListeners() {
@@ -3229,11 +3273,13 @@ async function adminLogout() {
     if (confirm('Are you sure you want to logout?')) {
         try {
             await signOut(auth);
+            invalidateAdminCache();
             localStorage.removeItem('adminUser');
             window.location.href = '/admin/login';
         } catch (error) {
             console.error("Error signing out:", error);
             // Still redirect even if there's an error
+            invalidateAdminCache();
             localStorage.removeItem('adminUser');
             window.location.href = '/admin/login';
         }

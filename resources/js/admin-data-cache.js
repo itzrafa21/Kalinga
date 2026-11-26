@@ -59,6 +59,20 @@ function deserialize(value) {
     return value;
 }
 
+function getPersistentStorage() {
+    try {
+        if (typeof localStorage !== "undefined") return localStorage;
+    } catch {
+        /* ignore */
+    }
+    try {
+        if (typeof sessionStorage !== "undefined") return sessionStorage;
+    } catch {
+        /* ignore */
+    }
+    return null;
+}
+
 export function readAdminCache(key) {
     if (!key) return null;
     const mem = memory.get(key);
@@ -66,7 +80,10 @@ export function readAdminCache(key) {
         return { payload: mem.payload, cachedAt: mem.cachedAt || 0 };
     }
     try {
-        const raw = sessionStorage.getItem(storageKey(key));
+        const storage = getPersistentStorage();
+        const raw =
+            storage?.getItem(storageKey(key)) ||
+            sessionStorage.getItem(storageKey(key));
         if (!raw) return null;
         const entry = JSON.parse(raw);
         if (!entry || entry.payload === undefined) return null;
@@ -85,7 +102,8 @@ export function writeAdminCache(key, payload) {
     const serialized = serialize(payload);
     memory.set(key, { payload: deserialize(serialized), cachedAt });
     try {
-        sessionStorage.setItem(
+        const storage = getPersistentStorage();
+        storage?.setItem(
             storageKey(key),
             JSON.stringify({ payload: serialized, cachedAt })
         );
@@ -122,18 +140,32 @@ export async function adminCachedFetch(key, loader, {
 }
 
 export function invalidateAdminCache(key = null) {
+    const stores = [];
+    try {
+        if (typeof localStorage !== "undefined") stores.push(localStorage);
+    } catch {
+        /* ignore */
+    }
+    try {
+        if (typeof sessionStorage !== "undefined") stores.push(sessionStorage);
+    } catch {
+        /* ignore */
+    }
+
     try {
         if (key) {
-            sessionStorage.removeItem(storageKey(key));
+            stores.forEach((store) => store.removeItem(storageKey(key)));
             memory.delete(key);
             inflight.delete(key);
             tabHydrated.delete(key);
             return;
         }
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-            const k = sessionStorage.key(i);
-            if (k && k.startsWith(PREFIX)) sessionStorage.removeItem(k);
-        }
+        stores.forEach((store) => {
+            for (let i = store.length - 1; i >= 0; i--) {
+                const k = store.key(i);
+                if (k && k.startsWith(PREFIX)) store.removeItem(k);
+            }
+        });
         memory.clear();
         inflight.clear();
         tabHydrated.clear();
