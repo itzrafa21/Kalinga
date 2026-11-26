@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ !empty($campaignId) ? 'Edit' : 'Create' }} Campaign - Kalinga</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   @vite([
     'resources/css/app.css',
     'resources/js/app.js',
@@ -349,6 +350,62 @@
     .preview-goods strong { color: #111827; }
     .money-block[hidden],
     .goods-block[hidden] { display: none !important; }
+    .map-search-wrap {
+      position: relative;
+      margin-bottom: 0.65rem;
+    }
+    #goodsDropoffSuggestions {
+      position: absolute;
+      z-index: 9999;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 10px 24px rgba(15, 36, 25, 0.12);
+      display: none;
+      margin: 0.35rem 0 0;
+      max-height: 220px;
+      overflow-y: auto;
+      list-style: none;
+      padding: 0.35rem 0;
+    }
+    .map-location-suggestion {
+      padding: 0.65rem 0.9rem;
+      cursor: pointer;
+    }
+    .map-location-suggestion:hover { background: #f0fdf4; }
+    .map-location-suggestion--empty { cursor: default; color: #64748b; }
+    .map-location-suggestion--empty:hover { background: transparent; }
+    .map-location-suggestion-title { font-weight: 600; color: #1e293b; font-size: 0.88rem; }
+    .map-location-suggestion-meta { margin-top: 0.12rem; font-size: 0.76rem; color: #64748b; }
+    .map-wrap { position: relative; width: 100%; margin-top: 0.5rem; }
+    #goodsDropoffMap {
+      height: 260px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #dde3e8;
+      overflow: hidden;
+    }
+    .map-pin-hint {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 2;
+      pointer-events: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #1e3a2f;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(30, 58, 47, 0.12);
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+    }
+    .map-pin-hint .bi { font-size: 13px; color: #16a34a; flex-shrink: 0; }
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -593,6 +650,50 @@
                 </div>
                 <div class="need-tags" id="inKindTags" role="group" aria-label="Needed goods"></div>
                 <div class="need-quantities" id="inKindQuantities" hidden></div>
+
+                <div class="goods-dropoff-fields" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb">
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label for="goodsPersonInCharge">Contact Person</label>
+                      <input
+                        id="goodsPersonInCharge"
+                        name="goodsPersonInCharge"
+                        type="text"
+                        placeholder="e.g. Maria Santos"
+                        maxlength="120"
+                        autocomplete="name"
+                      >
+                    </div>
+                    <div class="form-group">
+                      <label for="goodsContactNumber">Contact Number</label>
+                      <input
+                        id="goodsContactNumber"
+                        name="goodsContactNumber"
+                        type="tel"
+                        placeholder="e.g. 0917 123 4567"
+                        maxlength="40"
+                        autocomplete="tel"
+                      >
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label for="goodsDropoffLocation">Drop-off location</label>
+                    <div class="map-search-wrap">
+                      <input
+                        id="goodsDropoffLocation"
+                        name="goodsDropoffLocation"
+                        type="text"
+                        placeholder="Search for a barangay hall, school, address, or place…"
+                        maxlength="240"
+                        autocomplete="off"
+                      >
+                      <ul id="goodsDropoffSuggestions" role="listbox" aria-label="Drop-off location search results"></ul>
+                    </div>
+                    <input type="hidden" id="goodsDropoffLatitude" name="goodsDropoffLatitude">
+                    <input type="hidden" id="goodsDropoffLongitude" name="goodsDropoffLongitude">
+                    <div id="goodsDropoffMap"></div>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -663,5 +764,6 @@
       </div>
     </footer>
   </main>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 </body>
 </html>

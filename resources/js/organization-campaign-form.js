@@ -13,6 +13,7 @@ import {
 import { assertOrgVerified } from "./org-verification.js";
 import { requireOrgPageAccess } from "./org-session.js";
 import { uploadFileToCloudinary, isCloudinaryConfigured } from "./cloudinary-upload.js";
+import { initLocationMap } from "./mission-map.js";
 import {
     CAMPAIGN_STATUS,
     DONATION_MODE,
@@ -43,6 +44,27 @@ let orgId = null;
 let orgName = "";
 let coverImageUrl = "";
 let existingStatus = CAMPAIGN_STATUS.DRAFT;
+let goodsDropoffMapCtrl = null;
+
+function ensureGoodsDropoffMap() {
+    if (!goodsDropoffMapCtrl) {
+        goodsDropoffMapCtrl = initLocationMap({
+            map: "goodsDropoffMap",
+            search: "goodsDropoffLocation",
+            suggestions: "goodsDropoffSuggestions",
+            location: "goodsDropoffLocation",
+            latitude: "goodsDropoffLatitude",
+            longitude: "goodsDropoffLongitude",
+            restoreGlobalName: "restoreGoodsDropoffMapPin",
+        });
+    }
+    if (goodsDropoffMapCtrl) {
+        requestAnimationFrame(() => {
+            goodsDropoffMapCtrl?.resize?.();
+        });
+    }
+    return goodsDropoffMapCtrl;
+}
 let existingInKindReceived = {};
 /** @type {Record<string, number>} */
 let selectedInKindQty = {};
@@ -102,6 +124,14 @@ function setDonationMode(mode) {
     if (amountInput) {
         amountInput.required = acceptsMoney;
         if (!acceptsMoney) amountInput.value = "";
+    }
+    ["goodsPersonInCharge", "goodsDropoffLocation", "goodsContactNumber"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.required = acceptsGoods;
+    });
+
+    if (acceptsGoods) {
+        ensureGoodsDropoffMap();
     }
 
     updateLivePreview();
@@ -365,6 +395,19 @@ async function loadCampaign() {
         items.map((item) => [item.id, item.receivedQuantity || 0])
     );
     renderInKindItems(items);
+    const picEl = document.getElementById("goodsPersonInCharge");
+    const locEl = document.getElementById("goodsDropoffLocation");
+    const numEl = document.getElementById("goodsContactNumber");
+    const latEl = document.getElementById("goodsDropoffLatitude");
+    const lngEl = document.getElementById("goodsDropoffLongitude");
+    if (picEl) picEl.value = data.goodsPersonInCharge || "";
+    if (locEl) locEl.value = data.goodsDropoffLocation || "";
+    if (numEl) numEl.value = data.goodsContactNumber || "";
+    if (latEl && data.goodsDropoffLatitude != null) latEl.value = String(data.goodsDropoffLatitude);
+    if (lngEl && data.goodsDropoffLongitude != null) lngEl.value = String(data.goodsDropoffLongitude);
+    if (mode === DONATION_MODE.GOODS || mode === DONATION_MODE.BOTH) {
+        ensureGoodsDropoffMap()?.restorePin?.();
+    }
     document.getElementById("startDate").value = data.startDate || "";
     document.getElementById("endDate").value = data.endDate || "";
     if (data.relatedMissionId) {
@@ -409,6 +452,19 @@ function collectPayload(status) {
         ? pesosToCentavos(document.getElementById("targetAmount").value)
         : 0;
     const inKindItems = acceptsGoods ? collectInKindItemsFromForm() : [];
+    const goodsPersonInCharge = acceptsGoods
+        ? (document.getElementById("goodsPersonInCharge")?.value || "").trim()
+        : "";
+    const goodsDropoffLocation = acceptsGoods
+        ? (document.getElementById("goodsDropoffLocation")?.value || "").trim()
+        : "";
+    const goodsContactNumber = acceptsGoods
+        ? (document.getElementById("goodsContactNumber")?.value || "").trim()
+        : "";
+    const rawLat = parseFloat(document.getElementById("goodsDropoffLatitude")?.value || "");
+    const rawLng = parseFloat(document.getElementById("goodsDropoffLongitude")?.value || "");
+    const goodsDropoffLatitude = acceptsGoods && Number.isFinite(rawLat) ? rawLat : null;
+    const goodsDropoffLongitude = acceptsGoods && Number.isFinite(rawLng) ? rawLng : null;
     const startDate = parseDateInput(document.getElementById("startDate").value);
     const endDate = parseDateInput(document.getElementById("endDate").value);
     const relatedMissionId = document.getElementById("relatedMissionId").value;
@@ -428,6 +484,15 @@ function collectPayload(status) {
     if (acceptsGoods && !inKindItems.length) {
         throw new Error("Select at least one goods item with a quantity.");
     }
+    if (acceptsGoods && !goodsPersonInCharge) {
+        throw new Error("Person in charge is required for goods donations.");
+    }
+    if (acceptsGoods && !goodsDropoffLocation) {
+        throw new Error("Drop-off location is required for goods donations.");
+    }
+    if (acceptsGoods && !goodsContactNumber) {
+        throw new Error("Number to call is required for goods donations.");
+    }
     if (!acceptsMoney && !acceptsGoods) {
         throw new Error("Choose money, goods, or both.");
     }
@@ -446,6 +511,11 @@ function collectPayload(status) {
         acceptsGoods,
         targetAmountCentavos,
         inKindItems,
+        goodsPersonInCharge,
+        goodsDropoffLocation,
+        goodsContactNumber,
+        goodsDropoffLatitude,
+        goodsDropoffLongitude,
         startDate,
         endDate,
         relatedMissionId: relatedMissionId || "",

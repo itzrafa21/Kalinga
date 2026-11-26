@@ -493,6 +493,19 @@ async function loadCampaign() {
         if (acceptsGoods && goods.length) {
             goodsPanel.hidden = false;
             const goodsPct = inKindProgressPercent(goods);
+            const dropoffRows = [
+                c.goodsPersonInCharge
+                    ? `<li><span>Person in charge</span><strong>${escapeHtml(c.goodsPersonInCharge)}</strong></li>`
+                    : "",
+                c.goodsDropoffLocation
+                    ? `<li><span>Drop-off location</span><strong>${escapeHtml(c.goodsDropoffLocation)}</strong></li>`
+                    : "",
+                c.goodsContactNumber
+                    ? `<li><span>Number to call</span><strong>${escapeHtml(c.goodsContactNumber)}</strong></li>`
+                    : "",
+            ]
+                .filter(Boolean)
+                .join("");
             goodsList.innerHTML = `
         ${goods
             .map(
@@ -505,7 +518,8 @@ async function loadCampaign() {
         <li>
           <span>Goods progress</span>
           <strong>${goodsPct}%</strong>
-        </li>`;
+        </li>
+        ${dropoffRows}`;
         } else {
             goodsPanel.hidden = true;
             goodsList.innerHTML = "";
