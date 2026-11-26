@@ -39,7 +39,7 @@
     html[data-admin-tab] .nav-item[data-tab]:focus-visible {
       background: transparent;
       color: #666;
-      font-weight: 400;
+      font-weight: 500;
       outline: none;
       box-shadow: none;
     }
