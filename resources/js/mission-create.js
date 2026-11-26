@@ -43,6 +43,7 @@ let restoredMissionImageDataUrl = null;
 let selectedMissionDocuments = [];
 
 const MISSION_DOC_MAX_BYTES = 50 * 1024 * 1024;
+const MISSION_POSTER_MAX_BYTES = 10 * 1024 * 1024;
 const MISSION_DOC_ACCEPT_EXT = new Set([
     "pdf",
     "doc",
@@ -109,6 +110,7 @@ function clearCreateFormDraft() {
     selectedMissionDocuments = [];
     renderMissionDocumentsList();
     showMissionDocumentsError("");
+    showMissionImageError("");
 }
 
 function restoreCreateFormDraft() {
@@ -525,6 +527,25 @@ if (!scheduleCheck.ok) {
     return;
 }
 
+if (selectedMissionDocuments.length === 0) {
+    showMissionDocumentsError("Please attach at least one document before submitting.");
+    const pickBtn = document.getElementById("missionDocumentsPickBtn");
+    pickBtn?.scrollIntoView({ behavior: "smooth", block: "center" });
+    pickBtn?.focus();
+    return;
+}
+
+if (selectedMissionImageFile && selectedMissionImageFile.size > MISSION_POSTER_MAX_BYTES) {
+    showMissionImageError(
+        `Poster image exceeds the 10MB limit (selected: ${formatFileSize(selectedMissionImageFile.size)}). Please choose an image 10MB or smaller.`
+    );
+    document.getElementById("missionImageContainer")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+    });
+    return;
+}
+
 const pointsFields = await computeMissionPointsPayload(schedule);
 
             const missionData = {
@@ -653,7 +674,19 @@ const pointsFields = await computeMissionPointsPayload(schedule);
             openMissionSuccessModal();
         } catch (error) {
             console.error("[ERROR] Error creating mission:", error.message, error);
-            alert("Failed to create mission. Please check console.");
+            const rawMsg = String(error?.message || "");
+            if (
+                /exceeds the maximum allowed size|longer than 1048487 bytes|resource-exhausted/i.test(
+                    rawMsg
+                )
+            ) {
+                const msg =
+                    "Poster image is too large to save. Please upload a smaller image (10MB or less).";
+                showMissionImageError(msg);
+                alert(msg);
+            } else {
+                alert(rawMsg || "Failed to create mission. Please try again.");
+            }
         }
     });
     
@@ -786,6 +819,27 @@ function initializeMissionDocuments() {
     const input = document.getElementById("missionDocumentsInput");
     const pickBtn = document.getElementById("missionDocumentsPickBtn");
     const list = document.getElementById("missionDocumentsList");
+    const infoWrap = document.getElementById("missionDocsInfoWrap");
+    const infoBtn = document.getElementById("missionDocsInfoBtn");
+
+    if (infoWrap && infoBtn) {
+        const setInfoOpen = (open) => {
+            infoWrap.classList.toggle("is-open", open);
+            infoBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        };
+        infoBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setInfoOpen(!infoWrap.classList.contains("is-open"));
+        });
+        document.addEventListener("click", (e) => {
+            if (!infoWrap.contains(e.target)) setInfoOpen(false);
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") setInfoOpen(false);
+        });
+    }
+
     if (!input || !pickBtn || !list) return;
 
     pickBtn.addEventListener("click", () => input.click());
@@ -804,6 +858,18 @@ function initializeMissionDocuments() {
     });
 }
 
+function showMissionImageError(message) {
+    const el = document.getElementById("missionImageError");
+    if (!el) return;
+    if (!message) {
+        el.textContent = "";
+        el.classList.remove("is-visible");
+        return;
+    }
+    el.textContent = message;
+    el.classList.add("is-visible");
+}
+
 // Initialize image upload functionality
 function initializeImageUpload() {
     const missionImageInput = document.getElementById("missionImageInput");
@@ -816,6 +882,21 @@ function initializeImageUpload() {
             const file = e.target.files[0];
             if (!file) return;
 
+            if (!file.type || !file.type.startsWith("image/")) {
+                showMissionImageError("Please select a valid image file.");
+                missionImageInput.value = "";
+                return;
+            }
+
+            if (file.size > MISSION_POSTER_MAX_BYTES) {
+                showMissionImageError(
+                    `Poster image exceeds the 10MB limit (selected: ${formatFileSize(file.size)}). Please choose an image 10MB or smaller.`
+                );
+                missionImageInput.value = "";
+                return;
+            }
+
+            showMissionImageError("");
             selectedMissionImageFile = file;
             console.log("[INFO] Mission image selected:", file.name);
 
@@ -841,6 +922,7 @@ function initializeImageUpload() {
         }
         imageContainer?.classList.remove("has-image");
         removeBtn.hidden = true;
+        showMissionImageError("");
     });
 }
 

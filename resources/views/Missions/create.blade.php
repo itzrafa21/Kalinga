@@ -382,6 +382,26 @@
             padding: 0.45rem 1rem;
         }
 
+        .mission-image-hint {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #64748b;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        .mission-image-error {
+            margin: 0;
+            font-size: 0.82rem;
+            color: #b91c1c;
+            display: none;
+            text-align: center;
+        }
+
+        .mission-image-error.is-visible {
+            display: block;
+        }
+
         .mission-docs-inline {
             margin-top: 1.15rem;
             padding-top: 1rem;
@@ -389,6 +409,74 @@
         }
         .mission-docs-inline .form-block-title {
             margin-bottom: 0.65rem;
+        }
+        .mission-required-mark {
+            color: #dc2626;
+            font-weight: 700;
+            margin-left: -0.15rem;
+        }
+        .mission-docs-info-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.1rem;
+        }
+        .mission-docs-info-btn {
+            border: none;
+            background: transparent;
+            color: #64748b;
+            padding: 0.1rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: color 0.15s, background 0.15s;
+        }
+        .mission-docs-info-btn i {
+            color: inherit;
+            font-size: 0.95rem;
+        }
+        .mission-docs-info-btn:hover,
+        .mission-docs-info-btn:focus-visible,
+        .mission-docs-info-wrap.is-open .mission-docs-info-btn {
+            color: #15803d;
+            background: #f0fdf4;
+            outline: none;
+        }
+        .mission-docs-info-popover {
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            width: 260px;
+            max-width: min(280px, calc(100vw - 2rem));
+            padding: 0.65rem 0.75rem;
+            border-radius: 10px;
+            background: #1e293b;
+            color: #f8fafc;
+            font-size: 0.78rem;
+            font-weight: 400;
+            line-height: 1.45;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+            z-index: 50;
+            display: none;
+            pointer-events: none;
+        }
+        .mission-docs-info-popover::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #1e293b;
+        }
+        .mission-docs-info-wrap:hover .mission-docs-info-popover,
+        .mission-docs-info-wrap:focus-within .mission-docs-info-popover,
+        .mission-docs-info-wrap.is-open .mission-docs-info-popover {
+            display: block;
         }
         .mission-docs-box {
             display: flex;
@@ -823,9 +911,25 @@
                                 <div class="mission-docs-inline" aria-labelledby="section-documents">
                                     <h2 class="form-block-title" id="section-documents">
                                         <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Documents
+                                        <span class="mission-required-mark" aria-hidden="true">*</span>
+                                        <span class="mission-docs-info-wrap" id="missionDocsInfoWrap">
+                                            <button
+                                                type="button"
+                                                class="mission-docs-info-btn"
+                                                id="missionDocsInfoBtn"
+                                                aria-label="Document requirements"
+                                                aria-expanded="false"
+                                                aria-controls="missionDocsInfoPopover"
+                                            >
+                                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                            </button>
+                                            <span class="mission-docs-info-popover" id="missionDocsInfoPopover" role="tooltip">
+                                                Required: Attach at least one supporting document (PDF, DOC/DOCX, or Excel, max 50MB per file). You cannot submit this mission without attachments.
+                                            </span>
+                                        </span>
                                     </h2>
                                     <div class="mission-docs-box">
-                                        <p class="mission-docs-hint">Upload PDF, DOCX, or Excel files. Maximum 50MB per file.</p>
+                                        <p class="mission-docs-hint">Upload at least one PDF, DOCX, or Excel file (required). Maximum 50MB per file.</p>
                                         <div class="mission-docs-actions">
                                             <input
                                                 type="file"
@@ -866,17 +970,6 @@
                                         <a href="/donation/campaigns/create" style="color:#15803d;font-weight:600;">Create a campaign</a>
                                     </p>
                                 </div>
-                                <div class="option-card mt-3">
-  <a href="/missions/donation-details" class="donation-action-btn make" id="openMissionDonationBtn">
-    <i class="bi bi-gift"></i> Make donations for this mission
-  </a>
-  <p class="text-muted small mb-0 mt-2" id="missionDonationStatus">
-    No donation details set for this mission yet.
-  </p>
-  <a href="/missions/donation-details?view=1" class="donation-action-btn view mt-2" id="viewMissionDonationBtn">
-    <i class="bi bi-eye"></i> View Donation Details
-  </a>
-</div>
                             </div>
                         </div>
                     </div>
@@ -919,6 +1012,8 @@
                                     <i class="bi bi-trash"></i> Remove
                                 </button>
                             </div>
+                            <p class="mission-image-hint">Supported formats: JPG, PNG, WebP, GIF. Maximum 10MB.</p>
+                            <p class="mission-image-error" id="missionImageError" role="alert"></p>
                         </div>
                     </div>
 
