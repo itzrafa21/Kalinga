@@ -74,6 +74,9 @@ Route::get('/admin/missions/{missionId}', function (string $missionId) {
 Route::get('/admin/volunteers/{volunteerId}', function (string $volunteerId) {
     return view('admin.volunteer-details', ['volunteerId' => $volunteerId]);
 })->where('volunteerId', '[^/]+');
+Route::get('/admin/campaigns/{campaignId}', function (string $campaignId) {
+    return view('admin.campaign-details', ['campaignId' => $campaignId]);
+})->where('campaignId', '[^/]+');
 Route::get('/admin/config', function () {
     return view('admin.config');
 });

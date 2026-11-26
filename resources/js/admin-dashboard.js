@@ -2383,6 +2383,7 @@ function renderCampaignsTable(list) {
     tbody.innerHTML = list
         .map((c) => {
             const status = String(c.status || "draft");
+            const viewBtn = `<a class="btn btn-sm btn-outline-primary me-1" href="/admin/campaigns/${encodeURIComponent(c.id)}" title="View Campaign"><i class="ti ti-eye"></i> View</a>`;
             const approveBtn =
                 status === CAMPAIGN_STATUS.PENDING
                     ? `<button type="button" class="btn btn-sm btn-success me-1" onclick="approveCampaign('${c.id}')"><i class="ti ti-check"></i> Approve</button>`
@@ -2413,11 +2414,100 @@ function renderCampaignsTable(list) {
         }</td>
         <td>${escapeHtml(c.startDate || "—")} → ${escapeHtml(c.endDate || "—")}</td>
         <td><span class="badge ${status === "published" ? "bg-success" : status === "pending_approval" ? "bg-warning text-dark" : status === "rejected" ? "bg-danger" : "bg-secondary"}">${escapeHtml(campaignStatusLabel(status))}</span></td>
-        <td class="text-nowrap">${approveBtn}${rejectBtn}</td>
+        <td class="text-nowrap">${viewBtn}${approveBtn}${rejectBtn}</td>
       </tr>`;
         })
         .join("");
 }
+
+function closeAdminCampaignModal() {
+    const modal = document.getElementById("adminCampaignDetailsModal");
+    const backdrop = document.getElementById("adminCampaignDetailsBackdrop");
+    if (modal) modal.hidden = true;
+    if (backdrop) backdrop.hidden = true;
+}
+
+window.closeAdminCampaignModal = closeAdminCampaignModal;
+
+window.viewCampaign = function (campaignId) {
+    const c = allAdminCampaigns.find((item) => item.id === campaignId);
+    if (!c) {
+        alert("Campaign details not found.");
+        return;
+    }
+
+    const modal = document.getElementById("adminCampaignDetailsModal");
+    const backdrop = document.getElementById("adminCampaignDetailsBackdrop");
+    const titleEl = document.getElementById("adminCampaignModalTitle");
+    const bodyEl = document.getElementById("adminCampaignModalBody");
+    const footerEl = document.getElementById("adminCampaignModalFooter");
+    if (!modal || !bodyEl) return;
+
+    const status = String(c.status || "draft");
+    const statusBadgeClass =
+        status === "published"
+            ? "bg-success"
+            : status === "pending_approval"
+              ? "bg-warning text-dark"
+              : status === "rejected"
+                ? "bg-danger"
+                : "bg-secondary";
+
+    if (titleEl) titleEl.textContent = c.title || "Campaign Details";
+
+    const coverHtml = c.coverImageUrl
+        ? `<div class="mb-3"><img src="${escapeHtml(c.coverImageUrl)}" alt="Campaign cover" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;"></div>`
+        : "";
+
+    const moneyHtml = campaignAcceptsMoney(c)
+        ? `<div class="mb-2"><strong>Target amount:</strong> ${escapeHtml(formatCentavos(c.targetAmountCentavos))} &nbsp;|&nbsp; <strong>Raised:</strong> ${escapeHtml(formatCentavos(c.raisedAmountCentavos))}</div>`
+        : "";
+
+    const goodsHtml = campaignAcceptsGoods(c)
+        ? `<div class="mb-2">
+            <strong>Needed goods:</strong> ${escapeHtml(formatInKindSummary(c.inKindItems) || "—")}
+            ${c.goodsPersonInCharge ? `<div class="mt-1"><strong>Person in charge:</strong> ${escapeHtml(c.goodsPersonInCharge)}</div>` : ""}
+            ${c.goodsDropoffLocation ? `<div class="mt-1"><strong>Drop-off location:</strong> ${escapeHtml(c.goodsDropoffLocation)}</div>` : ""}
+            ${c.goodsContactNumber ? `<div class="mt-1"><strong>Number to call:</strong> ${escapeHtml(c.goodsContactNumber)}</div>` : ""}
+           </div>`
+        : "";
+
+    const rejectionHtml =
+        status === "rejected" && c.rejectionReason
+            ? `<div class="alert alert-danger py-2 px-3 mt-2 mb-0 small"><strong>Rejection reason:</strong> ${escapeHtml(c.rejectionReason)}</div>`
+            : "";
+
+    bodyEl.innerHTML = `
+      ${coverHtml}
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <span class="badge ${statusBadgeClass}">${escapeHtml(campaignStatusLabel(status))}</span>
+        <span class="badge bg-light text-dark border">${escapeHtml(c.category || "Uncategorized")}</span>
+        <span class="badge bg-light text-dark border">${escapeHtml(donationModeLabel(resolveDonationMode(c)))}</span>
+      </div>
+      <div class="mb-2"><strong>Organization:</strong> ${escapeHtml(c.orgName || c.orgId || "—")}</div>
+      <div class="mb-2"><strong>Schedule:</strong> ${escapeHtml(c.startDate || "—")} → ${escapeHtml(c.endDate || "—")}</div>
+      ${c.relatedMissionName ? `<div class="mb-2"><strong>Related mission:</strong> ${escapeHtml(c.relatedMissionName)}</div>` : ""}
+      ${moneyHtml}
+      ${goodsHtml}
+      <div class="mt-3">
+        <strong>Description:</strong>
+        <p class="mb-0 mt-1 text-muted" style="white-space:pre-wrap;">${escapeHtml(c.description || "No description provided.")}</p>
+      </div>
+      ${rejectionHtml}
+    `;
+
+    if (footerEl) {
+        const pendingActions =
+            status === CAMPAIGN_STATUS.PENDING
+                ? `<button type="button" class="btn btn-sm btn-success me-2" onclick="closeAdminCampaignModal(); approveCampaign('${c.id}')"><i class="ti ti-check"></i> Approve</button>
+                   <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="closeAdminCampaignModal(); rejectCampaign('${c.id}')"><i class="ti ti-x"></i> Reject</button>`
+                : "";
+        footerEl.innerHTML = `${pendingActions}<button type="button" class="org-details-modal__close-btn" onclick="closeAdminCampaignModal()">Close</button>`;
+    }
+
+    if (backdrop) backdrop.hidden = false;
+    modal.hidden = false;
+};
 
 function filterCampaigns() {
     const q = (document.getElementById("campaignSearch")?.value || "")

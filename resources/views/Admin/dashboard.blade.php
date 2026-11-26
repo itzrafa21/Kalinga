@@ -1131,5 +1131,21 @@
   </div>
 </div>
 
+<!-- Admin Campaign Details Modal -->
+<div id="adminCampaignDetailsBackdrop" class="org-modal-backdrop" hidden onclick="closeAdminCampaignModal()"></div>
+<div id="adminCampaignDetailsModal" class="org-details-modal" hidden role="dialog" aria-modal="true" aria-labelledby="adminCampaignModalTitle">
+  <div class="org-details-modal__header">
+    <div class="org-details-modal__title-wrap">
+      <i class="ti ti-gift"></i>
+      <h2 id="adminCampaignModalTitle">Campaign Details</h2>
+    </div>
+    <button type="button" class="org-details-modal__close-x" aria-label="Close" onclick="closeAdminCampaignModal()">&times;</button>
+  </div>
+  <div class="org-details-modal__body" id="adminCampaignModalBody"></div>
+  <div class="org-details-modal__footer" id="adminCampaignModalFooter">
+    <button type="button" class="org-details-modal__close-btn" onclick="closeAdminCampaignModal()">Close</button>
+  </div>
+</div>
+
 </body>
 </html>
