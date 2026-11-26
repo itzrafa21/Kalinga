@@ -311,6 +311,13 @@ function paintMoneySummary(raisedCentavos, donorCount) {
     if (fill) fill.style.width = `${pct}%`;
 }
 
+function isAnonymousDonation(d) {
+    if (d?.anonymous === true) return true;
+    const name = String(d?.volunteerName || d?.donorName || d?.name || "").trim();
+    const email = String(d?.volunteerEmail || d?.donorEmail || d?.email || "").trim();
+    return name.toLowerCase() === "anonymous" || (!name && !email);
+}
+
 function paintRaisedFromRows(rows) {
     if (!rows.length) return;
 
@@ -320,7 +327,11 @@ function paintRaisedFromRows(rows) {
     );
     const donors = new Set(
         rows
-            .map((d) => d.volunteerId || d.volunteerEmail || d.id)
+            .map((d) =>
+                isAnonymousDonation(d)
+                    ? `anon:${d.id}`
+                    : d.volunteerId || d.volunteerEmail || d.id
+            )
             .filter(Boolean)
     );
     paintMoneySummary(raised, donors.size);

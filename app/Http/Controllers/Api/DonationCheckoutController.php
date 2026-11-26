@@ -211,7 +211,15 @@ class DonationCheckoutController extends Controller
             'donations' => $visible->map->toApiArray()->all(),
             'raisedCentavos' => (int) $paid->sum('amount_centavos'),
             'donorCount' => $paid
-                ->map(fn (DonationRecord $row) => $row->volunteer_id ?: $row->volunteer_email ?: $row->id)
+                ->map(function (DonationRecord $row) {
+                    $name = strtolower(trim((string) $row->volunteer_name));
+                    $email = trim((string) $row->volunteer_email);
+                    if ($name === 'anonymous' || ($name === '' && $email === '')) {
+                        return 'anon:'.$row->id;
+                    }
+
+                    return $row->volunteer_id ?: $row->volunteer_email ?: $row->id;
+                })
                 ->filter()
                 ->unique()
                 ->count(),

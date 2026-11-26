@@ -118,7 +118,10 @@ class DonationSettlementService
             }
 
             $raised = (int) ($campaign['raisedAmountCentavos'] ?? 0) + $amountCentavos;
-            $donors = (int) ($campaign['donorCount'] ?? 0) + 1;
+
+            // Count unique donors (accounts), not payments. An anonymous donor who gives
+            // several times is still one donor because they share the same account id.
+            $donors = $this->countUniquePaidDonors($campaignId);
             $recent = $campaign['recentDonations'] ?? [];
             if (! is_array($recent)) {
                 $recent = [];
@@ -149,5 +152,29 @@ class DonationSettlementService
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    /**
+     * Distinct paying donors for a campaign. Named donations dedupe by account
+     * (volunteer_id), while anonymous donations count as separate donors.
+     */
+    private function countUniquePaidDonors(string $campaignId): int
+    {
+        return DonationRecord::query()
+            ->where('campaign_id', $campaignId)
+            ->where('status', 'paid')
+            ->get(['id', 'volunteer_id', 'volunteer_email', 'volunteer_name'])
+            ->map(function (DonationRecord $row) {
+                $name = strtolower(trim((string) $row->volunteer_name));
+                $email = trim((string) $row->volunteer_email);
+                if ($name === 'anonymous' || ($name === '' && $email === '')) {
+                    return 'anon:'.$row->id;
+                }
+
+                return $row->volunteer_id ?: $row->volunteer_email ?: $row->id;
+            })
+            ->filter()
+            ->unique()
+            ->count();
     }
 }

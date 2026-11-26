@@ -316,7 +316,18 @@ async function loadCampaigns({ force = false } = {}) {
                 if (paidAt && paidAt >= monthStart) {
                     monthRaised += Number(data.amountCentavos) || 0;
                 }
-                if (data.volunteerId) donorIds.add(data.volunteerId);
+                const donorName = String(
+                    data.volunteerName || data.donorName || data.name || ""
+                ).trim();
+                const donorEmail = String(
+                    data.volunteerEmail || data.donorEmail || data.email || ""
+                ).trim();
+                const isAnon =
+                    data.anonymous === true ||
+                    donorName.toLowerCase() === "anonymous" ||
+                    (!donorName && !donorEmail);
+                if (isAnon) donorIds.add(`anon:${d.id}`);
+                else if (data.volunteerId) donorIds.add(data.volunteerId);
                 else if (data.volunteerEmail) donorIds.add(data.volunteerEmail);
             });
             if (donorIds.size) donors = donorIds.size;

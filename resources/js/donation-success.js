@@ -1,11 +1,16 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
 import {
+    collection,
     doc,
     getDoc,
+    getDocs,
+    limit,
+    query,
     serverTimestamp,
     setDoc,
     updateDoc,
+    where,
 } from "firebase/firestore";
 
 const donationId =
@@ -58,6 +63,27 @@ function buildReceipt(donation) {
     };
 }
 
+/** True when this account already has a different paid donation in the campaign. */
+async function accountHasOtherPaidDonation(campaignId, volunteerId) {
+    if (!campaignId || !volunteerId) return false;
+    try {
+        const snap = await getDocs(
+            query(
+                collection(db, "donations"),
+                where("volunteerId", "==", volunteerId),
+                where("campaignId", "==", campaignId),
+                where("status", "==", "paid"),
+                limit(5)
+            )
+        );
+        return snap.docs.some((d) => d.id !== donationId);
+    } catch (error) {
+        console.warn("[WARN] donor lookup failed:", error);
+        // Fail safe: do not inflate the donor count when the lookup is unavailable.
+        return true;
+    }
+}
+
 async function syncReceipt(donation) {
     const receipt = buildReceipt(donation);
     if (!receipt.campaignId || !receipt.volunteerId) {
@@ -98,12 +124,25 @@ async function syncReceipt(donation) {
     };
 
     if (!alreadyListed) {
+        // Anonymous donations always count as a separate donor even from the same account.
+        // Named donations only increment when this account has no earlier named paid donation.
+        const nameLower = String(receipt.volunteerName || "").trim().toLowerCase();
+        const isAnon =
+            donation.anonymous === true ||
+            nameLower === "anonymous" ||
+            (!nameLower && !String(receipt.volunteerEmail || "").trim());
+        const isNewDonor =
+            isAnon ||
+            !(await accountHasOtherPaidDonation(
+                receipt.campaignId,
+                receipt.volunteerId
+            ));
         recent.push(entry);
         await updateDoc(campaignRef, {
             raisedAmountCentavos:
                 (Number(campaign.raisedAmountCentavos) || 0) +
                 (Number(receipt.amountCentavos) || 0),
-            donorCount: (Number(campaign.donorCount) || 0) + 1,
+            donorCount: (Number(campaign.donorCount) || 0) + (isNewDonor ? 1 : 0),
             recentDonations: recent.slice(-50),
             updatedAt: serverTimestamp(),
         });
