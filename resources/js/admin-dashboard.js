@@ -3067,3 +3067,11 @@ async function syncMissionStatuses() {
 
 // Intentionally no second auth preload — tabs initialize once via showTab/loadTabData.
 // syncMissionStatuses is expensive (orgs × history × mission docs); run only on demand.
+
+window.addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    if (!isAdminCacheFresh(ADMIN_CACHE_KEYS.MISSIONS)) {
+        clearAdminTabLoaded("missions");
+        void loadMissionsData({ force: true });
+    }
+});

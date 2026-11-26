@@ -183,17 +183,12 @@ onAuthStateChanged(auth, async (user) => {
         applyCachedDashboardMissions(cached.payload);
     }
 
-    const needsNetwork = !isOrgCacheFresh(
-        actor.uid,
-        ORG_CACHE_KEYS.DASHBOARD,
-        NAV_FRESH_MS
-    );
-    if (needsNetwork) {
-        await refreshMissionDashboard(actor, {
-            silent: Boolean(cached?.payload),
-            force: true,
-        });
-    }
+    // Always revalidate from Firestore (stale-while-revalidate) so external
+    // status changes like admin approval/rejection appear immediately.
+    await refreshMissionDashboard(actor, {
+        silent: Boolean(cached?.payload),
+        force: true,
+    });
 
     if (statusSyncTimer) clearInterval(statusSyncTimer);
     statusSyncTimer = setInterval(async () => {
@@ -210,14 +205,19 @@ window.addEventListener("pageshow", (event) => {
     if (!CURRENT_USER) return;
     if (event.persisted) {
         void refreshMissionDashboard(CURRENT_USER, {
-            silent: false,
-            force: !isOrgCacheFresh(
-                CURRENT_USER.uid,
-                ORG_CACHE_KEYS.DASHBOARD,
-                NAV_FRESH_MS
-            ),
+            silent: true,
+            force: true,
         });
     }
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || !CURRENT_USER) return;
+    void refreshMissionDashboard(CURRENT_USER, {
+        silent: true,
+        force: true,
+        syncStatuses: false,
+    });
 });
 
 async function updateMissionStatuses(user) {

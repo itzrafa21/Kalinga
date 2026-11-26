@@ -18,6 +18,15 @@ import {
     buildDocumentViewHref,
     openDocumentForView,
 } from "./cloudinary-upload.js";
+import {
+    ADMIN_CACHE_KEYS,
+    invalidateAdminCache,
+} from "./admin-data-cache.js";
+import {
+    ORG_CACHE_KEYS,
+    invalidateOrgCache,
+    missionDetailCacheKey,
+} from "./org-data-cache.js";
 
 const missionId = document.body.dataset.missionId || "";
 
@@ -418,6 +427,12 @@ async function approveMission() {
             approvedBy: auth.currentUser?.email || "",
         });
 
+        invalidateAdminCache(ADMIN_CACHE_KEYS.MISSIONS);
+        invalidateAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
+        invalidateOrgCache(submissionData.orgId, ORG_CACHE_KEYS.DASHBOARD);
+        invalidateOrgCache(submissionData.orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+        invalidateOrgCache(submissionData.orgId, missionDetailCacheKey(missionId));
+
         await loadMission();
         openOverlay("missionApproveSuccessModal");
     } catch (error) {
@@ -482,7 +497,14 @@ async function confirmReject() {
                 }
             );
             await deleteDoc(doc(db, "organizations", submissionData.orgId, "missions", missionId));
+            invalidateOrgCache(submissionData.orgId, ORG_CACHE_KEYS.DASHBOARD);
+            invalidateOrgCache(submissionData.orgId, ORG_CACHE_KEYS.HISTORY);
+            invalidateOrgCache(submissionData.orgId, ORG_CACHE_KEYS.ORG_MISSIONS_MAP);
+            invalidateOrgCache(submissionData.orgId, missionDetailCacheKey(missionId));
         }
+
+        invalidateAdminCache(ADMIN_CACHE_KEYS.MISSIONS);
+        invalidateAdminCache(ADMIN_CACHE_KEYS.DASHBOARD_STATS);
 
         await loadMission();
     } catch (error) {
