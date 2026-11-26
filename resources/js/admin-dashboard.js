@@ -1047,13 +1047,37 @@ async function loadOrganizationsData({ force = false } = {}) {
     }
 }
 
+function formatAdminCreatedAt(value) {
+    if (!value) return "—";
+    let d = null;
+    if (typeof value?.toDate === "function") {
+        d = value.toDate();
+    } else if (typeof value?.seconds === "number") {
+        d = new Date(value.seconds * 1000);
+    } else if (typeof value?._seconds === "number") {
+        d = new Date(value._seconds * 1000);
+    } else if (typeof value === "number") {
+        d = new Date(value < 1e12 ? value * 1000 : value);
+    } else if (value instanceof Date) {
+        d = value;
+    } else {
+        d = new Date(value);
+    }
+    if (!d || Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+}
+
 function renderOrganizationsTable(list) {
     const tbody = document.getElementById("organizationsTableBody");
     if (!tbody) return;
 
     if (!list.length) {
         tbody.innerHTML =
-            '<tr><td colspan="6" class="text-center">No organizations match your filters</td></tr>';
+            '<tr><td colspan="7" class="text-center">No organizations match your filters</td></tr>';
         return;
     }
 
@@ -1088,6 +1112,7 @@ function renderOrganizationsTable(list) {
 
             return `
                 <tr data-org-status="${statusKey}">
+                    <td class="text-nowrap">${escapeHtml(formatAdminCreatedAt(org.createdAt || org.registeredAt || org.submittedAt))}</td>
                     <td><strong>${escapeHtml(name)}</strong></td>
                     <td>${escapeHtml(email)}</td>
                     <td>${escapeHtml(phone)}</td>
@@ -1231,7 +1256,7 @@ function renderAdminMissionsTable(missions) {
 
     if (!missions.length) {
         tbody.innerHTML =
-            '<tr><td colspan="7" class="text-center">No missions found</td></tr>';
+            '<tr><td colspan="8" class="text-center">No missions found</td></tr>';
         applyAdminMissionsPagination();
         return;
     }
@@ -1244,6 +1269,7 @@ function renderAdminMissionsTable(missions) {
             return `
                 <tr class="admin-mission-row ${normalizedStatus === "pending" ? "table-warning" : ""}"
                     data-status="${normalizedStatus}">
+                    <td class="text-nowrap">${escapeHtml(formatAdminCreatedAt(mission.createdAt || mission.submittedAt))}</td>
                     <td>
                         <strong>${mission.missionName || mission.name}</strong>
                         ${normalizedStatus === "pending" ? '<br><small class="text-muted"><i class="bi bi-hourglass-split"></i> Awaiting approval</small>' : ""}
@@ -1557,6 +1583,47 @@ async function getOrganizationUserIds() {
     }
 }
 
+function toTimestampMs(value) {
+    if (!value) return null;
+    if (typeof value?.toDate === "function") {
+        const ms = value.toDate().getTime();
+        return Number.isNaN(ms) ? null : ms;
+    }
+    if (typeof value?.seconds === "number") return value.seconds * 1000;
+    if (typeof value?._seconds === "number") return value._seconds * 1000;
+    if (typeof value === "number") return value < 1e12 ? value * 1000 : value;
+    const d = value instanceof Date ? value : new Date(value);
+    const ms = d.getTime();
+    return Number.isNaN(ms) ? null : ms;
+}
+
+function pickEarlierDate(a, b) {
+    const aMs = toTimestampMs(a);
+    const bMs = toTimestampMs(b);
+    if (aMs == null) return b || null;
+    if (bMs == null) return a || null;
+    return bMs < aMs ? b : a;
+}
+
+function resolveVolunteerCreatedAt(data = {}) {
+    return (
+        data.createdAt ||
+        data.created_at ||
+        data.registeredAt ||
+        data.registered_at ||
+        data.joinedAt ||
+        data.joined_at ||
+        data.dateCreated ||
+        data.createdDate ||
+        data.timestamp ||
+        data.firstActivityAt ||
+        data.updatedAt ||
+        data.updated_at ||
+        data.lastUpdated ||
+        null
+    );
+}
+
 function mergeApplicationVolunteerProfile(map, userId, appData) {
     if (!userId) return;
     const existing = map.get(userId) || {
@@ -1564,7 +1631,16 @@ function mergeApplicationVolunteerProfile(map, userId, appData) {
         email: "",
         phone: "",
         applicationCount: 0,
+        firstActivityAt: null,
     };
+    const activityDate =
+        appData.appliedAt ||
+        appData.createdAt ||
+        appData.joinedAt ||
+        appData.submittedAt ||
+        appData.approvedAt ||
+        appData.updatedAt ||
+        null;
     map.set(userId, {
         ...existing,
         name:
@@ -1578,6 +1654,7 @@ function mergeApplicationVolunteerProfile(map, userId, appData) {
             appData.mobile ||
             existing.phone,
         applicationCount: existing.applicationCount + 1,
+        firstActivityAt: pickEarlierDate(existing.firstActivityAt, activityDate),
     });
 }
 
@@ -1676,13 +1753,24 @@ async function discoverVolunteersFromApplications() {
 async function loadVolunteerUserEntries() {
     const orgUserIds = await getOrganizationUserIds();
     const entries = [];
-    const seenIds = new Set();
+    const entriesById = new Map();
 
     const addEntry = (id, data) => {
-        if (!id || seenIds.has(id) || orgUserIds.has(id)) return;
+        if (!id || orgUserIds.has(id)) return;
+        const existing = entriesById.get(id);
+        if (existing) {
+            if (data?.firstActivityAt) {
+                existing.data.firstActivityAt = pickEarlierDate(
+                    existing.data.firstActivityAt,
+                    data.firstActivityAt
+                );
+            }
+            return;
+        }
         if (!isVolunteerUserDoc(data, orgUserIds)) return;
-        seenIds.add(id);
-        entries.push({ id, data });
+        const entry = { id, data: { ...data } };
+        entriesById.set(id, entry);
+        entries.push(entry);
     };
 
     try {
@@ -1798,6 +1886,7 @@ async function createVolunteerRow(userId, data, globalStats = null) {
         level,
         badgeCount,
         totalPoints,
+        createdAt: resolveVolunteerCreatedAt(data),
         disabled: data.disabled === true,
         accountStatus: String(data.status || data.accountStatus || "").toLowerCase(),
     };
@@ -1838,7 +1927,7 @@ function renderVolunteersTable(volunteers) {
 
     if (!volunteers.length) {
         tbody.innerHTML =
-            '<tr><td colspan="7" class="text-center text-muted">No volunteers found</td></tr>';
+            '<tr><td colspan="8" class="text-center text-muted">No volunteers found</td></tr>';
         return;
     }
 
@@ -1853,6 +1942,7 @@ function renderVolunteersTable(volunteers) {
 
             return `
         <tr data-volunteer-id="${escapeHtml(volunteer.id)}" data-status="${escapeHtml(statusString(status))}">
+            <td class="text-nowrap">${escapeHtml(formatAdminCreatedAt(volunteer.createdAt || volunteer.registeredAt || volunteer.joinedAt))}</td>
             <td>${escapeHtml(volunteer.name)}</td>
             <td>${escapeHtml(volunteer.email)}</td>
             <td>${volunteer.missionsJoined}</td>
@@ -2376,7 +2466,7 @@ function renderCampaignsTable(list) {
     if (!tbody) return;
     if (!list.length) {
         tbody.innerHTML =
-            '<tr><td colspan="7" class="text-center">No campaigns found</td></tr>';
+            '<tr><td colspan="8" class="text-center">No campaigns found</td></tr>';
         return;
     }
 
@@ -2393,6 +2483,7 @@ function renderCampaignsTable(list) {
                     ? `<button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="rejectCampaign('${c.id}')"><i class="ti ti-x"></i> Reject</button>`
                     : "";
             return `<tr>
+        <td class="text-nowrap">${escapeHtml(formatAdminCreatedAt(c.createdAt || c.submittedAt || c.publishedAt))}</td>
         <td>
           <strong>${escapeHtml(c.title || "Untitled")}</strong>
           <div class="small text-muted">${escapeHtml(c.category || "")} · ${escapeHtml(donationModeLabel(resolveDonationMode(c)))}</div>
@@ -2753,7 +2844,7 @@ function renderSettlementsTable(list) {
     if (!tbody) return;
     if (!list.length) {
         tbody.innerHTML =
-            '<tr><td colspan="6" class="text-center">No campaigns match this filter</td></tr>';
+            '<tr><td colspan="7" class="text-center">No campaigns match this filter</td></tr>';
         return;
     }
 
@@ -2767,6 +2858,7 @@ function renderSettlementsTable(list) {
                     ? `<button type="button" class="btn btn-sm btn-success" onclick="openSettlementModal('${c.id}')"><i class="ti ti-cash"></i> Record settlement</button>`
                     : `<span class="badge bg-success">Settled</span>`;
             return `<tr>
+        <td class="text-nowrap">${escapeHtml(formatAdminCreatedAt(c.createdAt || c.publishedAt || c.updatedAt))}</td>
         <td>
           <strong>${escapeHtml(c.title || "Untitled")}</strong>
           <div class="small text-muted">${escapeHtml(c.status || "")}</div>

@@ -745,6 +745,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
+                  <th>Created At</th>
                   <th>Organization</th>
                   <th>Contact email</th>
                   <th>Phone</th>
@@ -783,6 +784,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
+                  <th>Created At</th>
                   <th>Mission Name</th>
                   <th>Organization</th>
                   <th>Type</th>
@@ -837,6 +839,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
+                  <th>Created At</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Missions Joined</th>
@@ -876,6 +879,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
+                  <th>Created At</th>
                   <th>Campaign</th>
                   <th>Organization</th>
                   <th>Target</th>
@@ -930,6 +934,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
+                  <th>Created At</th>
                   <th>Campaign</th>
                   <th>Organization</th>
                   <th>Raised</th>
@@ -953,7 +958,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>When</th>
+                  <th>Created At</th>
                   <th>Campaign</th>
                   <th>Organization</th>
                   <th>Amount</th>

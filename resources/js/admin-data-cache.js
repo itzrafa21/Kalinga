@@ -9,7 +9,7 @@ export const ADMIN_CACHE_KEYS = {
     DASHBOARD_STATS: "dashboard-stats-v3",
     ORGANIZATIONS: "organizations",
     MISSIONS: "missions",
-    VOLUNTEERS: "volunteers",
+    VOLUNTEERS: "volunteers-v3",
     CAMPAIGNS: "campaigns",
     SETTLEMENTS: "settlements",
     MISSION_TYPES: "mission-types",
